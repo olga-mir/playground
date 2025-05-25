@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kagent-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: ai
+  source:
+    chart: kagent-crds
+    repoURL: ghcr.io/kagent-dev/kagent/helm
+    targetRevision: 0.3.7
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kagent
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: ai
+  source:
+    chart: kagent
+    repoURL: ghcr.io/kagent-dev/kagent/helm
+    targetRevision: 0.3.7
+    helm:
+      values: |
+        controller:
+          loglevel: "debug"
+       #   env:
+       #   - name: ANTHROPIC_API_KEY
+       #     valueFrom:
+       #       secretKeyRef:
+       #         name: kagent-anthropic
+       #         key: ANTHROPIC_API_KEY
+       # providers:
+       #   anthropic:
+       #     provider: Anthropic
+       #     model: "claude-3-sonnet-20240229"
+       #     apiKeySecretRef: kagent-anthropic
+       #     apiKeySecretKey: ANTHROPIC_API_KEY
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

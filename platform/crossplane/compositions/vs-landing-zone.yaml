@@ -1,0 +1,298 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: valuestreamlandingzones.platform.tornado-demo.io
+  labels:
+    provider: gcp
+    environment: standard
+spec:
+  compositeTypeRef:
+    apiVersion: platform.tornado-demo.io/v1alpha1
+    kind: ValueStreamLandingZone
+  mode: Pipeline
+  pipeline:
+    - step: environmentConfigs
+      functionRef:
+        name: function-environment-configs
+      input:
+        apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          environmentConfigs:
+            - type: Reference
+              ref:
+                name: dev-environment
+            # merge more envs:
+            # https://docs.crossplane.io/v2.0-preview/composition/environment-configs/
+
+    - step: create-namespace
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: namespace
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: Namespace
+                providerConfigRef:
+                  name: kubernetes-provider-apps-cluster
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.teamName
+                    - fromFieldPath: spec.serviceId
+                  strategy: string
+                  string:
+                    fmt: "%s-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.teamName
+                toFieldPath: spec.forProvider.manifest.metadata.labels.team
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.serviceId
+                toFieldPath: spec.forProvider.manifest.metadata.labels.service
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.environment
+                toFieldPath: spec.forProvider.manifest.metadata.labels.environment
+
+    - step: create-k8s-service-account
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $namespace := printf "%s-%s" .observed.composite.resource.spec.teamName .observed.composite.resource.spec.serviceId -}}
+            {{- $serviceAccount := printf "%s-%s-ksa" .observed.composite.resource.spec.teamName .observed.composite.resource.spec.serviceId -}}
+
+            apiVersion: kubernetes.crossplane.io/v1alpha1
+            kind: Object
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: kubernetes-sa
+            spec:
+              forProvider:
+                manifest:
+                  apiVersion: v1
+                  kind: ServiceAccount
+                  metadata:
+                    namespace: {{ $namespace }}
+                    name: {{ $serviceAccount }}
+              providerConfigRef:
+                name: kubernetes-provider-apps-cluster
+
+    - step: k8s-network-policy
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: template.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $namespace := printf "%s-%s" .observed.composite.resource.spec.teamName .observed.composite.resource.spec.serviceId -}}
+            apiVersion: kubernetes.crossplane.io/v1alpha1
+            kind: Object
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: default-deny-policy
+            spec:
+              forProvider:
+                manifest:
+                  apiVersion: networking.k8s.io/v1
+                  kind: NetworkPolicy
+                  metadata:
+                    namespace: {{ $namespace }}
+                    name: default-deny
+                  spec:
+                    podSelector: {}
+                    policyTypes:
+                      - Ingress
+                      - Egress
+              providerConfigRef:
+                name: kubernetes-provider-apps-cluster
+            {{- if has "external-egress" .observed.composite.resource.spec.networkTags }}
+            ---
+            apiVersion: kubernetes.crossplane.io/v1alpha1
+            kind: Object
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: proxy-egress-policy
+            spec:
+              forProvider:
+                manifest:
+                  apiVersion: networking.k8s.io/v1
+                  kind: NetworkPolicy
+                  metadata:
+                    namespace: {{ $namespace }}
+                    name: proxy-egress
+                  spec:
+                    podSelector: {}
+                    policyTypes:
+                      - Egress
+                    egress:
+                      - to:
+                        - ipBlock:
+                            {{- if index .context "apiextensions.crossplane.io/environment" "proxyIp" }}
+                            cidr: {{ index .context "apiextensions.crossplane.io/environment" "proxyIp" }}/32
+                            {{- else }}
+                            cidr: 100.100.100.100/32
+                            {{- end }}
+              providerConfigRef:
+                name: kubernetes-provider-apps-cluster
+            {{- end }}
+
+    - step: create-storage
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $namespace := printf "%s-%s" .observed.composite.resource.spec.teamName .observed.composite.resource.spec.serviceId -}}
+            {{- $serviceAccount := printf "%s-%s-ksa" .observed.composite.resource.spec.teamName .observed.composite.resource.spec.serviceId -}}
+
+            apiVersion: storage.gcp.upbound.io/v1beta2
+            kind: Bucket
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: storagebucket
+            spec:
+              forProvider:
+                location: {{ index .context "apiextensions.crossplane.io/environment" "region" }}
+                project: {{ index .context "apiextensions.crossplane.io/environment" "projectId" }}
+                uniformBucketLevelAccess: true
+                labels:
+                  team: {{ .observed.composite.resource.spec.teamName }}
+                  service: {{ .observed.composite.resource.spec.serviceId }}
+              providerConfigRef:
+                name: gcp-provider
+            ---
+            apiVersion: storage.gcp.upbound.io/v1beta1
+            kind: BucketIAMMember
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-iam-member
+            spec:
+              forProvider:
+                bucket: {{ .observed.resources.storagebucket.resource.status.atProvider.id }}
+                role: "roles/storage.objectAdmin"
+                member: "principal://iam.googleapis.com/projects/{{ index .context "apiextensions.crossplane.io/environment" "projectNumber" }}/locations/global/workloadIdentityPools/{{ index .context "apiextensions.crossplane.io/environment" "projectId" }}.svc.id.goog/subject/ns/{{ $namespace }}/sa/{{ $serviceAccount }}"
+              providerConfigRef:
+                name: gcp-provider
+
+    - step: create-github-repository
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: github-repo
+            base:
+              apiVersion: repo.github.upbound.io/v1alpha1
+              kind: Repository
+              spec:
+                forProvider:
+                  visibility: "private"
+                  autoInit: true
+                  deleteBranchOnMerge: true
+                  hasIssues: true
+                  hasProjects: true
+                  hasWiki: true
+                  vulnerabilityAlerts: true
+                providerConfigRef:
+                  name: github-provider-org
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.teamName
+                    - fromFieldPath: spec.serviceId
+                  strategy: string
+                  string:
+                    fmt: "%s-%s"
+                toFieldPath: spec.forProvider.name
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.teamName
+                    - fromFieldPath: spec.serviceId
+                  strategy: string
+                  string:
+                    fmt: "Repository for %s's %s service"
+                toFieldPath: spec.forProvider.description
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.githubConfig.repositoryVisibility
+                toFieldPath: spec.forProvider.visibility
+                policy:
+                  fromFieldPath: Optional
+    - step: create-github-team
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: github-team
+            base:
+              apiVersion: team.github.upbound.io/v1alpha1
+              kind: Team
+              spec:
+                providerConfigRef:
+                  name: github-provider-org
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.teamName
+                toFieldPath: spec.forProvider.name
+    - step: create-team-repository
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: github-team-repo
+            base:
+              apiVersion: team.github.upbound.io/v1alpha1
+              kind: TeamRepository
+              metadata:
+                annotations:
+                  crossplane.io/external-name: "team-alpha-service-one"
+              spec:
+                forProvider:
+                  permission: "maintain"
+                providerConfigRef:
+                  name: github-provider-org
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.teamName
+                toFieldPath: spec.forProvider.teamId
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.teamName
+                    - fromFieldPath: spec.serviceId
+                  strategy: string
+                  string:
+                    fmt: "%s-%s"
+                toFieldPath: spec.forProvider.repository
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.githubConfig.teamPermission
+                toFieldPath: spec.forProvider.permission
+                policy:
+                  fromFieldPath: Optional
+
+  writeConnectionSecretsToNamespace: crossplane-system

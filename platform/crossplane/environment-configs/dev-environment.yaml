@@ -1,0 +1,10 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: dev-environment
+data:
+  environment: "dev"
+  proxyIp: "10.0.0.1"
+  projectId: ${PROJECT_ID}
+  projectNumber: ${PROJECT_NUMBER}
+  region: "australia-southeast1"

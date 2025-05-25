@@ -1,0 +1,7 @@
+.setup-env
+
+# avoid commiting rendered manifests
+infra-setup/manifests/rendered/*
+
+crossplane-gke-sa-key.json
+

@@ -1,0 +1,7 @@
+kind: GatewayParameters
+apiVersion: gateway.kgateway.dev/v1alpha1
+metadata:
+  name: kgateway
+  namespace: kgateway-system
+spec:
+  selfManaged: {}

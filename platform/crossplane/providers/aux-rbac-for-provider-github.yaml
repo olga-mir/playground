@@ -1,0 +1,34 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: provider-github-providerconfig-reader
+rules:
+- apiGroups:
+  - github.upbound.io
+  resources:
+  - "*"
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - actions.github.upbound.io
+  resources: 
+  - "*"
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: provider-github-providerconfig-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: provider-github-providerconfig-reader
+subjects:
+- kind: ServiceAccount
+  name: provider-upjet-github-42e598a5d0d4
+  namespace: crossplane-system

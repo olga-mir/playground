@@ -1,0 +1,63 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: Project for managing platform resources
+  destinations:
+  - namespace: '*'
+    server: '*'
+  sourceRepos:
+  - '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tenants
+  namespace: argocd
+spec:
+  description: Project for Crossplane tenants apps
+  destinations:
+  - namespace: '*'
+    server: '*'
+  sourceRepos:
+  - '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ai
+  namespace: argocd
+spec:
+  description: Project for AI components - kgateway, kagent, etc
+  destinations:
+  - namespace: 'kgateway-system'
+    server: '*'
+  - namespace: 'kagent-system'
+    server: '*'
+  sourceRepos:
+  - 'https://github.com/olga-mir/playground.git'
+  - 'cr.kgateway.dev/kgateway-dev/charts'
+  - 'ghcr.io/kagent-dev/kagent/helm'
+  clusterResourceWhitelist:
+  - group: 'apiextensions.k8s.io'
+    kind: 'CustomResourceDefinition'
+  - group: ''
+    kind: 'Namespace'
+  - group: 'rbac.authorization.k8s.io'
+    kind: '*'
+  - group: 'gateway.networking.k8s.io'
+    kind: '*'
+  - group: '*'
+    kind: '*'
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
