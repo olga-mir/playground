@@ -1,0 +1,82 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: organizationconfigs.github.yourdomain.com
+spec:
+  compositeTypeRef:
+    apiVersion: github.yourdomain.com/v1alpha1
+    kind: OrganizationConfig
+  mode: Pipeline
+  pipeline:
+    - step: create-organization-ruleset
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: organization-ruleset
+            base:
+              apiVersion: organization.github.upbound.io/v1alpha1
+              kind: OrganizationRuleset
+              metadata:
+                name: default-ruleset
+              spec:
+                forProvider:
+                  enforcement: active
+                  target: branch
+                  name: Default Branch Protection
+                  conditions:
+                    refName:
+                      include:
+                        - "~ALL"
+                  rules:
+                    pullRequest:
+                      requiredApprovingReviewCount: 1
+                      requireCodeOwnerReview: true
+                      requiredReviewThreadResolution: true
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.organizationRulesets[0].name
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.organizationRulesets[0].name
+                toFieldPath: spec.forProvider.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.organizationRulesets[0].enforcement
+                toFieldPath: spec.forProvider.enforcement
+
+    - step: create-default-teams
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: default-team
+            base:
+              apiVersion: team.github.upbound.io/v1alpha1
+              kind: Team
+              metadata:
+                name: default-team
+              spec:
+                forProvider:
+                  privacy: closed
+                  description: Default team created by Crossplane
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.defaultTeams[0].name
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.defaultTeams[0].name
+                toFieldPath: spec.forProvider.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.defaultTeams[0].description
+                toFieldPath: spec.forProvider.description
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.defaultTeams[0].privacy
+                toFieldPath: spec.forProvider.privacy

@@ -1,0 +1,72 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: repositoryconfigs.github.yourdomain.com
+spec:
+  group: github.yourdomain.com
+  names:
+    kind: RepositoryConfig
+    plural: repositoryconfigs
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                repositoryName:
+                  type: string
+                description:
+                  type: string
+                visibility:
+                  type: string
+                  enum: [public, private, internal]
+                autoInit:
+                  type: boolean
+                securitySettings:
+                  type: object
+                  properties:
+                    vulnerabilityAlerts:
+                      type: boolean
+                    advancedSecurity:
+                      type: boolean
+                branchProtection:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      pattern:
+                        type: string
+                      requiresApprovals:
+                        type: boolean
+                      requiredApprovingReviewCount:
+                        type: integer
+                      requiresStatusChecks:
+                        type: boolean
+                      statusChecks:
+                        type: array
+                        items:
+                          type: string
+                repositoryRulesets:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      enforcement:
+                        type: string
+                teamAccess:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      teamName:
+                        type: string
+                      permission:
+                        type: string
+                        enum: [pull, push, maintain, triage, admin]

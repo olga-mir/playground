@@ -1,0 +1,131 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: repositoryconfigs.github.yourdomain.com
+spec:
+  compositeTypeRef:
+    apiVersion: github.yourdomain.com/v1alpha1
+    kind: RepositoryConfig
+  mode: Pipeline
+  pipeline:
+    - step: create-repository
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: repository
+            base:
+              apiVersion: repo.github.upbound.io/v1alpha1
+              kind: Repository
+              metadata:
+                name: repository-name
+              spec:
+                forProvider:
+                  visibility: private
+                  autoInit: true
+                  vulnerabilityAlerts: true
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.repositoryName
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.repositoryName
+                toFieldPath: spec.forProvider.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.description
+                toFieldPath: spec.forProvider.description
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.visibility
+                toFieldPath: spec.forProvider.visibility
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.autoInit
+                toFieldPath: spec.forProvider.autoInit
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.securitySettings.vulnerabilityAlerts
+                toFieldPath: spec.forProvider.vulnerabilityAlerts
+                policy:
+                  fromFieldPath: Optional
+
+    - step: configure-branch-protection
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: branch-protection
+            base:
+              apiVersion: repo.github.upbound.io/v1alpha1
+              kind: BranchProtection
+              metadata:
+                name: branch-protection
+              spec:
+                forProvider:
+                  pattern: "main"
+                  requiredPullRequestReviews:
+                    requiredApprovingReviewCount: 1
+                  enforceAdmins: true
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.repositoryName
+                toFieldPath: spec.forProvider.repository
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.branchProtection[0].pattern
+                toFieldPath: spec.forProvider.pattern
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.branchProtection[0].requiredApprovingReviewCount
+                toFieldPath: spec.forProvider.requiredPullRequestReviews.requiredApprovingReviewCount
+                policy:
+                  fromFieldPath: Optional
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: metadata.name
+                transforms:
+                  - type: string
+                    string:
+                      fmt: "%s-protection"
+                      type: Format
+                      variables:
+                        - fromFieldPath: spec.repositoryName
+
+    - step: configure-repository-ruleset
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: repository-ruleset
+            base:
+              apiVersion: repo.github.upbound.io/v1alpha1
+              kind: RepositoryRuleset
+              metadata:
+                name: repo-ruleset
+              spec:
+                forProvider:
+                  enforcement: active
+                  target: branch
+                  rules:
+                    pullRequest:
+                      requireLastPushApproval: true
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.repositoryName
+                toFieldPath: spec.forProvider.repository
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.repositoryRulesets[0].name
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.repositoryRulesets[0].name
+                toFieldPath: spec.forProvider.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.repositoryRulesets[0].enforcement
+                toFieldPath: spec.forProvider.enforcement:w

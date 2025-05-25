@@ -1,0 +1,14 @@
+kind: Gateway
+apiVersion: gateway.networking.k8s.io/v1
+metadata:
+  name: mcp-gateway
+  namespace: kgateway-system
+spec:
+  gatewayClassName: mcp
+  listeners:
+  - protocol: kgateway.dev/mcp
+    port: 8080
+    name: http
+    allowedRoutes:
+      namespaces:
+        from: All
