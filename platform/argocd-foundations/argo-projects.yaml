@@ -56,7 +56,7 @@ spec:
     kind: '*'
   - group: 'gateway.networking.k8s.io'
     kind: '*'
-  - group: '*'
+  - group: '*' #TODO - too much to whitelist
     kind: '*'
   namespaceResourceWhitelist:
   - group: '*'

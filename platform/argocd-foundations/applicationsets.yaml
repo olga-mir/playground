@@ -1,0 +1,67 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-applications
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+  - git:
+      repoURL: https://github.com/olga-mir/playground
+      revision: develop
+      files:
+      - path: "platform/config/applications/*.yaml"
+  template:
+    metadata:
+      name: '{{ .applications.name }}'
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{ .applications.syncWave }}'
+    spec:
+      project: '{{ .applications.project | default "platform" }}'
+      source:
+        repoURL: 'https://github.com/olga-mir/playground'
+        targetRevision: 'develop'
+        path: '{{ .applications.path }}'
+        {{- if .applications.directory }}
+        directory:
+          {{- if .applications.directory.recurse }}
+          recurse: {{ .applications.directory.recurse }}
+          {{- end }}
+        {{- end }}
+        {{- if .applications.plugin }}
+        plugin:
+          name: '{{ .applications.plugin }}'
+        {{- end }}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .applications.namespace }}'
+      {{- if .applications.syncPolicy }}
+      syncPolicy:
+        {{- if .applications.syncPolicy.automated }}
+        automated:
+          {{- if .applications.syncPolicy.automated.prune }}
+          prune: {{ .applications.syncPolicy.automated.prune }}
+          {{- end }}
+          {{- if .applications.syncPolicy.automated.selfHeal }}
+          selfHeal: {{ .applications.syncPolicy.automated.selfHeal }}
+          {{- end }}
+        {{- end }}
+        {{- if .applications.syncPolicy.syncOptions }}
+        syncOptions:
+        {{- range .applications.syncPolicy.syncOptions }}
+        - '{{ . }}'
+        {{- end }}
+        {{- else }}
+        syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+        {{- end }}
+      {{- else }}
+      syncPolicy:
+        automated:
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+      {{- end }}

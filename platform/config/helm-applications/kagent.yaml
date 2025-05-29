@@ -1,0 +1,31 @@
+applications:
+  - name: kagent-crds
+    chart: kagent-crds
+    repoURL: ghcr.io/kagent-dev/kagent/helm
+    targetRevision: 0.3.7
+    namespace: kagent-system
+    syncWave: "0"
+    project: ai
+  - name: kagent
+    chart: kagent
+    repoURL: ghcr.io/kagent-dev/kagent/helm
+    targetRevision: 0.3.7
+    namespace: kagent-system
+    syncWave: "1"
+    project: ai
+    helm:
+      values: |
+        controller:
+          loglevel: "debug"
+       #   env:
+       #   - name: ANTHROPIC_API_KEY
+       #     valueFrom:
+       #       secretKeyRef:
+       #         name: kagent-anthropic
+       #         key: ANTHROPIC_API_KEY
+       # providers:
+       #   anthropic:
+       #     provider: Anthropic
+       #     model: "claude-3-sonnet-20240229"
+       #     apiKeySecretRef: kagent-anthropic
+       #     apiKeySecretKey: ANTHROPIC_API_KEY

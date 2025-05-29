@@ -1,0 +1,35 @@
+applications:
+
+  # Install crossplane providers
+  - name: crossplane-providers
+    path: platform/crossplane/providers
+    namespace: crossplane-system
+    syncWave: "-8"
+    project: platform
+
+  # Provider configs tell providers how to connect to
+  # their respective platforms and configures credentials.
+  # Each providerconfig has its own CRD and therefore
+  # can be installed only after providers are installed
+  # configured their CRDs
+  - name: crossplane-provider-configs
+    path: platform/crossplane/provider-configs
+    namespace: crossplane-system
+    syncWave: "-6"
+    project: platform
+    plugin: env-substitution-plugin
+
+  # Install crossplane functions
+  - name: crossplane-functions
+    path: platform/crossplane/functions
+    namespace: argocd
+    syncWave: "-4"
+    project: platform
+
+  # Install environment configs
+  - name: crossplane-environment-configs
+    path: platform/crossplane/environment-configs
+    namespace: crossplane-system
+    syncWave: "0"
+    project: platform
+    plugin: env-substitution-plugin

@@ -1,0 +1,13 @@
+applications:
+  - name: kagent
+    path: platform/mcp-gateway/kagent
+    namespace: mcp-gateway
+    syncWave: "0"
+  - name: kgateway
+    path: platform/mcp-gateway/kgateway
+    namespace: mcp-gateway
+    syncWave: "0"
+  - name: mcp-gateway-config
+    path: platform/mcp-gateway/config
+    namespace: mcp-gateway
+    syncWave: "2"

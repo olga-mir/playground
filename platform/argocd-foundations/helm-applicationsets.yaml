@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: helm-applications
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/olga-mir/playground
+      revision: develop
+      files:
+      - path: "platform/config/helm-applications/*.yaml"
+  template:
+    metadata:
+      name: '{{applications.name}}'
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{applications.syncWave}}'
+    spec:
+      project: '{{applications.project}}'
+      source:
+        chart: '{{applications.chart}}'
+        repoURL: '{{applications.repoURL}}'
+        targetRevision: '{{applications.targetRevision}}'
+        {{- if applications.helm }}
+        helm:
+          {{- if applications.helm.values }}
+          values:
+            {{ .applications.helm.values -}}
+          {{- end }}
+        {{- end }}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{applications.namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
