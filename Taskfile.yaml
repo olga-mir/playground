@@ -12,18 +12,6 @@ tasks:
       - ./infra-setup/04-setup-gke-clusters.sh
       #- ./infra-setup/06-k8s-provider-wli.sh
 
-  setup:deploy-without-argo:
-    desc: "Run full infrastructure setup, without installing Argo"
-    cmds:
-      - ./infra-setup/02-create-and-setup-kind.sh
-      - ./infra-setup/03-deploy-gke-clusters.sh
-      - sleep 240
-      - ./infra-setup/03-w-deploy-gke-clusters-wait.sh
-      - ./infra-setup/04-setup-gke-clusters.sh --no-argo
-      - ./infra-setup/05-manual-ops-without-argo.sh
-      #- ./infra-setup/06-k8s-provider-wli.sh
-
-  setup:cleanup:
     desc: "Cleanup infrastructure"
     cmds:
       - ./infra-setup/00-cleanup.sh
@@ -44,11 +32,6 @@ tasks:
     desc: port forward kagent
     cmds:
       - kubectl port-forward -n kagent-system svc/kagent 8082:80
-
-  debug:crossplane-render:
-    desc: "Render (need to figure out way to pass env config)"
-    cmds:
-      - crossplane render teams/team-alpha/landing-zone-claim.yaml platform/crossplane/compositions/vs-landing-zone.yaml platform/crossplane/functions
 
   debug:crossplane-trace:
     desc: "Trace"
