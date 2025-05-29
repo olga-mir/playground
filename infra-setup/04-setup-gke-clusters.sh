@@ -162,7 +162,7 @@ if [ "$SKIP_ARGO" = false ]; then
     add_repo_to_argocd
     kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/argo-projects.yaml
     sleep 3
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/root.yaml
+    kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/applicationsets.yaml
     install_argo_agent_on_target_cluster
 else
     echo "Skipping ArgoCD installation and configuration..."
