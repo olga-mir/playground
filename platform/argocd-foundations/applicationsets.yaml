@@ -6,11 +6,18 @@ metadata:
 spec:
   goTemplate: true
   generators:
-  - git:
-      repoURL: https://github.com/olga-mir/playground
-      revision: develop
-      files:
-      - path: "platform/config/applications/*.yaml"
+  - matrix:
+      generators:
+      - git:
+          repoURL: https://github.com/olga-mir/playground
+          revision: develop
+          files:
+          - path: "platform/config/repository.yaml"
+      - git:
+          repoURL: https://github.com/olga-mir/playground
+          revision: develop
+          files:
+          - path: "platform/config/applications/*.yaml"
   template:
     metadata:
       name: '{{ .applications.name }}'
@@ -22,12 +29,12 @@ spec:
       {{- if .applications.sources }}
       sources:
       {{- range .applications.sources }}
-      - repoURL: 'https://github.com/olga-mir/playground'
-        targetRevision: 'develop'
+      - repoURL: '{{ $.repository.url }}'
+        targetRevision: '{{ $.repository.branch }}'
         path: '{{ .path }}'
         {{- if .directory }}
         directory:
-          recurse: '{{ .directory.recurse | default "true" }}'
+          recurse: true
         {{- end }}
         {{- if .plugin }}
         plugin:
@@ -36,15 +43,11 @@ spec:
       {{- end }}
       {{- else }}
       source:
-        repoURL: 'https://github.com/olga-mir/playground'
-        targetRevision: 'develop'
+        repoURL: '{{ .repository.url }}'
+        targetRevision: '{{ .repository.branch }}'
         path: '{{ .applications.path }}'
-        {{- if .applications.directory }}
         directory:
-          {{- if .applications.directory.recurse }}
-          recurse: {{ .applications.directory.recurse }}
-          {{- end }}
-        {{- end }}
+          recurse: true
         {{- if .applications.plugin }}
         plugin:
           name: '{{ .applications.plugin }}'
@@ -55,15 +58,9 @@ spec:
         namespace: '{{ .applications.namespace }}'
       {{- if .applications.syncPolicy }}
       syncPolicy:
-        {{- if .applications.syncPolicy.automated }}
         automated:
-          {{- if .applications.syncPolicy.automated.prune }}
-          prune: {{ .applications.syncPolicy.automated.prune }}
-          {{- end }}
-          {{- if .applications.syncPolicy.automated.selfHeal }}
-          selfHeal: {{ .applications.syncPolicy.automated.selfHeal }}
-          {{- end }}
-        {{- end }}
+          prune: {{ .applications.syncPolicy.automated.prune | default true }}
+          selfHeal: {{ .applications.syncPolicy.automated.selfHeal | default true }}
         {{- if .applications.syncPolicy.syncOptions }}
         syncOptions:
         {{- range .applications.syncPolicy.syncOptions }}
