@@ -1,7 +1,7 @@
 name: kagent-crds
 chart: kagent-crds
 repoURL: ghcr.io/kagent-dev/kagent/helm
-targetRevision: 0.3.7
+targetRevision: 0.3.11
 namespace: kagent-system
 syncWave: "0"
 project: ai

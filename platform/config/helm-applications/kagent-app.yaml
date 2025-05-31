@@ -1,24 +1,19 @@
-applications:
-  - name: kagent
-    chart: kagent
-    repoURL: ghcr.io/kagent-dev/kagent/helm
-    targetRevision: 0.3.7
-    namespace: kagent-system
-    syncWave: "1"
-    project: ai
-    helm:
-      values: |
-        controller:
-          loglevel: "debug"
-       #   env:
-       #   - name: ANTHROPIC_API_KEY
-       #     valueFrom:
-       #       secretKeyRef:
-       #         name: kagent-anthropic
-       #         key: ANTHROPIC_API_KEY
-       # providers:
-       #   anthropic:
-       #     provider: Anthropic
-       #     model: "claude-3-sonnet-20240229"
-       #     apiKeySecretRef: kagent-anthropic
-       #     apiKeySecretKey: ANTHROPIC_API_KEY
+name: kagent
+chart: kagent
+repoURL: ghcr.io/kagent-dev/kagent/helm
+targetRevision: 0.3.11
+namespace: kagent-system
+syncWave: "1"
+project: ai
+helm:
+  values: |
+    controller:
+      loglevel: "debug"
+    providers:
+      default: OpenAI
+      openAI:
+        provider: openAI
+        model: "gpt-4.1-mini"
+        apiKeySecretRef: false
+        apiKey: false
+        config: {}
