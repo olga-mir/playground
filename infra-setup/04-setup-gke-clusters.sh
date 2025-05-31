@@ -113,6 +113,35 @@ install_and_configure_argocd_cluster() {
   echo "Argo CD on management cluster configured to connect to ${target_cluster_name}"
 }
 
+# Function to wait for ArgoCD repo server pods to be ready
+wait_for_argocd_ready() {
+  echo "Waiting for ArgoCD repo server to be ready..."
+
+  # Maximum number of retries
+  local max_retries=30
+  local retry_count=0
+  local ready=false
+
+  while [ $retry_count -lt $max_retries ] && [ "$ready" = false ]; do
+    # Check if pod with label app.kubernetes.io/name=argocd-repo-server is ready
+    if kubectl --context="${MGMT_CLUSTER_CONTEXT}" -n "${ARGOCD_NAMESPACE}" wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-repo-server --timeout=10s >/dev/null 2>&1; then
+      echo "ArgoCD repo server is ready!"
+      ready=true
+    else
+      echo "Waiting for ArgoCD repo server to be ready... (${retry_count}/${max_retries})"
+      retry_count=$((retry_count+1))
+      sleep 10
+    fi
+  done
+
+  if [ "$ready" = false ]; then
+    echo "Timed out waiting for ArgoCD repo server to be ready"
+    return 1
+  fi
+
+  return 0
+}
+
 # Function to add a repository to Argo CD
 add_repo_to_argocd() {
   echo "Adding repository to Argo CD..."
@@ -164,9 +193,10 @@ echo "Starting setup..."
 if [ "$SKIP_ARGO" = false ]; then
     install_and_configure_argocd_cluster "apps-dev-cluster" "${APPS_DEV_CLUSTER_CONTEXT}"
     add_repo_to_argocd
+    wait_for_argocd_ready
     kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/argo-projects.yaml
-    #sleep 3
-    #kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations
+    sleep 3
+    kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations
     install_argo_agent_on_target_cluster
 else
     echo "Skipping ArgoCD installation and configuration..."
@@ -236,15 +266,20 @@ if ! kubectl --context="${MGMT_CLUSTER_CONTEXT}" get secret ${GITHUB_DEST_ORG_SE
 fi
 set -x
 
-kubectl create namespace kagent-system
 set +x
 echo Creating AI platform API Key secret for kagent
+
+if ! kubectl --context="${MGMT_CLUSTER_CONTEXT}" get namespace kagent-system &>/dev/null; then
+  kubectl --context="${MGMT_CLUSTER_CONTEXT}" create namespace kagent-system
+  echo "Created kagent-system namespace"
+fi
+
 #kubectl create secret generic kagent-anthropic \
 #  --from-literal=ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY} \
 #  -n kagent-system
 
 # not sure if Anthropic is properly supported
 # openai is main primary focus
-kubectl create secret generic kagent-openai \
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic kagent-openai \
   --from-literal=OPENAI_API_KEY=${OPENAI_API_KEY} \
   -n kagent-system
