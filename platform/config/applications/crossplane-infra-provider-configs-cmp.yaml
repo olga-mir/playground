@@ -1,0 +1,11 @@
+# Provider configs tell providers how to connect to
+# their respective platforms and configures credentials.
+# Each providerconfig has its own CRD and therefore
+# can be installed only after providers are installed
+# configured their CRDs
+name: crossplane-provider-configs
+path: platform/crossplane/provider-configs
+namespace: crossplane-system
+syncWave: "-6"
+project: platform
+plugin: env-substitution-plugin

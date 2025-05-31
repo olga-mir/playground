@@ -106,6 +106,10 @@ install_and_configure_argocd_cluster() {
 
   rm "${target_cluster_name}.kubeconfig"
 
+  # bloody argo CMP mess!
+  # check infra-setup/README.md how it should look like
+  kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/rendered/argo-env-plugin-configmap.yaml
+
   echo "Argo CD on management cluster configured to connect to ${target_cluster_name}"
 }
 
@@ -161,8 +165,8 @@ if [ "$SKIP_ARGO" = false ]; then
     install_and_configure_argocd_cluster "apps-dev-cluster" "${APPS_DEV_CLUSTER_CONTEXT}"
     add_repo_to_argocd
     kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/argo-projects.yaml
-    sleep 3
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/applicationsets.yaml
+    #sleep 3
+    #kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations
     install_argo_agent_on_target_cluster
 else
     echo "Skipping ArgoCD installation and configuration..."
@@ -231,10 +235,6 @@ if ! kubectl --context="${MGMT_CLUSTER_CONTEXT}" get secret ${GITHUB_DEST_ORG_SE
         --from-literal=credentials="{\"token\":\"${GITHUB_DEST_ORG_PAT}\",\"owner\":\"${GITHUB_DEST_ORG_NAME}\"}" || { echo "Error creating provider-secret-org secret"; exit 1; }
 fi
 set -x
-
-# bloody argo CMP mess!
-# check infra-setup/README.md how it should look like
-kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/rendered/argo-env-plugin-configmap.yaml
 
 kubectl create namespace kagent-system
 set +x
