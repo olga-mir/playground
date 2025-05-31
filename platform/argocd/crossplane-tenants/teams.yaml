@@ -6,26 +6,28 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
+  goTemplate: true
   generators:
-    - git:
-        repoURL: 'https://github.com/olga-mir/playground'
-        revision: develop
-        directories:
-          - path: 'teams/*'
+  - git:
+      repoURL: 'https://github.com/olga-mir/playground'
+      revision: develop
+      directories:
+      - path: 'teams/*'
   template:
     metadata:
-      name: '{{path.basename}}-tenant'
+      name: '{{ .path.basename }}-tenant'
+      namespace: argocd
       labels:
-        team: '{{path.basename}}'
+        team: '{{ .path.basename }}'
     spec:
       project: tenants
       source:
         repoURL: 'https://github.com/olga-mir/playground'
         targetRevision: develop
-        path: '{{path}}'
+        path: '{{ .path }}'
       destination:
         server: 'https://kubernetes.default.svc'
-        namespace: '{{path.basename}}-tenant'
+        namespace: '{{ .path.basename }}-tenant'
       syncPolicy:
         automated:
           prune: true

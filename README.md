@@ -22,7 +22,24 @@ This is deployed using scripts and Crossplane running in local `kind` cluster an
 └── teams       # Software Engineering teams Crossplane tenancy
 ```
 
-More detailed look into platform:
+### Platform Building Blocks
+
+#### argocd-foundations
+
+These are foundational objects to configure ArgoCD and umbrella ApplicationSets that include all apps managed in this repo.
+
+Because they are the base for Argo itself, files in this folder are applied externally not by Argo.
+
+```
+platform/argocd-foundations/
+├── argo-projects.yaml                 # Definitions for all ArgoCD Projects
+├── platform-applicationsets.yaml      # ApplicationSet for all apps managed in this repo
+├── helm-applicationsets.yaml          # ApplicationSet for all apps installed as external helm
+└── teams-applicationsets.yaml         # Teams discovery
+```
+
+
+
 ```
 ├── platform
 │   ├── argocd                   # ArgoCD applications, anything that is installed in the cluster, installed by GitOps.
@@ -30,9 +47,6 @@ More detailed look into platform:
 │   │   ├── crossplane-infra
 │   │   ├── crossplane-tenants
 │   │   └── mcp-gateway
-│   ├── argocd-foundations       # applied manually ArgoCD projects and root of app of apps
-│   │   ├── argo-projects.yaml
-│   │   └── root.yaml
 │   └── crossplane                # Everything required to run Crossplane, including platform abstractions built by platform to be consumed by developer teams
 │       ├── compositions
 │       ├── definitions
