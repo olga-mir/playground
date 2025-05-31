@@ -4,34 +4,39 @@ metadata:
   name: helm-applications
   namespace: argocd
 spec:
+  goTemplate: true
   generators:
-  - git:
-      repoURL: https://github.com/olga-mir/playground
-      revision: develop
-      files:
-      - path: "platform/config/helm-applications/*.yaml"
+  - matrix:
+      generators:
+      - git:
+          repoURL: https://github.com/olga-mir/playground
+          revision: develop
+          files:
+          - path: "platform/config/repository.yaml"
+          pathParamPrefix: repo
+      - git:
+          repoURL: https://github.com/olga-mir/playground
+          revision: develop
+          files:
+          - path: "platform/config/helm-applications/*.yaml"
+          pathParamPrefix: apps
   template:
     metadata:
-      name: '{{applications.name}}'
+      name: '{{ .name }}'
       namespace: argocd
       annotations:
-        argocd.argoproj.io/sync-wave: '{{applications.syncWave}}'
+        argocd.argoproj.io/sync-wave: '{{ .syncWave }}'
     spec:
-      project: '{{applications.project}}'
+      project: '{{ .project }}'
       source:
-        chart: '{{applications.chart}}'
-        repoURL: '{{applications.repoURL}}'
-        targetRevision: '{{applications.targetRevision}}'
-        {{- if applications.helm }}
+        chart: '{{ .chart }}'
+        repoURL: '{{ .repoURL }}'
+        targetRevision: '{{ .targetRevision }}'
         helm:
-          {{- if applications.helm.values }}
-          values:
-            {{ .applications.helm.values -}}
-          {{- end }}
-        {{- end }}
+          values: '{{ .helm.values | default ""}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{applications.namespace}}'
+        namespace: '{{ .namespace }}'
       syncPolicy:
         automated:
           prune: true
@@ -39,3 +44,5 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
+          - SkipDryRunOnMissingResource=true
+          - FailOnSharedResource=true

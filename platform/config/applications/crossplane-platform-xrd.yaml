@@ -1,0 +1,5 @@
+name: crossplane-compositions
+path: platform/crossplane/compositions
+namespace: crossplane-system
+syncWave: "-8"
+project: platform
