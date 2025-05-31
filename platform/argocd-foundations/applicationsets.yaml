@@ -19,6 +19,22 @@ spec:
         argocd.argoproj.io/sync-wave: '{{ .applications.syncWave }}'
     spec:
       project: '{{ .applications.project | default "platform" }}'
+      {{- if .applications.sources }}
+      sources:
+      {{- range .applications.sources }}
+      - repoURL: 'https://github.com/olga-mir/playground'
+        targetRevision: 'develop'
+        path: '{{ .path }}'
+        {{- if .directory }}
+        directory:
+          recurse: '{{ .directory.recurse | default "true" }}'
+        {{- end }}
+        {{- if .plugin }}
+        plugin:
+          name: '{{ .plugin }}'
+        {{- end }}
+      {{- end }}
+      {{- else }}
       source:
         repoURL: 'https://github.com/olga-mir/playground'
         targetRevision: 'develop'
@@ -33,6 +49,7 @@ spec:
         plugin:
           name: '{{ .applications.plugin }}'
         {{- end }}
+      {{- end }}
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .applications.namespace }}'
