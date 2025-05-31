@@ -1,0 +1,5 @@
+name: mcp-gateway-config
+path: platform/mcp-gateway/config
+namespace: mcp-gateway
+syncWave: "2"
+project: platform
