@@ -1,6 +1,6 @@
 # Crossplane Demo
 
-![crossplane-intro](../images/crossplane-intro.png)
+![crossplane-intro](../../images/crossplane-intro.png)
 
 # This page is WIP
 
