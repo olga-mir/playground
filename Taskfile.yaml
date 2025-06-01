@@ -49,8 +49,9 @@ tasks:
     cmds:
       - "{{.TASKFILE_DIR}}/infra-setup/99-pod-write-bucket-test.sh"
 
-  debug:commands-assortment:
-    desc: "a busket of commands that could be useful"
+  debug:helper-commands:
+    desc: "Collection of troubleshooting commands"
     cmds:
       - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
       - echo "REPO_POD=$(kubectl -n argocd get pod -l app.kubernetes.io/name=argocd-repo-server -o name | head -1)"
+      - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"
