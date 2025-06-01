@@ -43,6 +43,8 @@ spec:
     server: '*'
   - namespace: 'kagent-system'
     server: '*'
+  - namespace: 'mcp-gateway'
+    server: '*'
   sourceRepos:
   - 'https://github.com/olga-mir/playground.git'
   - 'cr.kgateway.dev/kgateway-dev/charts'
@@ -56,7 +58,7 @@ spec:
     kind: '*'
   - group: 'gateway.networking.k8s.io'
     kind: '*'
-  - group: '*'
+  - group: '*' #TODO - too much to whitelist
     kind: '*'
   namespaceResourceWhitelist:
   - group: '*'

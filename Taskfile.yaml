@@ -10,21 +10,9 @@ tasks:
       - sleep 240
       - ./infra-setup/03-w-deploy-gke-clusters-wait.sh
       - ./infra-setup/04-setup-gke-clusters.sh
-      #- ./infra-setup/06-k8s-provider-wli.sh
 
-  setup:deploy-without-argo:
-    desc: "Run full infrastructure setup, without installing Argo"
-    cmds:
-      - ./infra-setup/02-create-and-setup-kind.sh
-      - ./infra-setup/03-deploy-gke-clusters.sh
-      - sleep 240
-      - ./infra-setup/03-w-deploy-gke-clusters-wait.sh
-      - ./infra-setup/04-setup-gke-clusters.sh --no-argo
-      - ./infra-setup/05-manual-ops-without-argo.sh
-      #- ./infra-setup/06-k8s-provider-wli.sh
-
-  setup:cleanup:
-    desc: "Cleanup infrastructure"
+  setup:full-cleanup:
+    desc: "Cleanup infrastructure (forcefull)"
     cmds:
       - ./infra-setup/00-cleanup.sh
 
@@ -45,11 +33,6 @@ tasks:
     cmds:
       - kubectl port-forward -n kagent-system svc/kagent 8082:80
 
-  debug:crossplane-render:
-    desc: "Render (need to figure out way to pass env config)"
-    cmds:
-      - crossplane render teams/team-alpha/landing-zone-claim.yaml platform/crossplane/compositions/vs-landing-zone.yaml platform/crossplane/functions
-
   debug:crossplane-trace:
     desc: "Trace"
     cmds:
@@ -66,8 +49,9 @@ tasks:
     cmds:
       - "{{.TASKFILE_DIR}}/infra-setup/99-pod-write-bucket-test.sh"
 
-  debug:commands-assortment:
-    desc: "a busket of commands that could be useful"
+  debug:helper-commands:
+    desc: "Collection of troubleshooting commands"
     cmds:
       - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
       - echo "REPO_POD=$(kubectl -n argocd get pod -l app.kubernetes.io/name=argocd-repo-server -o name | head -1)"
+      - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"

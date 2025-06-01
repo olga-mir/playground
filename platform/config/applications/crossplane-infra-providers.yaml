@@ -1,0 +1,5 @@
+name: crossplane-providers
+path: platform/crossplane/providers
+namespace: crossplane-system
+syncWave: "-8"
+project: platform

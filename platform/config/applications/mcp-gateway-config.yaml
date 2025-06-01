@@ -1,0 +1,5 @@
+name: mcp-gateway-config
+path: ai/kgateway/mcp-gateway
+namespace: mcp-gateway
+syncWave: "2"
+project: ai

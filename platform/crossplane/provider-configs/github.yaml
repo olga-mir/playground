@@ -2,6 +2,8 @@ apiVersion: github.upbound.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: github-provider-org
+  annotations:
+    todo-cmp-workaround: ${PROJECT_ID}
 spec:
   credentials:
     source: Secret

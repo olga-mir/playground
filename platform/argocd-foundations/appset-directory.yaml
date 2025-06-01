@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-applications-directory
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+  - matrix:
+      generators:
+      - git:
+          repoURL: https://github.com/olga-mir/playground
+          revision: develop
+          files:
+          - path: "platform/config/repository.yaml"
+          pathParamPrefix: repo
+      - git:
+          repoURL: https://github.com/olga-mir/playground
+          revision: develop
+          files:
+          - path: "platform/config/applications/*.yaml"
+          - path: "!platform/config/applications/*-cmp.yaml"
+          pathParamPrefix: app
+  template:
+    metadata:
+      name: '{{ .name }}'
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{ .syncWave }}'
+    spec:
+      project: '{{ .project }}'
+      source:
+        repoURL: '{{ .repository.url }}'
+        targetRevision: '{{ .repository.branch }}'
+        path: '{{ .path }}'
+        directory:
+          recurse: true
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - SkipDryRunOnMissingResource=true
+        - ServerSideApply=true
+        - CreateNamespace=true
+        - FailOnSharedResource=true
