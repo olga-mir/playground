@@ -1,0 +1,5 @@
+name: kagent-rendered-helm-workaround
+path: ai/kagent/kagent-app
+namespace: kagent-system
+syncWave: "2"
+project: ai
