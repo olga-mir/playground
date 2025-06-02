@@ -4,7 +4,7 @@ syncWave: "1"
 name: kgateway-mcp
 chart: kgateway
 repoURL: us-docker.pkg.dev/developers-369321/gloo-platform-dev/charts
-targetRevision: v2.0.0
+targetRevision: v2.0.0-mcpdemo
 #  --set image.tag=v2.0.0
 # https://kgateway.dev/docs/mcp/
 namespace: kgateway-system
