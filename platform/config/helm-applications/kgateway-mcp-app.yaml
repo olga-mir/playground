@@ -4,14 +4,15 @@ syncWave: "1"
 name: kgateway-mcp
 chart: kgateway
 repoURL: us-docker.pkg.dev/developers-369321/gloo-platform-dev/charts
-targetRevision: v2.0.2
+targetRevision: v2.0.0
 #  --set image.tag=v2.0.0
+# https://kgateway.dev/docs/mcp/
 namespace: kgateway-system
 values:
   controller:
     image:
       registry: us-docker.pkg.dev/developers-369321/gloo-platform-dev
-      tag: 2.0.2
+      tag: v2.0.0-mcpdemo
   discoveryNamespaceSelectors:
     matchLabels:
       kubernetes.io/metadata.name: kgateway-mcp
