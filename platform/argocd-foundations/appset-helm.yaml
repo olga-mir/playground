@@ -33,7 +33,10 @@ spec:
         repoURL: '{{ .repoURL }}'
         targetRevision: '{{ .targetRevision }}'
         helm:
-          values: '{{ .helm.values | default ""}}'
+          values: |-
+            {{- with .helm.values }}
+            {{ toYaml . }}
+            {{- end }}
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .namespace }}'
