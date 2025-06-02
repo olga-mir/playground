@@ -43,7 +43,7 @@ spec:
     server: '*'
   - namespace: 'kagent-system'
     server: '*'
-  - namespace: 'mcp-gateway'
+  - namespace: 'kgateway-mcp'
     server: '*'
   sourceRepos:
   - 'https://github.com/olga-mir/playground.git'

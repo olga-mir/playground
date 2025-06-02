@@ -3,4 +3,4 @@ syncWave: "2"
 
 name: kgateway-mcp-config
 path: ai/kgateway-mcp
-namespace: mcp-gateway
+namespace: kgateway-mcp
