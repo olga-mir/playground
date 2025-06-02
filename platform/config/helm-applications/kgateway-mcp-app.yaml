@@ -1,0 +1,14 @@
+project: ai
+syncWave: "1"
+
+name: kgateway-mcp
+chart: kgateway
+repoURL: us-docker.pkg.dev/developers-369321/gloo-platform-dev/charts
+targetRevision: v2.0.2
+#  --set image.tag=v2.0.0
+namespace: kgateway-system
+values:
+  controller:
+    image:
+      registry: us-docker.pkg.dev/developers-369321/gloo-platform-dev
+      tag: 2.0.2

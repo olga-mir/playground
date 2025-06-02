@@ -1,0 +1,15 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: kgateway
+  namespace: kgateway
+spec:
+  gatewayClassName: kgateway
+  listeners:
+  # protocol: kgateway.dev/mcp
+  # no "basic" protocol: https://github.com/kgateway-dev/kgateway/blob/83f86b3a91bbe798be1bd78b5da76940b292470b/internal/kgateway/agentgatewaysyncer/const.go#L8-L9
+  - port: 8080
+    name: http
+    allowedRoutes:
+      namespaces:
+        from: All
