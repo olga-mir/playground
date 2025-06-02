@@ -12,3 +12,7 @@ values:
     image:
       registry: us-docker.pkg.dev/developers-369321/gloo-platform-dev
       tag: 2.0.2
+  discoveryNamespaceSelectors:
+    matchLabels:
+      kubernetes.io/metadata.name: kgateway-mcp
+      kgateway-name: kgateway-mcp
