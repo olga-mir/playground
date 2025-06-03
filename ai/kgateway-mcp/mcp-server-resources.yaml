@@ -1,0 +1,106 @@
+# step 4 - https://kgateway.dev/docs/mcp/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-gateway
+  namespace: kgateway-system
+spec:
+  selector:
+    matchLabels:
+      app: mcp-gateway
+  template:
+    metadata:
+      labels:
+        app: mcp-gateway
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: mcp-gateway
+        image: ghcr.io/mcp-proxy/mcp-proxy:0.0.3
+        args:
+          - --file=/config/config.json
+        resources:
+          requests:
+            cpu: 200m
+            memory: 500Mi
+          limits:
+            memory: 800Mi
+        env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: GW_NAME
+            value:  mcp-gateway
+          - name: RUST_BACKTRACE
+            value: "1"
+          - name: RUST_LOG
+            value: debug
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: mcp-gateway-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-gateway
+  namespace: kgateway-system
+spec:
+  selector:
+    app: mcp-gateway
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-gateway-config
+  namespace: kgateway-system
+data:
+  config.json: |
+    {
+      "type": "xds",
+      "xds_address": "http://kgateway-mcp.kgateway-system.svc.cluster.local:9977",
+      "metadata": {},
+      "alt_xds_hostname": "mcp-gateway.default.svc.cluster.local",
+      "listener": {
+        "type": "sse",
+        "host": "0.0.0.0",
+        "port": 8080,
+        "authn": {
+          "type":"jwt",
+          "issuer": ["me"],
+          "audience": ["me.com"],
+            "jwks": {
+              "type": "local",
+                "source":
+                  { "type": "file", "data": "/config/jwks.json" }
+                }
+        }
+      }
+    }
+  jwks.json: |
+    {
+      "use": "sig",
+      "kty": "EC",
+      "kid": "XhO06x8JjWH1wwkWkyeEUxsooGEWoEdidEpwyd_hmuI",
+      "crv": "P-256",
+      "alg": "ES256",
+      "x": "XZHF8Em5LbpqfgewAalpSEH4Ka2I2xjcxxUt2j6-lCo",
+      "y": "g3DFz45A7EOUMgmsNXatrXw1t-PG5xsbkxUs851RxSE"
+    }
