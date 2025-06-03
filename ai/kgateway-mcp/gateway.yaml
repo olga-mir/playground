@@ -1,10 +1,10 @@
-kind: Gateway
 apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
 metadata:
-  name: mcp-gateway
+  name: kgateway-mcp
   namespace: kgateway-system
 spec:
-  gatewayClassName: mcp
+  gatewayClassName: kgateway-mcp
   listeners:
   - protocol: kgateway.dev/mcp
     port: 8080

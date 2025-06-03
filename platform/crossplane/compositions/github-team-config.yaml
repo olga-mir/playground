@@ -1,10 +1,10 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: teamconfigs.github.yourdomain.com
+  name: teamconfigs.platform.tornado-demo.io
 spec:
   compositeTypeRef:
-    apiVersion: github.yourdomain.com/v1alpha1
+    apiVersion: platform.tornado-demo.io/v1alpha1
     kind: TeamConfig
   mode: Pipeline
   pipeline:
@@ -117,3 +117,7 @@ spec:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
                 toFieldPath: spec.forProvider.teamId:w
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready

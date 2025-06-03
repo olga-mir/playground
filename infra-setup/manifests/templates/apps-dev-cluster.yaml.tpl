@@ -6,6 +6,7 @@
 # new
 # https://marketplace.upbound.io/providers/upbound/provider-gcp-beta-container/v0.4.4/resources/container.gcp-beta.upbound.io/Cluster/v1beta2
 # https://marketplace.upbound.io/providers/upbound/provider-gcp-beta-container/v0.4.4/resources/container.gcp-beta.upbound.io/NodePool/v1beta2
+# https://marketplace.upbound.io/providers/upbound/provider-gcp-beta-container/v0.5.0
 apiVersion: container.gcp-beta.upbound.io/v1beta2
 kind: Cluster
 metadata:

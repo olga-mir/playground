@@ -1,7 +1,8 @@
+project: ai
+syncWave: "0"
+
 name: kgateway-crds
 chart: kgateway-crds
 repoURL: cr.kgateway.dev/kgateway-dev/charts
 targetRevision: v2.1.0-main
 namespace: kgateway-system
-syncWave: "0"
-project: ai
