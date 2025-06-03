@@ -1,9 +1,9 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: organizationconfigs.github.yourdomain.com
+  name: organizationconfigs.platform.tornado-demo.io
 spec:
-  group: github.yourdomain.com
+  group: platform.tornado-demo.io
   names:
     kind: OrganizationConfig
     plural: organizationconfigs
