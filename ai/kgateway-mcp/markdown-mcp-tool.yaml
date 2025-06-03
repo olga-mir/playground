@@ -1,0 +1,38 @@
+# step 5 - https://kgateway.dev/docs/mcp/
+# TODO - namespace
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-tool
+spec:
+  selector:
+    matchLabels:
+      app: mcp-tool
+  template:
+    metadata:
+      labels:
+        app: mcp-tool
+    spec:
+      containers:
+        - name: mcp-tool
+          image: us-docker.pkg.dev/developers-369321/gloo-platform-dev/markitdown-mcp:2.0.0-mcpdemo
+          args:
+          - "--sse"
+          - "--host=0.0.0.0"
+          - "--port=8080"
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-tool
+spec:
+  selector:
+    app: mcp-tool
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      appProtocol: kgateway.dev/mcp
