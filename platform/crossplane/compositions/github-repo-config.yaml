@@ -1,131 +1,450 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: repositoryconfigs.github.yourdomain.com
+  name: repository-composition
+  labels:
+    provider: github
+    service: repository
+    version: "v2"
 spec:
   compositeTypeRef:
-    apiVersion: github.yourdomain.com/v1alpha1
-    kind: RepositoryConfig
+    apiVersion: github.platform.io/v1alpha1
+    kind: XRepository
+
   mode: Pipeline
   pipeline:
-    - step: create-repository
-      functionRef:
-        name: function-patch-and-transform
-      input:
-        apiVersion: pt.fn.crossplane.io/v1beta1
-        kind: Resources
-        resources:
-          - name: repository
-            base:
-              apiVersion: repo.github.upbound.io/v1alpha1
-              kind: Repository
-              metadata:
-                name: repository-name
-              spec:
-                forProvider:
-                  visibility: private
-                  autoInit: true
-                  vulnerabilityAlerts: true
-                providerConfigRef:
-                  name: default
-            patches:
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryName
-                toFieldPath: metadata.name
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryName
-                toFieldPath: spec.forProvider.name
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.description
-                toFieldPath: spec.forProvider.description
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.visibility
-                toFieldPath: spec.forProvider.visibility
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.autoInit
-                toFieldPath: spec.forProvider.autoInit
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.securitySettings.vulnerabilityAlerts
-                toFieldPath: spec.forProvider.vulnerabilityAlerts
-                policy:
-                  fromFieldPath: Optional
 
-    - step: configure-branch-protection
-      functionRef:
-        name: function-patch-and-transform
-      input:
-        apiVersion: pt.fn.crossplane.io/v1beta1
-        kind: Resources
-        resources:
-          - name: branch-protection
-            base:
-              apiVersion: repo.github.upbound.io/v1alpha1
-              kind: BranchProtection
-              metadata:
-                name: branch-protection
-              spec:
-                forProvider:
-                  pattern: "main"
-                  requiredPullRequestReviews:
-                    requiredApprovingReviewCount: 1
-                  enforceAdmins: true
-                providerConfigRef:
-                  name: default
-            patches:
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryName
-                toFieldPath: spec.forProvider.repository
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.branchProtection[0].pattern
-                toFieldPath: spec.forProvider.pattern
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.branchProtection[0].requiredApprovingReviewCount
-                toFieldPath: spec.forProvider.requiredPullRequestReviews.requiredApprovingReviewCount
-                policy:
-                  fromFieldPath: Optional
-              - type: FromCompositeFieldPath
-                fromFieldPath: metadata.name
-                toFieldPath: metadata.name
-                transforms:
-                  - type: string
-                    string:
-                      fmt: "%s-protection"
-                      type: Format
-                      variables:
-                        - fromFieldPath: spec.repositoryName
+  # Step 1: Patch and Transform function for basic resource creation
+  - step: patch-and-transform
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
 
-    - step: configure-repository-ruleset
-      functionRef:
-        name: function-patch-and-transform
-      input:
-        apiVersion: pt.fn.crossplane.io/v1beta1
-        kind: Resources
-        resources:
-          - name: repository-ruleset
-            base:
-              apiVersion: repo.github.upbound.io/v1alpha1
-              kind: RepositoryRuleset
-              metadata:
-                name: repo-ruleset
-              spec:
-                forProvider:
-                  enforcement: active
-                  target: branch
-                  rules:
-                    pullRequest:
-                      requireLastPushApproval: true
-                providerConfigRef:
-                  name: default
-            patches:
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryName
-                toFieldPath: spec.forProvider.repository
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryRulesets[0].name
-                toFieldPath: metadata.name
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryRulesets[0].name
-                toFieldPath: spec.forProvider.name
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryRulesets[0].enforcement
-                toFieldPath: spec.forProvider.enforcement:w
+      # Main Repository Resource
+      - name: repository
+        base:
+          apiVersion: repo.github.upbound.io/v1alpha1
+          kind: Repository
+          spec:
+            forProvider:
+              visibility: private
+              hasIssues: true
+              hasProjects: true
+              hasWiki: false
+              allowMergeCommit: true
+              allowSquashMerge: true
+              allowRebaseMerge: true
+              deleteBranchOnMerge: true
+              autoInit: true
+        patches:
+        # Use serviceName as repository name if name not provided
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.name
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.description
+          toFieldPath: spec.forProvider.description
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.visibility
+          toFieldPath: spec.forProvider.visibility
+        # Apply settings
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.settings.hasIssues
+          toFieldPath: spec.forProvider.hasIssues
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.settings.hasWiki
+          toFieldPath: spec.forProvider.hasWiki
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.settings.allowMergeCommit
+          toFieldPath: spec.forProvider.allowMergeCommit
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.settings.deleteBranchOnMerge
+          toFieldPath: spec.forProvider.deleteBranchOnMerge
+          policy:
+            fromFieldPath: Optional
+        # Add labels for team and service
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+        # Set status fields
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.htmlUrl
+          toFieldPath: status.repositoryUrl
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.cloneUrl
+          toFieldPath: status.cloneUrl
+
+      # Default Branch Setting
+      - name: default-branch
+        base:
+          apiVersion: repo.github.upbound.io/v1alpha1
+          kind: DefaultBranch
+          spec:
+            forProvider:
+              branch: main
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.repository
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.settings.defaultBranch
+          toFieldPath: spec.forProvider.branch
+          policy:
+            fromFieldPath: Optional
+        # Add labels
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+
+      # Repository Rulesets (Modern replacement for BranchProtection)
+      - name: repository-rulesets
+        base:
+          apiVersion: repo.github.upbound.io/v1alpha1
+          kind: RepositoryRuleset
+          spec:
+            forProvider:
+              enforcement: active
+              target: branch
+              conditions:
+                refName:
+                  include: ["refs/heads/main"]
+              rules:
+              - type: required_status_checks
+                parameters:
+                  strictRequired: true
+                  requiredStatusChecks: []
+              - type: required_pull_request_reviews
+                parameters:
+                  requiredApprovingReviewCount: 2
+                  dismissStaleReviews: true
+                  requireCodeOwnerReviews: true
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.repository
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        # Create ruleset name based on service and team
+        - type: CombineFromComposite
+          combine:
+            variables:
+            - fromFieldPath: spec.teamName
+            - fromFieldPath: spec.serviceName
+            strategy: string
+            string:
+              fmt: "%s-%s-protection"
+          toFieldPath: spec.forProvider.name
+        # Apply custom rulesets if provided
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.branchProtection.customRulesets
+          toFieldPath: spec.forProvider
+          policy:
+            fromFieldPath: Optional
+        # Add labels
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+
+  # Step 2: Handle Actions Secrets (if provided)
+  - step: actions-secrets
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+
+      # Repository Secrets
+      - name: repository-secrets
+        base:
+          apiVersion: actions.github.upbound.io/v1alpha1
+          kind: ActionsSecret
+          spec:
+            forProvider: {}
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.repository
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.secrets
+          toFieldPath: spec.forProvider
+          policy:
+            fromFieldPath: Optional
+        # Add labels
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+
+      # Repository Variables
+      - name: repository-variables
+        base:
+          apiVersion: actions.github.upbound.io/v1alpha1
+          kind: ActionsVariable
+          spec:
+            forProvider: {}
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.repository
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.variables
+          toFieldPath: spec.forProvider
+          policy:
+            fromFieldPath: Optional
+        # Add labels
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+
+  # Step 3: Handle integrations (webhooks, permissions)
+  - step: integrations
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+
+      # Repository Webhooks
+      - name: repository-webhooks
+        base:
+          apiVersion: repo.github.upbound.io/v1alpha1
+          kind: RepositoryWebhook
+          spec:
+            forProvider:
+              configuration:
+                contentType: json
+                insecureSsl: false
+              active: true
+              events: ["push", "pull_request"]
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.repository
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.webhooks
+          toFieldPath: spec.forProvider
+          policy:
+            fromFieldPath: Optional
+        # Add labels
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+
+      # Repository Actions Permissions
+      - name: actions-permissions
+        base:
+          apiVersion: actions.github.upbound.io/v1alpha1
+          kind: RepositoryPermission
+          spec:
+            forProvider:
+              allowedActions: selected
+              enabled: true
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.repository
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.actions
+          toFieldPath: spec.forProvider
+          policy:
+            fromFieldPath: Optional
+        # Add labels
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+
+  # Step 4: Handle team and collaborator access
+  - step: access-management
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+
+      # Team Repository Access
+      - name: team-access
+        base:
+          apiVersion: team.github.upbound.io/v1alpha1
+          kind: TeamRepository
+          spec:
+            forProvider:
+              permission: push
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.repository
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        # Default team access - give owning team maintain access
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: spec.forProvider.teamId
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamAccess
+          toFieldPath: spec.forProvider
+          policy:
+            fromFieldPath: Optional
+        # Add labels
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+
+      # Repository Collaborators
+      - name: repository-collaborators
+        base:
+          apiVersion: repo.github.upbound.io/v1alpha1
+          kind: RepositoryCollaborator
+          spec:
+            forProvider:
+              permission: push
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.repository
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.collaborators
+          toFieldPath: spec.forProvider
+          policy:
+            fromFieldPath: Optional
+        # Add labels
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+
+  # Step 5: Handle compliance files (CODEOWNERS, etc.)
+  - step: compliance-files
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+
+      # CODEOWNERS File
+      - name: codeowners-file
+        base:
+          apiVersion: repo.github.upbound.io/v1alpha1
+          kind: RepositoryFile
+          spec:
+            forProvider:
+              file: .github/CODEOWNERS
+              commitMessage: "Add CODEOWNERS file via Crossplane"
+              commitAuthor: "Platform Engineering"
+              commitEmail: "platform@company.com"
+              overwriteOnCreate: true
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: spec.forProvider.repository
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.compliance.codeowners.content
+          toFieldPath: spec.forProvider.content
+          policy:
+            fromFieldPath: Optional
+        # Generate default CODEOWNERS content if not provided
+        - type: CombineFromComposite
+          combine:
+            variables:
+            - fromFieldPath: spec.teamName
+            strategy: string
+            string:
+              fmt: "# Repository owned by %s team\n* @myorg/%s\n"
+          toFieldPath: spec.forProvider.content
+          policy:
+            fromFieldPath: Optional
+        # Add labels
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: metadata.labels["github.platform.io/team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.labels["github.platform.io/service"]
+
+  # Step 6: Auto-ready function to mark resources as ready
+  - step: auto-ready
+    functionRef:
+      name: function-auto-ready

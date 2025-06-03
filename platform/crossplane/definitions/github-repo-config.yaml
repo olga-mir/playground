@@ -1,72 +1,306 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: repositoryconfigs.github.yourdomain.com
+  name: xrepositories.github.platform.io
 spec:
-  group: github.yourdomain.com
+  group: github.platform.io
   names:
-    kind: RepositoryConfig
-    plural: repositoryconfigs
+    kind: XRepository
+    plural: xrepositories
   versions:
-    - name: v1alpha1
-      served: true
-      referenceable: true
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            spec:
-              type: object
-              properties:
-                repositoryName:
-                  type: string
-                description:
-                  type: string
-                visibility:
-                  type: string
-                  enum: [public, private, internal]
-                autoInit:
-                  type: boolean
-                securitySettings:
-                  type: object
-                  properties:
-                    vulnerabilityAlerts:
-                      type: boolean
-                    advancedSecurity:
-                      type: boolean
-                branchProtection:
-                  type: array
-                  items:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              # Service and Team Metadata
+              serviceName:
+                type: string
+                description: "Name of the service (used for naming and labeling)"
+              teamName:
+                type: string
+                description: "Name of the team owning this repository"
+
+              # Repository Basic Configuration
+              name:
+                type: string
+                description: "Repository name (optional - defaults to serviceName)"
+              description:
+                type: string
+                description: "Repository description"
+              visibility:
+                type: string
+                enum: ["public", "private", "internal"]
+                default: "private"
+              template:
+                type: object
+                properties:
+                  repository:
+                    type: string
+                    description: "Template repository (owner/repo)"
+                  includeAllBranches:
+                    type: boolean
+                    default: false
+
+              # Repository Settings
+              settings:
+                type: object
+                properties:
+                  hasIssues:
+                    type: boolean
+                    default: true
+                  hasProjects:
+                    type: boolean
+                    default: true
+                  hasWiki:
+                    type: boolean
+                    default: false
+                  hasDownloads:
+                    type: boolean
+                    default: true
+                  allowMergeCommit:
+                    type: boolean
+                    default: true
+                  allowSquashMerge:
+                    type: boolean
+                    default: true
+                  allowRebaseMerge:
+                    type: boolean
+                    default: true
+                  allowAutoMerge:
+                    type: boolean
+                    default: false
+                  deleteBranchOnMerge:
+                    type: boolean
+                    default: true
+                  defaultBranch:
+                    type: string
+                    default: "main"
+                  gitignoreTemplate:
+                    type: string
+                  licenseTemplate:
+                    type: string
+
+              # Security Configuration
+              security:
+                type: object
+                properties:
+                  secretScanning:
+                    type: boolean
+                    default: true
+                  secretScanningPushProtection:
+                    type: boolean
+                    default: true
+                  dependabotAlerts:
+                    type: boolean
+                    default: true
+                  dependabotSecurityUpdates:
+                    type: boolean
+                    default: true
+
+              # Branch Protection and Rulesets
+              branchProtection:
+                type: object
+                properties:
+                  defaultBranch:
                     type: object
                     properties:
-                      pattern:
-                        type: string
-                      requiresApprovals:
-                        type: boolean
-                      requiredApprovingReviewCount:
-                        type: integer
-                      requiresStatusChecks:
-                        type: boolean
-                      statusChecks:
+                      requiredStatusChecks:
                         type: array
                         items:
                           type: string
-                repositoryRulesets:
-                  type: array
-                  items:
+                      enforceAdmins:
+                        type: boolean
+                        default: true
+                      requiredPullRequestReviews:
+                        type: object
+                        properties:
+                          requiredApprovingReviewCount:
+                            type: integer
+                            minimum: 1
+                            maximum: 6
+                            default: 2
+                          dismissStaleReviews:
+                            type: boolean
+                            default: true
+                          requireCodeOwnerReviews:
+                            type: boolean
+                            default: true
+                      requiredLinearHistory:
+                        type: boolean
+                        default: true
+                      allowForcePushes:
+                        type: boolean
+                        default: false
+                      allowDeletions:
+                        type: boolean
+                        default: false
+                      requiredConversationResolution:
+                        type: boolean
+                        default: true
+
+                  customRulesets:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        target:
+                          type: string
+                          enum: ["branch", "tag"]
+                        enforcement:
+                          type: string
+                          enum: ["active", "evaluate", "disabled"]
+                        conditions:
+                          type: object
+                        rules:
+                          type: array
+                          items:
+                            type: object
+
+              # Repository Secrets and Variables
+              secrets:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    valueFrom:
+                      type: object
+                      properties:
+                        secretKeyRef:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            key:
+                              type: string
+                            namespace:
+                              type: string
+
+              variables:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: string
+
+              # Webhooks Configuration
+              webhooks:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    url:
+                      type: string
+                    contentType:
+                      type: string
+                      enum: ["json", "form"]
+                      default: "json"
+                    events:
+                      type: array
+                      items:
+                        type: string
+                    active:
+                      type: boolean
+                      default: true
+                    insecureSsl:
+                      type: boolean
+                      default: false
+
+              # Team Permissions
+              teamAccess:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    team:
+                      type: string
+                    permission:
+                      type: string
+                      enum: ["pull", "triage", "push", "maintain", "admin"]
+
+              # Collaborator Access
+              collaborators:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    username:
+                      type: string
+                    permission:
+                      type: string
+                      enum: ["pull", "triage", "push", "maintain", "admin"]
+
+              # Actions Configuration
+              actions:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    default: true
+                  allowedActions:
+                    type: string
+                    enum: ["all", "local_only", "selected"]
+                    default: "selected"
+                  selectedActionsConfig:
                     type: object
                     properties:
-                      name:
-                        type: string
-                      enforcement:
-                        type: string
-                teamAccess:
-                  type: array
-                  items:
+                      githubOwnedAllowed:
+                        type: boolean
+                        default: true
+                      verifiedAllowed:
+                        type: boolean
+                        default: true
+                      patternsAllowed:
+                        type: array
+                        items:
+                          type: string
+
+              # Compliance and Governance
+              compliance:
+                type: object
+                properties:
+                  requireSignedCommits:
+                    type: boolean
+                    default: false
+                  requireBranchUpToDate:
+                    type: boolean
+                    default: true
+                  codeowners:
                     type: object
                     properties:
-                      teamName:
+                      enabled:
+                        type: boolean
+                        default: true
+                      content:
                         type: string
-                      permission:
-                        type: string
-                        enum: [pull, push, maintain, triage, admin]
+
+            required: ["serviceName", "teamName"]
+          status:
+            type: object
+            properties:
+              repositoryUrl:
+                type: string
+              cloneUrl:
+                type: string
+              defaultBranch:
+                type: string
+              createdAt:
+                type: string
+              conditions:
+                type: array
+                items:
+                  type: object
