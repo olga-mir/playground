@@ -1,15 +1,15 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: repository-composition
+  name: tornadorepo-composition
   labels:
     provider: github
     service: repository
     version: "v2"
 spec:
   compositeTypeRef:
-    apiVersion: github.platform.io/v1alpha1
-    kind: XRepository
+    apiVersion: platform.tornado-demo.io/v1alpha1
+    kind: tornadorepo
 
   mode: Pipeline
   pipeline:
