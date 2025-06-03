@@ -8,9 +8,6 @@ spec:
     kind: ValueStreamLandingZone
     plural: valuestreamlandingzones
     singular: valuestreamlandingzone
-  #claimNames:
-  #  kind: ValueStreamLandingZoneClaim
-  #  plural: valuestreamlandingzoneclaims
   versions:
     - name: v1alpha1
       served: true
