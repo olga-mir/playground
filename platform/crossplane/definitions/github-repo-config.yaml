@@ -6,7 +6,7 @@ spec:
   group: platform.tornado-demo.io
   names:
     kind: TornadoRepo
-    plural: TornadoRepos
+    plural: tornadorepos
   scope: Cluster
   versions:
   - name: v1alpha1
