@@ -2,6 +2,6 @@ apiVersion: gateway.kgateway.dev/v1alpha1
 kind: GatewayParameters
 metadata:
   name: kgateway-mcp
-  namespace: kgateway-system
+  namespace: kgateway-mcp
 spec:
   selfManaged: {}
