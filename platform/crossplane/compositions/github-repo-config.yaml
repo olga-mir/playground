@@ -1,7 +1,7 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: tornadorepo-composition
+  name: tornadorepos.platform.tornado-demo.io
   labels:
     provider: github
     service: repository
@@ -9,7 +9,7 @@ metadata:
 spec:
   compositeTypeRef:
     apiVersion: platform.tornado-demo.io/v1alpha1
-    kind: tornadorepo
+    kind: TornadoRepo
 
   mode: Pipeline
   pipeline:
@@ -411,6 +411,8 @@ spec:
               commitAuthor: "Platform Engineering"
               commitEmail: "platform@company.com"
               overwriteOnCreate: true
+            providerConfigRef:
+              name: github-provider-org
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
