@@ -1,6 +1,6 @@
 project: ai
 syncWave: "2"
 
-name: kgateway-mcp-config
-path: ai/kgateway-mcp
+name: kgateway-ai-config
+path: ai/kgateway-ai
 namespace: kgateway-system
