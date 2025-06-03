@@ -301,4 +301,8 @@ spec:
                 policy:
                   fromFieldPath: Optional
 
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready
+
   writeConnectionSecretsToNamespace: crossplane-system

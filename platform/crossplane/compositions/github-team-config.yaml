@@ -117,3 +117,7 @@ spec:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
                 toFieldPath: spec.forProvider.teamId:w
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready
