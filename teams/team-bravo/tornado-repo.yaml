@@ -1,5 +1,5 @@
 apiVersion: github.platform.io/v1alpha1
-kind: XRepository
+kind: tornadorepo
 metadata:
   name: team-bravo-service-xyz
   namespace: team-bravo-tenant

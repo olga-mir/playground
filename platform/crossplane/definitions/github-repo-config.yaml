@@ -1,12 +1,13 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xrepositories.github.platform.io
+  name: tornadorepo.platform.tornado-demo.io
 spec:
-  group: github.platform.io
+  group: platform.tornado-demo.io
   names:
-    kind: XRepository
-    plural: xrepositories
+    kind: tornadorepo
+    plural: tornadorepos
+  scope: Cluster
   versions:
   - name: v1alpha1
     served: true

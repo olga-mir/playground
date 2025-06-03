@@ -1,5 +1,5 @@
 apiVersion: github.platform.io/v1alpha1
-kind: XRepository
+kind: tornadorepo
 metadata:
   name: team-charlie-service-abc
   namespace: team-charlie
@@ -8,22 +8,22 @@ spec:
   teamName: team-charlie
   description: "Critical payment processing API"
   visibility: private
-  
+
   settings:
     defaultBranch: main
     allowRebaseMerge: false
     deleteBranchOnMerge: true
-  
+
   security:
     secretScanning: true
     secretScanningPushProtection: true
     dependabotAlerts: true
     dependabotSecurityUpdates: true
-  
+
   branchProtection:
     customRulesets:
     - name: "production-protection"
-      target: "branch"  
+      target: "branch"
       enforcement: "active"
       conditions:
         refName:
@@ -42,7 +42,7 @@ spec:
           dismissStaleReviews: true
           requireCodeOwnerReviews: true
       - type: "required_signatures"
-  
+
   secrets:
   - name: "DATABASE_PASSWORD"
     valueFrom:
@@ -50,19 +50,19 @@ spec:
         name: payment-db-credentials
         key: password
         namespace: team-payments
-  
+
   variables:
   - name: "ENVIRONMENT"
     value: "production"
   - name: "SERVICE_TIER"
     value: "critical"
-  
+
   webhooks:
   - name: "security-webhook"
     url: "https://security.company.com/webhook"
     events: ["security_advisory", "push"]
     contentType: "json"
-  
+
   actions:
     enabled: true
     allowedActions: "selected"
@@ -73,7 +73,7 @@ spec:
       - "actions/checkout@*"
       - "actions/setup-*"
       - "company/security-action@*"
-  
+
   teamAccess:
   - team: payments
     permission: maintain
@@ -81,11 +81,11 @@ spec:
     permission: admin
   - team: platform
     permission: admin
-  
+
   collaborators:
   - username: "senior-architect"
     permission: admin
-  
+
   compliance:
     requireSignedCommits: true
     codeowners:
@@ -93,11 +93,11 @@ spec:
       content: |
         # Global owners
         * @myorg/payments @myorg/platform
-        
+
         # Security critical paths
         /src/auth/ @myorg/security
         /src/payment/ @myorg/payments
-        
+
         # Infrastructure
         /k8s/ @myorg/platform
         /.github/ @myorg/platform
