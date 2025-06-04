@@ -10,13 +10,15 @@ helm:
   values:
     agentGateway:
       enabled: true
-    gateway:
-      aiExtension:
-        enabled: true
-        # I don't understand agentGateway vs aiExtention
-        # https://kgateway.dev/docs/ai/setup/
     discoveryNamespaceSelectors:
-      matchLabels:
+    - matchLabels:
         kubernetes.io/metadata.name: ai-gateway-config
         kgateway-name: ai-gateway-config
 
+
+    #gateway:
+    #  aiExtension:
+    #    enabled: true
+        # I don't understand agentGateway vs aiExtention
+        # https://kgateway.dev/docs/ai/setup/
+        # inferenceExtension

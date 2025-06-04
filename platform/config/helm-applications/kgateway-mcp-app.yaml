@@ -19,7 +19,7 @@ helm:
       registry: us-docker.pkg.dev/developers-369321/gloo-platform-dev
       tag: v2.0.0-mcpdemo
     discoveryNamespaceSelectors:
-      matchLabels:
+    - matchLabels:
         kubernetes.io/metadata.name: mcp
         kgateway-name: mcp
 
