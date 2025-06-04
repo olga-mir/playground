@@ -75,7 +75,7 @@ data:
   config.json: |
     {
       "type": "xds",
-      "xds_address": "http://kgateway-mcp.kgateway-system.svc.cluster.local:9977",
+      "xds_address": "kgateway-mcp.kgateway-system.svc.cluster.local:9977",
       "metadata": {},
       "alt_xds_hostname": "mcp-gateway.mcp.svc.cluster.local",
       "listener": {
