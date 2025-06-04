@@ -15,3 +15,8 @@ helm:
         enabled: true
         # I don't understand agentGateway vs aiExtention
         # https://kgateway.dev/docs/ai/setup/
+      discoveryNamespaceSelectors:
+        matchLabels:
+          kubernetes.io/metadata.name: mcp
+          kgateway-name: mcp
+

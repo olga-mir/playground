@@ -8,4 +8,4 @@ spec:
     group: gateway.kgateway.dev
     kind: GatewayParameters
     name: kgateway-mcp
-    namespace: kgateway-system
+    namespace: mcp

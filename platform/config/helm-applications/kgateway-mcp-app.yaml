@@ -20,7 +20,7 @@ helm:
       tag: v2.0.0-mcpdemo
   discoveryNamespaceSelectors:
     matchLabels:
-      kubernetes.io/metadata.name: kgateway-mcp
-      kgateway-name: kgateway-mcp
+      kubernetes.io/metadata.name: mcp
+      kgateway-name: mcp
 
 # us-docker.pkg.dev/developers-369321/gloo-platform-dev/kgateway:2.0.0-mcpdemo
