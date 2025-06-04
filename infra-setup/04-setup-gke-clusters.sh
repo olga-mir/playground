@@ -111,6 +111,10 @@ install_and_configure_argocd_cluster() {
   kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/rendered/argo-env-plugin-configmap.yaml
 
   echo "Argo CD on management cluster configured to connect to ${target_cluster_name}"
+
+  # Patch the argocd-cm ConfigMap to set resource tracking method to annotation
+  echo "Patching ArgoCD ConfigMap to set resource tracking method to annotation..."
+  kubectl --context="${MGMT_CLUSTER_CONTEXT}" -n "${ARGOCD_NAMESPACE}" patch configmap argocd-cm --type merge -p '{"data":{"application.resourceTrackingMethod":"annotation"}}' || { echo "Error patching argocd-cm ConfigMap"; }
 }
 
 # Function to wait for ArgoCD repo server pods to be ready
