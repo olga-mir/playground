@@ -16,7 +16,7 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
       - name: mcp-gateway
-        image: ghcr.io/mcp-proxy/mcp-proxy:0.0.3
+        image: ghcr.io/mcp-proxy/mcp-proxy:0.3.0
         args:
           - --file=/config/config.json
         resources:
