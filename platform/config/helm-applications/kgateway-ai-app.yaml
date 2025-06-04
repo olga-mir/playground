@@ -13,7 +13,6 @@ helm:
     discoveryNamespaceSelectors:
     - matchLabels:
         kubernetes.io/metadata.name: ai-gateway-config
-        kgateway-name: ai-gateway-config
 
 
     #gateway:

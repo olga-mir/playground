@@ -16,7 +16,7 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
       - name: mcp-gateway
-        image: ghcr.io/mcp-proxy/mcp-proxy:0.3.0
+        image: ghcr.io/agentgateway/agentgateway:latest-ext
         args:
           - --file=/config/config.json
         resources:
@@ -38,10 +38,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
-          - name: GW_NAME
-            value:  mcp-gateway
-          - name: RUST_BACKTRACE
-            value: "1"
           - name: RUST_LOG
             value: debug
         volumeMounts:
@@ -62,8 +58,9 @@ spec:
     app: mcp-gateway
   ports:
     - protocol: TCP
-      port: 8080
-      targetPort: 8080
+      port: 3000
+      targetPort: 3000
+      appProtocol: kgateway.dev/mcp
   type: ClusterIP
 ---
 apiVersion: v1
@@ -74,33 +71,15 @@ metadata:
 data:
   config.json: |
     {
-      "type": "xds",
-      "xds_address": "grpc://kgateway-mcp.kgateway-system.svc.cluster.local:9977",
-      "metadata": {},
-      "alt_xds_hostname": "mcp-gateway.mcp.svc.cluster.local",
-      "listener": {
-        "type": "sse",
-        "host": "0.0.0.0",
-        "port": 8080,
-        "authn": {
-          "type":"jwt",
-          "issuer": ["me"],
-          "audience": ["me.com"],
-            "jwks": {
-              "type": "local",
-                "source":
-                  { "type": "file", "data": "/config/jwks.json" }
-                }
+      "type": "static",
+      "listeners": [
+        {
+          "name": "sse",
+          "protocol": "MCP",
+          "sse": {
+            "address": "[::]",
+            "port": 3000
+          }
         }
-      }
-    }
-  jwks.json: |
-    {
-      "use": "sig",
-      "kty": "EC",
-      "kid": "XhO06x8JjWH1wwkWkyeEUxsooGEWoEdidEpwyd_hmuI",
-      "crv": "P-256",
-      "alg": "ES256",
-      "x": "XZHF8Em5LbpqfgewAalpSEH4Ka2I2xjcxxUt2j6-lCo",
-      "y": "g3DFz45A7EOUMgmsNXatrXw1t-PG5xsbkxUs851RxSE"
+      ]
     }

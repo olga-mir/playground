@@ -1,14 +1,20 @@
-apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
+apiVersion: gateway.networking.k8s.io/v1
 metadata:
-  name: kgateway-mcp
+  name: agent-gateway
   namespace: mcp
 spec:
-  gatewayClassName: kgateway-mcp
+  gatewayClassName: agentgateway
   listeners:
-  - protocol: kgateway.dev/mcp
-    port: 8080
-    name: http
-    allowedRoutes:
-      namespaces:
-        from: All
+    - protocol: kgateway.dev/mcp
+      port: 8080
+      name: mcp
+      allowedRoutes:
+        namespaces:
+          from: All
+    #- protocol: kgateway.dev/a2a
+    #  port: 9090
+    #  name: a2a
+    #  allowedRoutes:
+    #    namespaces:
+    #      from: All

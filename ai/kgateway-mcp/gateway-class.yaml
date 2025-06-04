@@ -1,11 +1,14 @@
-apiVersion: gateway.networking.k8s.io/v1
+# https://github.com/christian-posta/scripted-solo-demos/blob/master/agentgateway/kubernetes/gateway.yaml
+# with some changes
+---
 kind: GatewayClass
+apiVersion: gateway.networking.k8s.io/v1
 metadata:
-  name: kgateway-mcp
+  name: agentgateway
 spec:
   controllerName: kgateway.dev/kgateway
   parametersRef:
     group: gateway.kgateway.dev
     kind: GatewayParameters
-    name: kgateway-mcp
+    name: kgateway
     namespace: mcp
