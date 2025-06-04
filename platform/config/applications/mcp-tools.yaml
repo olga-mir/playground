@@ -1,0 +1,6 @@
+project: ai
+syncWave: "2"
+
+name: mcp-tools
+path: ai/mcp-tools
+namespace: kagent
