@@ -243,7 +243,7 @@ spec:
           fromFieldPath: spec.serviceName
           toFieldPath: metadata.labels["github.platform.io/service"]
 
-  # Step 3: Handle integrations (webhooks, permissions)
+# Step 3: Handle integrations (webhooks, permissions)
   - step: integrations
     functionRef:
       name: function-patch-and-transform
@@ -286,11 +286,11 @@ spec:
           fromFieldPath: spec.serviceName
           toFieldPath: metadata.labels["github.platform.io/service"]
 
-      # Repository Actions Permissions
+      # Repository Actions Permissions - FIXED: Changed from RepositoryPermission to RepositoryPermissions
       - name: actions-permissions
         base:
           apiVersion: actions.github.upbound.io/v1alpha1
-          kind: RepositoryPermission
+          kind: RepositoryPermissions  # Changed from RepositoryPermission to RepositoryPermissions
           spec:
             forProvider:
               allowedActions: selected
