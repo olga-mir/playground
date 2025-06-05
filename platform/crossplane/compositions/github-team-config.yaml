@@ -26,7 +26,7 @@ spec:
                   privacy: closed
                   description: Team created by Crossplane
                 providerConfigRef:
-                  name: default
+                  name: github-provider-org
             patches:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
@@ -63,7 +63,7 @@ spec:
                 forProvider:
                   role: member
                 providerConfigRef:
-                  name: default
+                  name: github-provider-org
             patches:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.members[0].username
@@ -95,7 +95,7 @@ spec:
                 forProvider:
                   permission: push
                 providerConfigRef:
-                  name: default
+                  name: github-provider-org
             patches:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.repositoryAccess[0].repositoryName

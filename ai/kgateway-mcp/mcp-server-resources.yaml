@@ -1,4 +1,7 @@
 # step 4 - https://kgateway.dev/docs/mcp/
+# above doc is not up to date, at this moment
+# use https://agentgateway.dev/docs/targets/mcp/
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,27 +22,14 @@ spec:
         image: ghcr.io/agentgateway/agentgateway:latest-ext
         args:
           - --file=/config/config.json
+        ports:
+          - containerPort: 3000
         resources:
           requests:
             cpu: 200m
             memory: 500Mi
           limits:
             memory: 800Mi
-        env:
-          - name: NODE_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          - name: RUST_LOG
-            value: debug
         volumeMounts:
           - name: config-volume
             mountPath: /config
@@ -81,5 +71,18 @@ data:
             "port": 3000
           }
         }
-      ]
+      ],
+      "targets": {
+        "mcp": [
+          {
+            "name": "everything",
+            "stdio": {
+              "cmd": "npx",
+              "args": [
+                "@modelcontextprotocol/server-everything"
+              ]
+            }
+          }
+        ]
+      }
     }
