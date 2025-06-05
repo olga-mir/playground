@@ -33,6 +33,12 @@ tasks:
     cmds:
       - kubectl port-forward -n kagent-system svc/kagent 8082:80
 
+  # https://github.com/christian-posta/scripted-solo-demos/tree/master/agentgateway/kubernetes
+  port-forward-agw:
+    desc: port forward agentgateway
+    cmds:
+      - AGW=$(kubectl get pods -n mcp -l gateway.networking.k8s.io/gateway-name=agent-gateway -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward -n mcp $AGW 19000:19000
+
   debug:crossplane-trace:
     desc: "Trace"
     cmds:

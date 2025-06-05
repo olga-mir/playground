@@ -43,6 +43,8 @@ kind: Service
 metadata:
   name: mcp-website-fetcher
   namespace: kagent
+  annotations:
+    kagent.dev/tool.type: "mcp"
 spec:
   selector:
     app: mcp-website-fetcher
