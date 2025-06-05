@@ -261,46 +261,49 @@ configs:
           health_status.message = "Waiting for GCP resource status"
           return health_status
 
-      "*.azure.upbound.io/*":
+      pkg.crossplane.io/Function:
         health.lua: |
           local health_status = {}
           if obj.status ~= nil then
             if obj.status.conditions ~= nil then
-              local ready = false
-              local synced = false
+              local healthy = false
+              local installed = false
               local error_message = ""
 
               for i, condition in ipairs(obj.status.conditions) do
-                if condition.type == "Ready" then
+                if condition.type == "Healthy" then
                   if condition.status == "True" then
-                    ready = true
+                    healthy = true
                   else
-                    error_message = condition.reason or condition.message or "Resource not ready"
+                    error_message = condition.reason or condition.message or "Function not healthy"
                   end
-                elseif condition.type == "Synced" then
+                elseif condition.type == "Installed" then
                   if condition.status == "True" then
-                    synced = true
+                    installed = true
                   else
-                    error_message = condition.reason or condition.message or "Resource not synced"
+                    error_message = condition.reason or condition.message or "Function not installed"
                   end
                 end
               end
 
-              if ready and synced then
+              if healthy and installed then
                 health_status.status = "Healthy"
-                health_status.message = "Azure resource is ready"
-              elseif not synced then
+                health_status.message = "Function is healthy and installed"
+              elseif not installed then
                 health_status.status = "Degraded"
-                health_status.message = "Sync failed: " .. error_message
+                health_status.message = "Installation failed: " .. error_message
+              elseif not healthy then
+                health_status.status = "Degraded"
+                health_status.message = "Health check failed: " .. error_message
               else
                 health_status.status = "Progressing"
-                health_status.message = "Azure resource syncing: " .. error_message
+                health_status.message = "Function is installing: " .. error_message
               end
               return health_status
             end
           end
           health_status.status = "Progressing"
-          health_status.message = "Waiting for Azure resource status"
+          health_status.message = "Waiting for function status"
           return health_status
 
     # Increase timeouts for slow Crossplane resources
