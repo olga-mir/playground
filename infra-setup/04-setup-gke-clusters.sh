@@ -287,3 +287,6 @@ fi
 kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic kagent-openai \
   --from-literal=OPENAI_API_KEY=${OPENAI_API_KEY} \
   -n kagent-system
+
+# Not sure why some CRDs are not installed, despite Gateway API enabled
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
