@@ -18,16 +18,17 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Environment variables that need to be explicitly set
+set +x
 required_vars=(
     PROJECT_ID
     REGION
     GKE_MGMT_CLUSTER
     GKE_APPS_DEV_CLUSTER
     CROSSPLANE_GSA_KEY_FILE
-    GITHUB_DEMO_REPO_PAT
     GITHUB_DEMO_REPO_OWNER
     GITHUB_DEMO_REPO_NAME
     GITHUB_DEST_ORG_NAME
+    GITHUB_DEMO_REPO_PAT
     GITHUB_DEST_ORG_PAT
 )
 
@@ -39,12 +40,11 @@ for var in "${required_vars[@]}"; do
         all_set=false
     fi
 done
+set -x
 
 if [ "$all_set" = false ]; then
     exit 1
 fi
-echo "All required variables are set."
-echo
 
 #export MGMT_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${REGION}_${GKE_MGMT_CLUSTER}"
 #export APPS_DEV_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${REGION}_${GKE_APPS_DEV_CLUSTER}"
@@ -278,12 +278,10 @@ if ! kubectl --context="${MGMT_CLUSTER_CONTEXT}" get namespace kagent-system &>/
   echo "Created kagent-system namespace"
 fi
 
-#kubectl create secret generic kagent-anthropic \
-#  --from-literal=ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY} \
-#  -n kagent-system
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic kagent-anthropic \
+  --from-literal=ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY} \
+  -n kagent-system
 
-# not sure if Anthropic is properly supported
-# openai is main primary focus
 kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic kagent-openai \
   --from-literal=OPENAI_API_KEY=${OPENAI_API_KEY} \
   -n kagent-system
