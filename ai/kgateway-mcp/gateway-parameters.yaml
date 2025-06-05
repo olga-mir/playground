@@ -4,7 +4,6 @@ metadata:
   name: kgateway
   namespace: mcp
 spec:
-  selfManaged: {}
   kube:
     agentGateway:
       enabled: true
