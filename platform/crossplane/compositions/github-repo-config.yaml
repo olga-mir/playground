@@ -28,6 +28,9 @@ spec:
         base:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: Repository
+          metadata:
+            annotations:
+              crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
               visibility: private
@@ -39,6 +42,8 @@ spec:
               allowRebaseMerge: true
               deleteBranchOnMerge: true
               autoInit: true
+            providerConfigRef:
+              name: github-provider-org
         patches:
         # Use serviceName as repository name if name not provided
         - type: FromCompositeFieldPath
@@ -47,6 +52,15 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.name
           toFieldPath: spec.forProvider.name
+          policy:
+            fromFieldPath: Optional
+        # Patch for external-name to allow adoption of existing repositories
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName # Default to serviceName
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name # Override with spec.name if provided
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
           policy:
             fromFieldPath: Optional
         - type: FromCompositeFieldPath
@@ -96,9 +110,14 @@ spec:
         base:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: DefaultBranch
+          metadata:
+            annotations:
+              crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
               branch: main
+            providerConfigRef:
+              name: github-provider-org
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
@@ -126,6 +145,9 @@ spec:
         base:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: RepositoryRuleset
+          metadata:
+            annotations:
+              crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
               enforcement: active
@@ -143,6 +165,8 @@ spec:
                   requiredApprovingReviewCount: 2
                   dismissStaleReviews: true
                   requireCodeOwnerReviews: true
+            providerConfigRef:
+              name: github-provider-org
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
@@ -185,42 +209,18 @@ spec:
       kind: Resources
       resources:
 
-      # Repository Secrets
-      - name: repository-secrets
-        base:
-          apiVersion: actions.github.upbound.io/v1alpha1
-          kind: ActionsSecret
-          spec:
-            forProvider: {}
-        patches:
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serviceName
-          toFieldPath: spec.forProvider.repository
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.name
-          toFieldPath: spec.forProvider.repository
-          policy:
-            fromFieldPath: Optional
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.secrets
-          toFieldPath: spec.forProvider
-          policy:
-            fromFieldPath: Optional
-        # Add labels
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.teamName
-          toFieldPath: metadata.labels["github.platform.io/team"]
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serviceName
-          toFieldPath: metadata.labels["github.platform.io/service"]
-
       # Repository Variables
       - name: repository-variables
         base:
           apiVersion: actions.github.upbound.io/v1alpha1
           kind: ActionsVariable
+          metadata:
+            annotations:
+              crossplane.io/resource-policy: Orphan
           spec:
             forProvider: {}
+          providerConfigRef:
+            name: github-provider-org
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
@@ -243,7 +243,7 @@ spec:
           fromFieldPath: spec.serviceName
           toFieldPath: metadata.labels["github.platform.io/service"]
 
-# Step 3: Handle integrations (webhooks, permissions)
+  # Step 3: Handle integrations (webhooks, permissions)
   - step: integrations
     functionRef:
       name: function-patch-and-transform
@@ -257,6 +257,9 @@ spec:
         base:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: RepositoryWebhook
+          metadata:
+            annotations:
+              crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
               configuration:
@@ -264,6 +267,8 @@ spec:
                 insecureSsl: false
               active: true
               events: ["push", "pull_request"]
+            providerConfigRef:
+              name: github-provider-org
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
@@ -286,37 +291,6 @@ spec:
           fromFieldPath: spec.serviceName
           toFieldPath: metadata.labels["github.platform.io/service"]
 
-      # Repository Actions Permissions - FIXED: Changed from RepositoryPermission to RepositoryPermissions
-      - name: actions-permissions
-        base:
-          apiVersion: actions.github.upbound.io/v1alpha1
-          kind: RepositoryPermissions  # Changed from RepositoryPermission to RepositoryPermissions
-          spec:
-            forProvider:
-              allowedActions: selected
-              enabled: true
-        patches:
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serviceName
-          toFieldPath: spec.forProvider.repository
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.name
-          toFieldPath: spec.forProvider.repository
-          policy:
-            fromFieldPath: Optional
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.actions
-          toFieldPath: spec.forProvider
-          policy:
-            fromFieldPath: Optional
-        # Add labels
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.teamName
-          toFieldPath: metadata.labels["github.platform.io/team"]
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serviceName
-          toFieldPath: metadata.labels["github.platform.io/service"]
-
   # Step 4: Handle team and collaborator access
   - step: access-management
     functionRef:
@@ -326,15 +300,21 @@ spec:
       kind: Resources
       resources:
 
-      # Team Repository Access
       - name: team-access
         base:
           apiVersion: team.github.upbound.io/v1alpha1
           kind: TeamRepository
+          metadata:
+            annotations:
+              crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
-              permission: push
+              # one of pull, triage, push, maintain, admin or the name of an existing custom repository role within the organisation
+              permission: maintain
+            providerConfigRef:
+              name: github-provider-org
         patches:
+
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
           toFieldPath: spec.forProvider.repository
@@ -343,16 +323,11 @@ spec:
           toFieldPath: spec.forProvider.repository
           policy:
             fromFieldPath: Optional
-        # Default team access - give owning team maintain access
+
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
           toFieldPath: spec.forProvider.teamId
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.teamAccess
-          toFieldPath: spec.forProvider
-          policy:
-            fromFieldPath: Optional
-        # Add labels
+
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
           toFieldPath: metadata.labels["github.platform.io/team"]
@@ -365,9 +340,14 @@ spec:
         base:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: RepositoryCollaborator
+          metadata:
+            annotations:
+              crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
               permission: push
+            providerConfigRef:
+              name: github-provider-org
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
@@ -382,7 +362,6 @@ spec:
           toFieldPath: spec.forProvider
           policy:
             fromFieldPath: Optional
-        # Add labels
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
           toFieldPath: metadata.labels["github.platform.io/team"]
@@ -404,13 +383,16 @@ spec:
         base:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: RepositoryFile
+          metadata:
+            annotations:
+              crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
               file: .github/CODEOWNERS
               commitMessage: "Add CODEOWNERS file via Crossplane"
               commitAuthor: "Platform Engineering"
               commitEmail: "platform@company.com"
-              overwriteOnCreate: true
+              overwrite: true
             providerConfigRef:
               name: github-provider-org
         patches:
@@ -438,7 +420,6 @@ spec:
           toFieldPath: spec.forProvider.content
           policy:
             fromFieldPath: Optional
-        # Add labels
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
           toFieldPath: metadata.labels["github.platform.io/team"]
