@@ -90,6 +90,16 @@ configs:
           health_status.message = "Waiting for XRD to be established"
           return health_status
 
+      # Crossplane EnvironmentConfig health check
+      apiextensions.crossplane.io/EnvironmentConfig:
+        health.lua: |
+          -- EnvironmentConfigs are data holders. If they exist, they are considered healthy.
+          local health_status = {}
+          health_status.status = "Healthy"
+          health_status.message = "EnvironmentConfig is present"
+          return health_status
+
+
       # Generic Crossplane Composite Resource health check (applies to all XRDs)
       "*.crossplane.io/*":
         health.lua: |
@@ -174,49 +184,6 @@ configs:
           end
           health_status.status = "Progressing"
           health_status.message = "Waiting for managed resource status"
-          return health_status
-
-      # Additional provider patterns (for other upjet providers)
-      "*.aws.upbound.io/*":
-        health.lua: |
-          local health_status = {}
-          if obj.status ~= nil then
-            if obj.status.conditions ~= nil then
-              local ready = false
-              local synced = false
-              local error_message = ""
-
-              for i, condition in ipairs(obj.status.conditions) do
-                if condition.type == "Ready" then
-                  if condition.status == "True" then
-                    ready = true
-                  else
-                    error_message = condition.reason or condition.message or "Resource not ready"
-                  end
-                elseif condition.type == "Synced" then
-                  if condition.status == "True" then
-                    synced = true
-                  else
-                    error_message = condition.reason or condition.message or "Resource not synced"
-                  end
-                end
-              end
-
-              if ready and synced then
-                health_status.status = "Healthy"
-                health_status.message = "AWS resource is ready"
-              elseif not synced then
-                health_status.status = "Degraded"
-                health_status.message = "Sync failed: " .. error_message
-              else
-                health_status.status = "Progressing"
-                health_status.message = "AWS resource syncing: " .. error_message
-              end
-              return health_status
-            end
-          end
-          health_status.status = "Progressing"
-          health_status.message = "Waiting for AWS resource status"
           return health_status
 
       "*.gcp.upbound.io/*":
