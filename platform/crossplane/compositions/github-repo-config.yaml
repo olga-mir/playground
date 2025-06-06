@@ -122,6 +122,15 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
           toFieldPath: spec.forProvider.repository
+        # Patch for external-name: repository name
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceName
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.name
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
+          policy:
+            fromFieldPath: Optional
         - type: FromCompositeFieldPath
           fromFieldPath: spec.name
           toFieldPath: spec.forProvider.repository
@@ -174,8 +183,37 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.name
           toFieldPath: spec.forProvider.repository
-          policy:
+          policy: # Ensure this policy is correctly indented if it was meant for the FromCompositeFieldPath above
             fromFieldPath: Optional
+
+        # Patch for external-name using spec.serviceName as repo slug part
+        # Format: repo_slug:ruleset_name where ruleset_name is teamName-serviceName-protection
+        - type: CombineFromComposite
+          combine:
+            variables:
+              - fromFieldPath: spec.serviceName # Repo slug part
+              - fromFieldPath: spec.teamName
+              - fromFieldPath: spec.serviceName
+            strategy: string
+            string:
+              fmt: "%[1]s:%[2]s-%[3]s-protection"
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
+          policy:
+            fromFieldPath: Optional # If spec.serviceName or spec.teamName is missing
+
+        # Override external-name using spec.name as repo slug part, if spec.name is provided
+        - type: CombineFromComposite
+          combine:
+            variables:
+              - fromFieldPath: spec.name        # Repo slug part
+              - fromFieldPath: spec.teamName
+              - fromFieldPath: spec.serviceName
+            strategy: string
+            string:
+              fmt: "%[1]s:%[2]s-%[3]s-protection"
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
+          policy:
+            fromFieldPath: Optional # This patch applies only if spec.name (and others) are present
         # Create ruleset name based on service and team
         - type: CombineFromComposite
           combine:
@@ -230,6 +268,21 @@ spec:
           toFieldPath: spec.forProvider.repository
           policy:
             fromFieldPath: Optional
+        # Patch for external-name: repository_name:variable_name
+        # This assumes 'spec.variables' is an array and we're targeting the first variable's name.
+        # If spec.variables is not an array or has a different structure, this needs adjustment.
+        # This also assumes the 'ActionsVariable' resource manages one variable.
+        - type: CombineFromComposite
+          combine:
+            variables:
+              - fromFieldPath: spec.serviceName # or spec.name
+              - fromFieldPath: spec.variables[0].name
+            strategy: string
+            string:
+              fmt: "%s:%s"
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
+          policy:
+            fromFieldPath: Optional
         - type: FromCompositeFieldPath
           fromFieldPath: spec.variables
           toFieldPath: spec.forProvider
@@ -278,6 +331,20 @@ spec:
           toFieldPath: spec.forProvider.repository
           policy:
             fromFieldPath: Optional
+        # Patch for external-name: For webhooks, the external-name is the webhook ID.
+        # Adopting an existing webhook by a predictable name is difficult without knowing its ID.
+        # We'll set a placeholder or a common identifier if possible, but true adoption might require manual ID input.
+        # For simplicity, we'll use repo name + a fixed suffix, acknowledging this might not work for adoption.
+        - type: CombineFromComposite
+          combine:
+            variables:
+              - fromFieldPath: spec.serviceName # or spec.name
+            strategy: string
+            string:
+              fmt: "%s:default-webhook" # Placeholder, actual adoption needs the ID
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
+          policy:
+            fromFieldPath: Optional
         - type: FromCompositeFieldPath
           fromFieldPath: spec.webhooks
           toFieldPath: spec.forProvider
@@ -324,6 +391,19 @@ spec:
           policy:
             fromFieldPath: Optional
 
+        # Patch for external-name: team_slug_or_id:repository_name
+        - type: CombineFromComposite
+          combine:
+            variables:
+              - fromFieldPath: spec.teamName
+              - fromFieldPath: spec.serviceName # or spec.name
+            strategy: string
+            string:
+              fmt: "%s:%s"
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
+          policy:
+            fromFieldPath: Optional
+
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
           toFieldPath: spec.forProvider.teamId
@@ -355,6 +435,20 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.name
           toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        # Patch for external-name: repository_name:username
+        # This assumes 'spec.collaborators' is an array and we're targeting the first collaborator's username.
+        # This also assumes the 'RepositoryCollaborator' resource manages one collaborator.
+        - type: CombineFromComposite
+          combine:
+            variables:
+              - fromFieldPath: spec.serviceName # or spec.name
+              - fromFieldPath: spec.collaborators[0].username
+            strategy: string
+            string:
+              fmt: "%s:%s"
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
           policy:
             fromFieldPath: Optional
         - type: FromCompositeFieldPath
@@ -402,6 +496,19 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.name
           toFieldPath: spec.forProvider.repository
+          policy:
+            fromFieldPath: Optional
+        # Patch for external-name: repository_slug:file_path:branch_name
+        # Assuming default branch is 'main' if not specified elsewhere for this file.
+        - type: CombineFromComposite
+          combine:
+            variables:
+              - fromFieldPath: spec.serviceName # or spec.name
+              - fromFieldPath: spec.settings.defaultBranch # Fallback to 'main' if not set
+            strategy: string
+            string:
+              fmt: "%s:.github/CODEOWNERS:%s" # Uses spec.settings.defaultBranch or you can hardcode 'main'
+          toFieldPath: metadata.annotations["crossplane.io/external-name"]
           policy:
             fromFieldPath: Optional
         - type: FromCompositeFieldPath
