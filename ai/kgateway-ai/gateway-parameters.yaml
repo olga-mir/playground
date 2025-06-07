@@ -2,7 +2,7 @@ apiVersion: gateway.kgateway.dev/v1alpha1
 kind: GatewayParameters
 metadata:
   name: ai-gateway
-  namespace: kgateway-system
+  namespace: ai-gateway-config
   labels:
     app: ai-kgateway
 spec:

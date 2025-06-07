@@ -1,0 +1,11 @@
+apiVersion: kagent.dev/v1alpha1
+kind: ModelConfig
+metadata:
+  name: claude-model-config
+  namespace: kagent-system
+spec:
+  apiKeySecretRef: kagent-anthropic
+  apiKeySecretKey: ANTHROPIC_API_KEY
+  model: claude-3-7-sonnet-20250219
+  provider: Anthropic
+  anthropic: {}

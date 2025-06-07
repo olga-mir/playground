@@ -10,4 +10,3 @@ values:
   discoveryNamespaceSelectors:
     matchLabels:
       kubernetes.io/metadata.name: kgateway
-      kgateway-name: kgateway

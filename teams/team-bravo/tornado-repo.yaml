@@ -1,5 +1,5 @@
 apiVersion: platform.tornado-demo.io/v1alpha1
-kind: tornadorepo
+kind: TornadoRepo
 metadata:
   name: team-bravo-service-xyz
   namespace: team-bravo-tenant

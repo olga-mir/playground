@@ -4,15 +4,7 @@ metadata:
   name: provider-github-providerconfig-reader
 rules:
 - apiGroups:
-  - github.upbound.io
-  resources:
-  - "*"
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - actions.github.upbound.io
+  - "*.github.upbound.io"
   resources: 
   - "*"
   verbs:
@@ -32,4 +24,3 @@ subjects:
 - kind: ServiceAccount
   name: provider-upjet-github-42e598a5d0d4
   namespace: crossplane-system
-

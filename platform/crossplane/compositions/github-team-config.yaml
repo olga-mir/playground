@@ -26,7 +26,7 @@ spec:
                   privacy: closed
                   description: Team created by Crossplane
                 providerConfigRef:
-                  name: default
+                  name: github-provider-org
             patches:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
@@ -46,38 +46,6 @@ spec:
                 policy:
                   fromFieldPath: Optional
 
-    - step: add-team-members
-      functionRef:
-        name: function-patch-and-transform
-      input:
-        apiVersion: pt.fn.crossplane.io/v1beta1
-        kind: Resources
-        resources:
-          - name: team-membership
-            base:
-              apiVersion: team.github.upbound.io/v1alpha1
-              kind: TeamMembership
-              metadata:
-                name: team-member
-              spec:
-                forProvider:
-                  role: member
-                providerConfigRef:
-                  name: default
-            patches:
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.members[0].username
-                toFieldPath: metadata.name
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.members[0].username
-                toFieldPath: spec.forProvider.username
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.members[0].role
-                toFieldPath: spec.forProvider.role
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.teamName
-                toFieldPath: spec.forProvider.teamId
-
     - step: configure-repository-access
       functionRef:
         name: function-patch-and-transform
@@ -95,19 +63,17 @@ spec:
                 forProvider:
                   permission: push
                 providerConfigRef:
-                  name: default
+                  name: github-provider-org
             patches:
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryAccess[0].repositoryName
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.teamName
+                    - fromFieldPath: spec.repositoryAccess[0].repositoryName
+                  strategy: string
+                  string:
+                    fmt: "%s-%s"
                 toFieldPath: metadata.name
-                transforms:
-                  - type: string
-                    string:
-                      fmt: "%s-%s"
-                      type: Format
-                      variables:
-                        - fromFieldPath: spec.teamName
-                        - fromFieldPath: spec.repositoryAccess[0].repositoryName
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.repositoryAccess[0].repositoryName
                 toFieldPath: spec.forProvider.repository
@@ -116,7 +82,7 @@ spec:
                 toFieldPath: spec.forProvider.permission
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
-                toFieldPath: spec.forProvider.teamId:w
+                toFieldPath: spec.forProvider.teamId
 
     - step: automatically-detect-ready-composed-resources
       functionRef:
