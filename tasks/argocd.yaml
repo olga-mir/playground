@@ -1,0 +1,79 @@
+version: "3"
+
+tasks:
+  get-secret:
+    desc: "Get Argo CD initial admin password, in current context"
+    cmds:
+      - kubectx -c
+      - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+  get-server:
+    desc: "Get Argo CD server URL from current context"
+    cmds:
+      - kubectx -c
+      - kubectl -n argocd get svc argocd-server -o jsonpath="{.status.loadBalancer.ingress[0].ip}:{.spec.ports[?(@.name=='https')].port}"
+
+  get-server-internal:
+    desc: "Get Argo CD server internal URL (cluster IP)"
+    cmds:
+      - kubectx -c
+      - echo "https://$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}'):$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name==\"https\")].port}')"
+
+  get-server-nodeport:
+    desc: "Get Argo CD server NodePort URL"
+    cmds:
+      - kubectx -c
+      - |
+        NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')
+        if [ -z "$NODE_IP" ]; then
+          NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+        fi
+        NODE_PORT=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+        echo "https://${NODE_IP}:${NODE_PORT}"
+
+  get-token:
+    desc: "Get Argo CD API token using admin credentials"
+    vars:
+      ARGOCD_SERVER:
+        sh: task argocd:get-server-internal
+      ARGOCD_PASSWORD:
+        sh: task argocd:get-secret
+    cmds:
+      - |
+        curl -k -s "{{.ARGOCD_SERVER}}/api/v1/session" \
+          -d '{"username":"admin","password":"{{.ARGOCD_PASSWORD}}"}' \
+          -H "Content-Type: application/json" | \
+          jq -r '.token'
+
+  get-config:
+    desc: "Get complete ArgoCD configuration"
+    vars:
+      ARGOCD_SERVER:
+        sh: task argocd:get-server-internal
+      ARGOCD_PASSWORD:
+        sh: task argocd:get-secret
+      ARGOCD_TOKEN:
+        sh: task argocd:get-token
+    cmds:
+      - |
+        echo "ArgoCD Configuration:"
+        echo "===================="
+        echo "Server URL: {{.ARGOCD_SERVER}}"
+        echo "Username: admin"
+        echo "Password: {{.ARGOCD_PASSWORD}}"
+        echo "API Token: {{.ARGOCD_TOKEN}}"
+
+  test-api:
+    desc: "Test ArgoCD API connectivity"
+    vars:
+      ARGOCD_SERVER:
+        sh: task argocd:get-server-internal
+      ARGOCD_TOKEN:
+        sh: task argocd:get-token
+    cmds:
+      - |
+        echo "Testing ArgoCD API connectivity..."
+        curl -k -s "{{.ARGOCD_SERVER}}/api/v1/applications" \
+          -H "Authorization: Bearer {{.ARGOCD_TOKEN}}" \
+          -H "Content-Type: application/json" | \
+          jq '.items | length' && echo "applications found" || echo "API test failed"
