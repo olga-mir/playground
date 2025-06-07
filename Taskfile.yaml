@@ -61,3 +61,20 @@ tasks:
       - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
       - echo "REPO_POD=$(kubectl -n argocd get pod -l app.kubernetes.io/name=argocd-repo-server -o name | head -1)"
       - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"
+
+  test:kind-create-sandbox:
+    desc: "Create a vanilla Kind cluster (latest k8s, 2 nodes, name 'sandbox-cluster')"
+    cmds:
+      - |
+        cat <<EOF | kind create cluster --name sandbox-cluster --config=-
+        kind: Cluster
+        apiVersion: kind.x-k8s.io/v1alpha4
+        nodes:
+        - role: control-plane
+        - role: worker
+        EOF
+
+  test:kind-delete-sandbox:
+    desc: "Delete the 'sandbox-cluster' Kind cluster"
+    cmds:
+      - kind delete cluster --name sandbox-cluster
