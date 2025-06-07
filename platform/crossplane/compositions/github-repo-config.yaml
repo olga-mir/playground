@@ -162,18 +162,17 @@ spec:
               enforcement: active
               target: branch
               conditions:
-                refName:
-                  include: ["refs/heads/main"]
+                - refName:
+                    include: ["refs/heads/main"]
               rules:
               - type: required_status_checks
-                parameters:
-                  strictRequired: true
-                  requiredStatusChecks: []
+                # Parameters should be direct children
+                strictRequiredStatusChecksContexts: [] # Assuming this is the correct field, adjust if needed
+                # strictRequired: true # This might be a separate boolean field or part of the contexts logic
               - type: required_pull_request_reviews
-                parameters:
-                  requiredApprovingReviewCount: 2
-                  dismissStaleReviews: true
-                  requireCodeOwnerReviews: true
+                requiredApprovingReviewCount: 2
+                dismissStaleReviews: true
+                requireCodeOwnerReviews: true
             providerConfigRef:
               name: github-provider-org
         patches:

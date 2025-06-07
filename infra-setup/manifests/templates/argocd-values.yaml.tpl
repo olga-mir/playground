@@ -121,6 +121,16 @@ configs:
           end
           return health_status
 
+      # Crossplane ProviderConfigUsage (e.g., for GitHub provider)
+      github.upbound.io/ProviderConfigUsage:
+        health.lua: |
+          -- ProviderConfigUsage resources are link objects.
+          -- If they exist, they are considered healthy.
+          local health_status = {}
+          health_status.status = "Healthy"
+          health_status.message = "ProviderConfigUsage link exists"
+          return health_status
+
       # Generic Crossplane Composite Resource health check (applies to all XRDs)
       "*.crossplane.io/*":
         health.lua: |
