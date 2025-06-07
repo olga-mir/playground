@@ -83,21 +83,18 @@ platform/argocd-foundations/
 
 applicationsets files are ArgoCD `ApplicationSets` That generate applications from config provided in:
 I don't think this is great approach, I'm still finding my feet in Argo-land and it is not my primary focus (but oh boy did argo quirkiness take so much of my time!)
+`cmp` in the filename is important - it will tell ApplicationSet to run these through ArgoCD CMP mechnism to substitute variables
 
 ```
 platform/config
 ├── applications
 │   ├── crossplane-infra-environment-configs-cmp.yaml
 │   ├── crossplane-infra-functions.yaml
-│   ├── crossplane-infra-provider-configs-cmp.yaml
-│   ├── crossplane-infra-providers.yaml
-│   ├── crossplane-platform-compositions.yaml
-│   ├── crossplane-platform-xrd.yaml
+│   ├── ....
 │   ├── kagent-helm-workaround.yaml
 │   └── mcp-gateway-config.yaml
 ├── helm-applications
-│   ├── kagent-crds.yaml
-│   ├── kgateway-app.yaml
+│   ├── ...
 │   └── kgateway-crds.yaml
 └── repository.yaml
 ```
