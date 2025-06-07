@@ -119,9 +119,6 @@ spec:
             providerConfigRef:
               name: github-provider-org
         patches:
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serviceName
-          toFieldPath: spec.repository
         # Patch for external-name: repository name
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
@@ -132,16 +129,10 @@ spec:
           policy:
             fromFieldPath: Optional
         - type: FromCompositeFieldPath
-          fromFieldPath: spec.name
-          toFieldPath: spec.repository
-          policy:
-            fromFieldPath: Optional
-        - type: FromCompositeFieldPath
           fromFieldPath: spec.settings.defaultBranch
           toFieldPath: spec.forProvider.branch
           policy:
             fromFieldPath: Optional
-        # Add labels
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
           toFieldPath: metadata.labels["github.platform.io/team"]
@@ -165,15 +156,16 @@ spec:
                 refName:
                   include: ["refs/heads/main"]
               rules:
-              - type: required_status_checks
-                parameters:
-                  strictRequired: true
-                  requiredStatusChecks: []
-              - type: required_pull_request_reviews
-                parameters:
-                  requiredApprovingReviewCount: 2
-                  dismissStaleReviews: true
-                  requireCodeOwnerReviews: true
+              - requiredStatusChecks:
+                  - requiredCheck: []
+                    # strictRequiredStatusChecksPolicy: true # Optional boolean
+              - pullRequest:
+                  - requiredApprovingReviewCount: 2
+                    dismissStaleReviewsOnPush: true
+                    requireCodeOwnerReview: true
+                  # Other potential parameters:
+                  # requiredReviewThreadResolution: false
+                  # requireLastPushApproval: false
             providerConfigRef:
               name: github-provider-org
         patches:
@@ -183,7 +175,7 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.name
           toFieldPath: spec.forProvider.repository
-          policy: # Ensure this policy is correctly indented if it was meant for the FromCompositeFieldPath above
+          policy:
             fromFieldPath: Optional
 
         # Patch for external-name using spec.serviceName as repo slug part
@@ -257,8 +249,8 @@ spec:
               crossplane.io/resource-policy: Orphan
           spec:
             forProvider: {}
-          providerConfigRef:
-            name: github-provider-org
+            providerConfigRef:
+              name: github-provider-org
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
@@ -316,8 +308,9 @@ spec:
           spec:
             forProvider:
               configuration:
-                contentType: json
-                insecureSsl: false
+                - contentType: json
+                  insecureSsl: false
+                  url: "https://example.com/default-webhook-url" # TODO
               active: true
               events: ["push", "pull_request"]
             providerConfigRef:

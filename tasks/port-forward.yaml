@@ -16,4 +16,4 @@ tasks:
   agw:
     desc: "Port forward agent gateway"
     cmds:
-      - AGW=$(kubectl get pods -n mcp -l gateway.networking.k8s.io/gateway-name=agent-gateway -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward -n mcp $AGW 19000:19000
+      - AGW=$(kubectl get pods -n kgateway-system -l gateway.networking.k8s.io/gateway-name=shared-gateway -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward -n kgateway-system $AGW 19000:19000

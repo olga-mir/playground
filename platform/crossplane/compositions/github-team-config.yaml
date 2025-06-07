@@ -31,6 +31,12 @@ spec:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
                 toFieldPath: metadata.name
+              # The explicit patch for external-name using teamName (slug) is removed.
+              # Crossplane will populate external-name from status.atProvider.id (numerical ID)
+              # after the team is created by the provider using spec.forProvider.name (slug).
+              #- type: FromCompositeFieldPath
+              #  fromFieldPath: spec.teamName
+              #  toFieldPath: metadata.annotations["crossplane.io/external-name"]
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
                 toFieldPath: spec.forProvider.name
@@ -40,11 +46,11 @@ spec:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.privacy
                 toFieldPath: spec.forProvider.privacy
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.parentTeam
-                toFieldPath: spec.forProvider.parentTeamId
-                policy:
-                  fromFieldPath: Optional
+              #- type: FromCompositeFieldPath
+              #  fromFieldPath: spec.parentTeam
+              #  toFieldPath: spec.forProvider.parentTeamId
+              #  policy:
+              #    fromFieldPath: Optional
 
     - step: configure-repository-access
       functionRef:

@@ -121,6 +121,38 @@ configs:
           end
           return health_status
 
+      # Crossplane ProviderConfig for GitHub provider
+      github.upbound.io/ProviderConfig:
+        health.lua: |
+          -- ProviderConfigs are generally healthy if they are configured.
+          -- The 'status.users' field indicates how many resources are using this config.
+          local health_status = {}
+          if obj.status ~= nil then
+            if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+              health_status.status = "Healthy"
+              health_status.message = "ProviderConfig is active and in use by " .. obj.status.users .. " resource(s)"
+            else
+              -- Even if not in use, or users field is not populated yet / is 0,
+              -- if status exists, it's considered configured.
+              health_status.status = "Healthy"
+              health_status.message = "ProviderConfig is configured"
+            end
+          else
+            health_status.status = "Progressing"
+            health_status.message = "Waiting for ProviderConfig status"
+          end
+          return health_status
+
+      # Crossplane ProviderConfigUsage (e.g., for GitHub provider)
+      github.upbound.io/ProviderConfigUsage:
+        health.lua: |
+          -- ProviderConfigUsage resources are link objects.
+          -- If they exist, they are considered healthy.
+          local health_status = {}
+          health_status.status = "Healthy"
+          health_status.message = "ProviderConfigUsage link exists"
+          return health_status
+
       # Generic Crossplane Composite Resource health check (applies to all XRDs)
       "*.crossplane.io/*":
         health.lua: |
