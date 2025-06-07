@@ -107,3 +107,11 @@ All folders at the repo root which are not aux, are payloads that are managed by
 ├── ai          # AI tenancy, manifests required to create resources in AI space (kagent, kgateway, etc)
 └── teams       # Software Engineering teams Crossplane tenancy
 ```
+
+## Connect MCP Servers
+
+```
+% task --list
+```
+
+More details to be updated soon

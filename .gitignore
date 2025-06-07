@@ -1,5 +1,7 @@
 .setup-env
 
+.env.argocd
+
 # avoid commiting rendered manifests
 infra-setup/manifests/rendered/*
 

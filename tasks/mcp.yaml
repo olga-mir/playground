@@ -1,0 +1,132 @@
+version: "3"
+
+tasks:
+  argocd-config:
+    desc: "Get ArgoCD MCP server configuration"
+    vars:
+      ARGOCD_SERVER:
+        sh: task argocd:get-server-internal
+      ARGOCD_TOKEN:
+        sh: task argocd:get-token
+    cmds:
+      - |
+        echo "ArgoCD MCP Server Configuration:"
+        echo "================================"
+        echo "Server URL: {{.ARGOCD_SERVER}}"
+        echo "API Token: {{.ARGOCD_TOKEN}}"
+        echo ""
+        echo "Environment variables for MCP server:"
+        echo "ARGOCD_SERVER={{.ARGOCD_SERVER}}"
+        echo "ARGOCD_TOKEN={{.ARGOCD_TOKEN}}"
+
+  argocd-config-local:
+    desc: "Get ArgoCD config for local port-forwarded access"
+    vars:
+      ARGOCD_PASSWORD:
+        sh: task argocd:get-secret
+    cmds:
+      - |
+        echo "Starting port-forward in background..."
+        kubectl -n argocd port-forward svc/argocd-server 8080:443 &
+        PF_PID=$!
+        sleep 3
+        
+        echo "Getting token..."
+        TOKEN=$(curl -k -s "https://localhost:8080/api/v1/session" \
+          -d '{"username":"admin","password":"{{.ARGOCD_PASSWORD}}"}' \
+          -H "Content-Type: application/json" | \
+          jq -r '.token')
+        
+        echo "ArgoCD MCP Server Configuration (Local):"
+        echo "========================================"
+        echo "Server URL: https://localhost:8080"
+        echo "API Token: $TOKEN"
+        echo ""
+        echo "Environment variables for MCP server:"
+        echo "ARGOCD_SERVER=https://localhost:8080"
+        echo "ARGOCD_TOKEN=$TOKEN"
+        
+        kill $PF_PID 2>/dev/null || true
+
+  argocd-env-file:
+    desc: "Create .env file for ArgoCD MCP server"
+    vars:
+      ARGOCD_SERVER:
+        sh: task argocd:get-server-internal
+      ARGOCD_TOKEN:
+        sh: task argocd:get-token
+    cmds:
+      - |
+        cat > .env.argocd << EOF
+        ARGOCD_SERVER={{.ARGOCD_SERVER}}
+        ARGOCD_TOKEN={{.ARGOCD_TOKEN}}
+        ARGOCD_INSECURE=true
+        EOF
+        echo "Created .env.argocd file with ArgoCD configuration"
+
+  github-config:
+    desc: "Show GitHub MCP server configuration template"
+    cmds:
+      - |
+        echo "GitHub MCP Server Configuration:"
+        echo "==============================="
+        echo "Required environment variables:"
+        echo "GITHUB_TOKEN=<your-github-personal-access-token>"
+        echo ""
+        echo "Optional environment variables:"
+        echo "GITHUB_API_BASE_URL=https://api.github.com (default)"
+        echo "GITHUB_DEFAULT_REPO=<owner/repo> (optional default repo)"
+        echo ""
+        echo "To create .env.github file, run:"
+        echo "echo 'GITHUB_TOKEN=your_token_here' > .env.github"
+
+  github-env-file:
+    desc: "Create template .env file for GitHub MCP server"
+    cmds:
+      - |
+        if [ -f .env.github ]; then
+          echo ".env.github already exists. Backing up to .env.github.bak"
+          cp .env.github .env.github.bak
+        fi
+        cat > .env.github << EOF
+        # GitHub Personal Access Token
+        # Create at: https://github.com/settings/personal-access-tokens
+        # Required scopes: repo, read:org, read:user
+        GITHUB_TOKEN=your_github_token_here
+        
+        # Optional: Default repository (format: owner/repo)
+        # GITHUB_DEFAULT_REPO=your-org/your-repo
+        
+        # Optional: GitHub API base URL (usually not needed)
+        # GITHUB_API_BASE_URL=https://api.github.com
+        EOF
+        echo "Created .env.github template file"
+        echo "Please edit .env.github and add your GitHub token"
+
+  list-configs:
+    desc: "List all available MCP server configurations"
+    cmds:
+      - |
+        echo "Available MCP Server Configurations:"
+        echo "==================================="
+        echo ""
+        echo "ArgoCD MCP Server:"
+        echo "  task mcp:argocd-config      - Show config"
+        echo "  task mcp:argocd-config-local - Show local config (with port-forward)"
+        echo "  task mcp:argocd-env-file    - Create .env.argocd file"
+        echo ""
+        echo "GitHub MCP Server:"
+        echo "  task mcp:github-config      - Show config template"
+        echo "  task mcp:github-env-file    - Create .env.github template"
+        echo ""
+        echo "Environment files will be created in current directory:"
+        if [ -f .env.argocd ]; then
+          echo "  ✓ .env.argocd exists"
+        else
+          echo "  ✗ .env.argocd not found"
+        fi
+        if [ -f .env.github ]; then
+          echo "  ✓ .env.github exists"
+        else
+          echo "  ✗ .env.github not found"
+        fi
