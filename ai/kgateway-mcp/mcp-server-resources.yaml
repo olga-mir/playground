@@ -2,42 +2,6 @@
 # above doc is not up to date, at this moment
 # use https://agentgateway.dev/docs/targets/mcp/
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mcp-gateway
-  namespace: mcp
-spec:
-  selector:
-    matchLabels:
-      app: mcp-gateway
-  template:
-    metadata:
-      labels:
-        app: mcp-gateway
-    spec:
-      terminationGracePeriodSeconds: 1
-      containers:
-      - name: mcp-gateway
-        image: ghcr.io/agentgateway/agentgateway:latest-ext
-        args:
-          - --file=/config/config.json
-        ports:
-          - containerPort: 3000
-        resources:
-          requests:
-            cpu: 200m
-            memory: 500Mi
-          limits:
-            memory: 800Mi
-        volumeMounts:
-          - name: config-volume
-            mountPath: /config
-      volumes:
-        - name: config-volume
-          configMap:
-            name: mcp-gateway-config
----
 apiVersion: v1
 kind: Service
 metadata:
