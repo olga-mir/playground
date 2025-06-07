@@ -451,9 +451,15 @@ spec:
           toFieldPath: metadata.annotations["crossplane.io/external-name"]
           policy:
             fromFieldPath: Optional
+        # Patch individual fields from the first collaborator in the array
         - type: FromCompositeFieldPath
-          fromFieldPath: spec.collaborators
-          toFieldPath: spec.forProvider
+          fromFieldPath: spec.collaborators[0].username
+          toFieldPath: spec.forProvider.username
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.collaborators[0].permission
+          toFieldPath: spec.forProvider.permission
           policy:
             fromFieldPath: Optional
         - type: FromCompositeFieldPath
