@@ -121,7 +121,7 @@ spec:
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
-          toFieldPath: spec.forProvider.repository
+          toFieldPath: spec.repository
         # Patch for external-name: repository name
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
@@ -133,7 +133,7 @@ spec:
             fromFieldPath: Optional
         - type: FromCompositeFieldPath
           fromFieldPath: spec.name
-          toFieldPath: spec.forProvider.repository
+          toFieldPath: spec.repository
           policy:
             fromFieldPath: Optional
         - type: FromCompositeFieldPath

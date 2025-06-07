@@ -65,17 +65,15 @@ spec:
                 providerConfigRef:
                   name: github-provider-org
             patches:
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryAccess[0].repositoryName
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.teamName
+                    - fromFieldPath: spec.repositoryAccess[0].repositoryName
+                  strategy: string
+                  string:
+                    fmt: "%s-%s"
                 toFieldPath: metadata.name
-                transforms:
-                  - type: string
-                    string:
-                      fmt: "%s-%s"
-                      type: Format
-                      variables:
-                        - fromFieldPath: spec.teamName
-                        - fromFieldPath: spec.repositoryAccess[0].repositoryName
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.repositoryAccess[0].repositoryName
                 toFieldPath: spec.forProvider.repository
@@ -84,7 +82,7 @@ spec:
                 toFieldPath: spec.forProvider.permission
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
-                toFieldPath: spec.forProvider.teamId:w
+                toFieldPath: spec.forProvider.teamId
 
     - step: automatically-detect-ready-composed-resources
       functionRef:

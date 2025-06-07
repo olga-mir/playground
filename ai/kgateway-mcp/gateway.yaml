@@ -7,14 +7,14 @@ spec:
   gatewayClassName: agentgateway
   listeners:
     - protocol: kgateway.dev/mcp
-      port: 8080
+      port: 3000
       name: mcp
       allowedRoutes:
         namespaces:
           from: All
-    #- protocol: kgateway.dev/a2a
-    #  port: 9090
-    #  name: a2a
-    #  allowedRoutes:
-    #    namespaces:
-    #      from: All
+    - protocol: kgateway.dev/a2a
+      port: 9090
+      name: a2a
+      allowedRoutes:
+        namespaces:
+          from: All
