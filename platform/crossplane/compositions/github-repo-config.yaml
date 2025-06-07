@@ -486,7 +486,6 @@ spec:
               commitMessage: "Add CODEOWNERS file via Crossplane"
               commitAuthor: "Platform Engineering"
               commitEmail: "platform@company.com"
-              overwrite: true
             providerConfigRef:
               name: github-provider-org
         patches:
