@@ -1,0 +1,42 @@
+version: "3"
+
+tasks:
+  bucket:
+    desc: "Test bucket and access"
+    cmds:
+      - "{{.TASKFILE_DIR}}/infra-setup/99-pod-write-bucket-test.sh"
+
+  kind-create-sandbox:
+    desc: "Create a vanilla Kind cluster (latest k8s, 2 nodes, name 'sandbox-cluster')"
+    cmds:
+      - |
+        cat <<EOF | kind create cluster --name sandbox-cluster --config=-
+        kind: Cluster
+        apiVersion: kind.x-k8s.io/v1alpha4
+        nodes:
+        - role: control-plane
+        - role: worker
+        EOF
+
+  kind-delete-sandbox:
+    desc: "Delete the 'sandbox-cluster' Kind cluster"
+    cmds:
+      - kind delete cluster --name sandbox-cluster
+
+  crossplane-trace:
+    desc: "Trace Crossplane resources"
+    cmds:
+      - crossplane beta trace valuestreamlandingzones -f "{{.TASKFILE_DIR}}/teams/team-alpha/landing-zone-claim.yaml" -n team-alpha-tenant
+
+  restart-argo:
+    desc: "Restart Argo CD repo server"
+    cmds:
+      - kubectl -n argocd rollout restart deployment argocd-repo-server
+      - kubectl -n argocd rollout status deployment argocd-repo-server
+
+  helper-commands:
+    desc: "Collection of troubleshooting commands"
+    cmds:
+      - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
+      - echo "REPO_POD=$(kubectl -n argocd get pod -l app.kubernetes.io/name=argocd-repo-server -o name | head -1)"
+      - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"

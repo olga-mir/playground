@@ -1,7 +1,9 @@
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: GatewayParameters
 metadata:
-  name: kgateway-mcp
+  name: kgateway
   namespace: kgateway-system
 spec:
-  selfManaged: {}
+  kube:
+    agentGateway:
+      enabled: true
