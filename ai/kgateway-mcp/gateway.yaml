@@ -1,10 +1,10 @@
 kind: Gateway
 apiVersion: gateway.networking.k8s.io/v1
 metadata:
-  name: agent-gateway
-  namespace: mcp
+  name: shared-gateway
+  namespace: kgateway-system
 spec:
-  gatewayClassName: agentgateway
+  gatewayClassName:  agentgateway
   listeners:
     - protocol: kgateway.dev/mcp
       port: 3000

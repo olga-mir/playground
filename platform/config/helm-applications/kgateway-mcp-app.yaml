@@ -16,7 +16,7 @@ helm:
       registry: ghcr.io/kgateway-dev
     discoveryNamespaceSelectors:
     - matchLabels:
-        kubernetes.io/metadata.name: mcp
+        kubernetes.io/metadata.name: kgateway-system
 
 # us-docker.pkg.dev/developers-369321/gloo-platform-dev/kgateway:2.0.0-mcpdemo
 
