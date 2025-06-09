@@ -1,0 +1,19 @@
+version: "3"
+
+tasks:
+  argocd:
+    desc: "Port-forward Argo CD server, in current context"
+    cmds:
+      - kubectx -c
+      - kubectl port-forward -n argocd svc/argocd-server 8080:443
+
+  kagent:
+    desc: "Port forward kagent"
+    cmds:
+      - kubectl port-forward -n kagent-system svc/kagent 8082:80
+
+  # https://github.com/christian-posta/scripted-solo-demos/tree/master/agentgateway/kubernetes
+  agw:
+    desc: "Port forward agent gateway"
+    cmds:
+      - AGW=$(kubectl get pods -n kgateway-system -l gateway.networking.k8s.io/gateway-name=shared-gateway -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward -n kgateway-system $AGW 19000:19000

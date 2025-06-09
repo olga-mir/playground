@@ -1,57 +1,18 @@
 version: "3"
 
-tasks:
-
-  setup:auto-deploy:
-    desc: "Run full infrastructure setup"
-    cmds:
-      - ./infra-setup/02-create-and-setup-kind.sh
-      - ./infra-setup/03-deploy-gke-clusters.sh
-      - sleep 240
-      - ./infra-setup/03-w-deploy-gke-clusters-wait.sh
-      - ./infra-setup/04-setup-gke-clusters.sh
-
-  setup:full-cleanup:
-    desc: "Cleanup infrastructure (forcefull)"
-    cmds:
-      - ./infra-setup/00-cleanup.sh
-
-  get-argocd-secret:
-    desc: "Get Argo CD initial admin password, in current context"
-    cmds:
-      - kubectx -c
-      - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-
-  port-forward-argocd:
-    desc: "Port-forward Argo CD server, in current context"
-    cmds:
-      - kubectx -c
-      - kubectl port-forward -n argocd svc/argocd-server 8080:443
-
-  port-forward-kagent:
-    desc: port forward kagent
-    cmds:
-      - kubectl port-forward -n kagent-system svc/kagent 8082:80
-
-  debug:crossplane-trace:
-    desc: "Trace"
-    cmds:
-      - crossplane beta trace valuestreamlandingzones -f {{.TASKFILE_DIR}}/teams/team-alpha/landing-zone-claim.yaml -n team-alpha-tenant
-
-  debug:restart-argo:
-    desc: "Restart Argo CD"
-    cmds:
-      - kubectl -n argocd rollout restart deployment argocd-repo-server
-      - kubectl -n argocd rollout status deployment argocd-repo-server
-
-  test:bucket:
-    desc: "Test bucket and access"
-    cmds:
-      - "{{.TASKFILE_DIR}}/infra-setup/99-pod-write-bucket-test.sh"
-
-  debug:helper-commands:
-    desc: "Collection of troubleshooting commands"
-    cmds:
-      - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
-      - echo "REPO_POD=$(kubectl -n argocd get pod -l app.kubernetes.io/name=argocd-repo-server -o name | head -1)"
-      - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"
+includes:
+  setup:
+    taskfile: ./tasks/setup.yaml
+    dir: .
+  debug:
+    taskfile: ./tasks/test-and-debug.yaml
+    dir: .
+  mcp:
+    taskfile: ./tasks/mcp.yaml
+    dir: .
+  argocd:
+    taskfile: ./tasks/argocd.yaml
+    dir: .
+  port-forward:
+    taskfile: ./tasks/port-forward.yaml
+    dir: .

@@ -1,0 +1,16 @@
+version: "3"
+
+tasks:
+  auto-deploy:
+    desc: "Run full infrastructure setup"
+    cmds:
+      - "{{.TASKFILE_DIR}}/infra-setup/02-create-and-setup-kind.sh"
+      - "{{.TASKFILE_DIR}}/infra-setup/03-deploy-gke-clusters.sh"
+      - sleep 240
+      - "{{.TASKFILE_DIR}}/infra-setup/03-w-deploy-gke-clusters-wait.sh"
+      - "{{.TASKFILE_DIR}}/infra-setup/04-setup-gke-clusters.sh"
+
+  full-cleanup:
+    desc: "Cleanup infrastructure (forcefull)"
+    cmds:
+      - "{{.TASKFILE_DIR}}/infra-setup/00-cleanup.sh"

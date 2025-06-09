@@ -1,9 +1,11 @@
 # step 5 - https://kgateway.dev/docs/mcp/
 # TODO - namespace
+# also https://github.com/christian-posta/scripted-solo-demos/blob/master/agentgateway/kubernetes/mcp.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mcp-tool
+  namespace: mcp
 spec:
   selector:
     matchLabels:
@@ -19,9 +21,9 @@ spec:
           args:
           - "--sse"
           - "--host=0.0.0.0"
-          - "--port=8080"
+          - "--port=3000"
           ports:
-            - containerPort: 8080
+            - containerPort: 3000
 ---
 apiVersion: v1
 kind: Service
@@ -33,6 +35,6 @@ spec:
   type: ClusterIP
   ports:
     - protocol: TCP
-      port: 8080
-      targetPort: 8080
+      port: 3000
+      targetPort: 3000
       appProtocol: kgateway.dev/mcp
