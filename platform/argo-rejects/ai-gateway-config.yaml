@@ -1,6 +1,0 @@
-project: ai
-syncWave: "2"
-
-name: kgateway-ai-config
-path: ai/kgateway-ai
-namespace: kgateway-system

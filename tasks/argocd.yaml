@@ -30,18 +30,6 @@ tasks:
       - kubectx -c > /dev/null 2>&1
       - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
-  get-server:
-    desc: "Get Argo CD server URL from current context"
-    cmds:
-      - kubectx -c > /dev/null 2>&1
-      - kubectl -n argocd get svc argocd-server -o jsonpath="{.status.loadBalancer.ingress[0].ip}:{.spec.ports[?(@.name=='https')].port}"
-
-  get-server-internal:
-    desc: "Get Argo CD server internal URL (cluster IP)"
-    cmds:
-      - kubectx -c > /dev/null 2>&1
-      - echo "https://$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}'):$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].port}')"
-
   check-gateway-status:
     desc: "Check ArgoCD Gateway deployment status"
     cmds:
@@ -49,7 +37,7 @@ tasks:
       - kubectl get gateway argocd-gateway -n argocd -o wide || echo "Standard Gateway not found"
       - echo ""
       - echo "=== kgateway Status ==="
-      - kubectl get gateway shared-gateway -n kgateway-system -o wide || echo "kgateway not found"
+      - kubectl get gateway shared-mcp-kgateway -n kgateway-system -o wide || echo "kgateway not found"
       - echo ""
       - echo "=== ArgoCD MCP XListenerSet Status ==="
       - kubectl get xlistenerset argocd-mcp-listener-set -n mcp -o wide || echo "XListenerSet not found"
