@@ -1,0 +1,132 @@
+apiVersion: kagent.ai/v1alpha1
+kind: Agent
+metadata:
+  name: crossplane-composition-fixer
+  namespace: kagent
+spec:
+  model:
+    provider: "anthropic"
+    name: "claude-3-5-sonnet-20241022"
+  systemPrompt: |
+    You are a Crossplane composition debugging expert for the olga-mir/playground repository.
+
+    Your workflow:
+    1. Monitor ArgoCD applications for sync failures related to Crossplane
+    2. When failures occur, gather logs and resource status
+    3. Analyze composition errors and root causes
+    4. Generate fixes for common issues
+    5. Create GitHub pull requests with fixes
+    6. Monitor the fix deployment and iterate if needed
+
+    Common Crossplane issues you should handle:
+    - Composition resource schema validation errors
+    - Missing CRDs or provider configurations
+    - Composition function errors and debugging
+    - Resource dependency conflicts
+    - XRs not matching composition requirements
+    - Provider connection secrets issues
+
+    Repository structure knowledge:
+    - teams/ contains XRs (e.g., for team-alpha, team-bravo, team-charlie)
+    - platform/ contains compositions and configurations
+    - Use ArgoCD ApplicationSets for deployment
+
+    Always provide detailed error analysis and clear fix explanations.
+  tools:
+  - name: get-resources
+  - name: get-logs
+  - name: describe-resource
+  - name: argo-app-status
+  - name: prometheus-query
+  - name: github-mcp
+
+---
+apiVersion: kagent.ai/v1alpha1
+kind: Tool
+metadata:
+  name: argo-app-status
+  namespace: kagent
+spec:
+  description: "Get ArgoCD application sync status and health"
+  function:
+    name: "get_argo_app_status"
+    description: "Retrieve ArgoCD application status for monitoring sync failures"
+    parameters:
+      type: object
+      properties:
+        app_name:
+          type: string
+          description: "ArgoCD application name"
+        namespace:
+          type: string
+          description: "ArgoCD application namespace"
+          default: "argocd"
+    implementation: |
+      kubectl get application $app_name -n $namespace -o jsonpath='{.status}' | jq .
+
+---
+apiVersion: kagent.ai/v1alpha1
+kind: Tool
+metadata:
+  name: crossplane-debug
+  namespace: kagent
+spec:
+  description: "Debug Crossplane composition and XR (Composite Resource) issues"
+  function:
+    name: "debug_crossplane_composition"
+    description: "Analyze Crossplane composition and XR (Composite Resource) issues"
+    parameters:
+      type: object
+      properties:
+        xr_name:
+          type: string
+          description: "Name of the Crossplane XR (Composite Resource)"
+        xr_namespace:
+          type: string
+          description: "Namespace of the XR (Composite Resource)"
+        composition_name:
+          type: string
+          description: "Name of the composition (optional)"
+    implementation: |
+      # Get XR status
+      echo "=== XR Status ($xr_name in $xr_namespace) ==="
+      kubectl get xr "$xr_name" -n "$xr_namespace" -o yaml
+
+      # Get related events for the XR
+      echo "=== Events for XR $xr_name ==="
+      # Fetch UID for more precise event matching
+      XR_UID=$(kubectl get xr "$xr_name" -n "$xr_namespace" -o jsonpath='{.metadata.uid}' 2>/dev/null)
+      if [ -n "$XR_UID" ]; then
+        kubectl get events --namespace "$xr_namespace" --field-selector "involvedObject.uid=$XR_UID"
+      else
+        # Fallback if UID cannot be fetched (e.g., XR doesn't exist)
+        kubectl get events --namespace "$xr_namespace" --field-selector "involvedObject.name=$xr_name"
+      fi
+
+      # Get composition if specified or derive from XR
+      CURRENT_COMPOSITION_NAME="$composition_name" # Use the provided one if available
+
+      if [ -z "$CURRENT_COMPOSITION_NAME" ]; then
+        # Try to get composition name from XR's spec.compositionRef.name
+        COMP_REF_NAME=$(kubectl get xr "$xr_name" -n "$xr_namespace" -o jsonpath='{.spec.compositionRef.name}' 2>/dev/null)
+        if [ -n "$COMP_REF_NAME" ]; then
+          CURRENT_COMPOSITION_NAME="$COMP_REF_NAME"
+          echo "Derived composition name from XR spec: $CURRENT_COMPOSITION_NAME"
+        else
+          # Try to get composition name from XR's status.currentCompositionRef.name (if available and more accurate)
+          CURRENT_COMP_REF_NAME=$(kubectl get xr "$xr_name" -n "$xr_namespace" -o jsonpath='{.status.currentCompositionRef.name}' 2>/dev/null)
+          if [ -n "$CURRENT_COMP_REF_NAME" ]; then
+            CURRENT_COMPOSITION_NAME="$CURRENT_COMP_REF_NAME"
+            echo "Derived current composition name from XR status: $CURRENT_COMPOSITION_NAME"
+          else
+            echo "Composition name not provided and could not be derived from XR .spec.compositionRef.name or .status.currentCompositionRef.name."
+          fi
+        fi
+      fi
+
+      if [ -n "$CURRENT_COMPOSITION_NAME" ]; then
+        echo "=== Composition ($CURRENT_COMPOSITION_NAME) ==="
+        kubectl get composition "$CURRENT_COMPOSITION_NAME" -o yaml
+      else
+        echo "=== Composition (Name not specified and could not be derived) ==="
+      fi
