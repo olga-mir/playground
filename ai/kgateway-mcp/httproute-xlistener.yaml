@@ -34,4 +34,3 @@ spec:
   - backendRefs:
     - name: mcp-everything-service
       port: 3000
-
