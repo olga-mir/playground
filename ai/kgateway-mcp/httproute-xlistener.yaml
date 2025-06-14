@@ -8,7 +8,7 @@ spec:
   parentRef:
     kind: Gateway
     group: gateway.networking.k8s.io
-    name: agent-gateway
+    name: shared-mcp-kgateway
     namespace: mcp
   listeners:
   - name: mcp

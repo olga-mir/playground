@@ -37,7 +37,7 @@ tasks:
       - kubectl get gateway argocd-gateway -n argocd -o wide || echo "Standard Gateway not found"
       - echo ""
       - echo "=== kgateway Status ==="
-      - kubectl get gateway shared-gateway -n kgateway-system -o wide || echo "kgateway not found"
+      - kubectl get gateway shared-mcp-kgateway -n kgateway-system -o wide || echo "kgateway not found"
       - echo ""
       - echo "=== ArgoCD MCP XListenerSet Status ==="
       - kubectl get xlistenerset argocd-mcp-listener-set -n mcp -o wide || echo "XListenerSet not found"
