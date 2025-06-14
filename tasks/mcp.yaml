@@ -5,7 +5,7 @@ tasks:
     desc: "Get ArgoCD MCP server configuration"
     vars:
       ARGOCD_SERVER:
-        sh: task argocd:get-server-internal
+        sh: task argocd:get-server-auto
       ARGOCD_TOKEN:
         sh: task argocd:get-token
     cmds:
@@ -103,6 +103,61 @@ tasks:
         echo "Created .env.github template file"
         echo "Please edit .env.github and add your GitHub token"
 
+  generate-vscode-config:
+    desc: "Generate VSCode MCP configuration for ArgoCD"
+    vars:
+      ARGOCD_SERVER:
+        sh: task argocd:get-server-internal
+      ARGOCD_TOKEN:
+        sh: task argocd:get-token
+    cmds:
+      - mkdir -p .vscode
+      - |
+        cat > .vscode/mcp.json << EOF
+        {
+          "servers": {
+            "argocd-mcp": {
+              "type": "stdio",
+              "command": "npx",
+              "args": ["argocd-mcp@latest", "stdio"],
+              "env": {
+                "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER}}",
+                "ARGOCD_API_TOKEN": "{{.ARGOCD_TOKEN}}"
+              }
+            }
+          }
+        }
+        EOF
+      - echo "Created .vscode/mcp.json for ArgoCD MCP"
+
+  generate-claude-config:
+    desc: "Generate Claude Desktop MCP configuration for ArgoCD"
+    vars:
+      ARGOCD_SERVER:
+        sh: task argocd:get-server-internal
+      ARGOCD_TOKEN:
+        sh: task argocd:get-token
+    cmds:
+      - |
+        cat > claude_desktop_config.json << EOF
+        {
+          "mcpServers": {
+            "argocd-mcp": {
+              "command": "npx",
+              "args": ["argocd-mcp@latest", "stdio"],
+              "env": {
+                "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER}}",
+                "ARGOCD_API_TOKEN": "{{.ARGOCD_TOKEN}}"
+              }
+            }
+          }
+        }
+        EOF
+      - echo "Created claude_desktop_config.json for ArgoCD MCP"
+      - echo "Copy this file to your Claude Desktop config location:"
+      - echo "macOS: ~/Library/Application Support/Claude/"
+      - echo "Windows: %APPDATA%\\Claude\\"
+
   list-configs:
     desc: "List all available MCP server configurations"
     cmds:
@@ -114,6 +169,8 @@ tasks:
         echo "  task mcp:argocd-config      - Show config"
         echo "  task mcp:argocd-config-local - Show local config (with port-forward)"
         echo "  task mcp:argocd-env-file    - Create .env.argocd file"
+        echo "  task mcp:generate-vscode-config - Generate .vscode/mcp.json"
+        echo "  task mcp:generate-claude-config - Generate claude_desktop_config.json"
         echo ""
         echo "GitHub MCP Server:"
         echo "  task mcp:github-config      - Show config template"
