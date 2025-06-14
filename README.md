@@ -12,17 +12,17 @@ This AI Assisted project, leveraging Claude Sonnet/Opus, Github Copilot with GPT
 |------|------|-------------|
 | <img src="https://www.gstatic.com/marketing-cms/assets/images/29/8c/e1f2c0994e87b8d7edf2886f9c02/google-cloud.webp=s96-fcrop64=1,00000000ffffffff-rw" width="30"> | GKE | Google Kubernetes Engine is Google Cloud's managed Kubernetes service that provides a secure, scalable environment for running containerized applications. |
 | <img src="https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/dbd2ff92a93e7c8a29bce07cc331e40e6d470efe/site-src/images/logo/logo.svg" width="30"> | Gateway API | Kubernetes Gateway API is a collection of resources that model service networking in Kubernetes, providing expressive, extensible, and role-oriented interfaces. |
-| <img src="https://raw.githubusercontent.com/cncf/artwork/refs/heads/main/projects/crossplane/icon/color/crossplane-icon-color.svg" width="30"> | Crossplane | An open source Kubernetes add-on that transforms your cluster into a universal control plane, enabling platform teams to build infrastructure abstractions. |
-| <img src="https://raw.githubusercontent.com/kagent-dev/kagent/33a48ede61be68c84f6adcfddde09db41aeb1ea7/img/icon-dark.svg" width="30"> | kagent | Kubernetes-native AI agent framework that enables the deployment and management of AI agents within Kubernetes clusters. |
 | <img src="https://kgateway.dev/feature-api-gateway.svg" width="30"> | kgateway | Kubernetes gateway for AI services, providing a standardized way to connect applications with AI capabilities within the cluster. |
 | <img src="https://raw.githubusercontent.com/agentgateway/agentgateway/refs/heads/main/ui/public/favicon.svg" width="30"> | Agent Gateway| Gateway Dataplane for AI workloads (MCP, A2A) |
+| <img src="https://raw.githubusercontent.com/cncf/artwork/refs/heads/main/projects/crossplane/icon/color/crossplane-icon-color.svg" width="30"> | Crossplane | An open source Kubernetes add-on that transforms your cluster into a universal control plane, enabling platform teams to build infrastructure abstractions. |
+| <img src="https://raw.githubusercontent.com/kagent-dev/kagent/33a48ede61be68c84f6adcfddde09db41aeb1ea7/img/icon-dark.svg" width="30"> | kagent | Kubernetes-native AI agent framework that enables the deployment and management of AI agents within Kubernetes clusters. |
 | <img src="https://argo-cd.readthedocs.io/en/stable/assets/logo.png" width="30"> | ArgoCD | GitOps continuous delivery tool for Kubernetes that automates the deployment of applications and manages their lifecycle based on Git repositories. |
 
 # Demos
 
 "Demo" is a end-to-end installation or implementation of an idea. It is similar to a tutorial in concept but geared more towards explaning how things work, showing logs, snippets, commands, screenshots, etc.
 
-Note - these demos are mostly placeholders now, and also they will be hosted in Wiki going forward.
+Note - these demos are mostly placeholders now, and also they will be hosted in [Wiki](https://github.com/olga-mir/playground/wiki) going forward.
 
 * [demo/02-argocd](./docs/demo/02-argocd) - Misadventures of a FluxCD soul in ArgoCD wonderland. A demo of how NOT to do Argo
 * [demo/06-kagent](./docs/demo/06-kagent) - [kagent](https://kagent.dev/), [github repo](https://github.com/kagent-dev/kagent)
