@@ -1,4 +1,6 @@
 # Edited due to https://github.com/kagent-dev/kagent/issues/345
+# git mv ai/kagent/kagent-app/rendered-helm-workaround.yaml platform/argo-rejects
+# testing new helm release
 ---
 # Source: kagent/templates/serviceaccount.yaml
 apiVersion: v1
