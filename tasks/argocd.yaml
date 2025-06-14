@@ -30,18 +30,6 @@ tasks:
       - kubectx -c > /dev/null 2>&1
       - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
-  get-server:
-    desc: "Get Argo CD server URL from current context"
-    cmds:
-      - kubectx -c > /dev/null 2>&1
-      - kubectl -n argocd get svc argocd-server -o jsonpath="{.status.loadBalancer.ingress[0].ip}:{.spec.ports[?(@.name=='https')].port}"
-
-  get-server-internal:
-    desc: "Get Argo CD server internal URL (cluster IP)"
-    cmds:
-      - kubectx -c > /dev/null 2>&1
-      - echo "https://$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}'):$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].port}')"
-
   check-gateway-status:
     desc: "Check ArgoCD Gateway deployment status"
     cmds:
