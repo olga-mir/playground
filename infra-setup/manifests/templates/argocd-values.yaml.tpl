@@ -99,8 +99,9 @@ configs:
           health_status.message = "EnvironmentConfig is present"
           return health_status
 
-      # Crossplane ProviderConfig (e.g., for Kubernetes provider)
-      kubernetes.crossplane.io/ProviderConfig:
+      # Generic Crossplane ProviderConfig health check for *.crossplane.io group
+      # Covers kubernetes.crossplane.io/ProviderConfig and others in *.crossplane.io
+      "*.crossplane.io/ProviderConfig":
         health.lua: |
           -- ProviderConfigs are generally healthy if they are configured.
           -- The 'status.users' field indicates how many resources are using this config.
@@ -108,9 +109,9 @@ configs:
           if obj.status ~= nil then
             if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
               health_status.status = "Healthy"
-              health_status.message = "ProviderConfig is active and in use by " .. obj.status.users .. " resource(s)"
+              health_status.message = "ProviderConfig is active and in use by " .. obj.status.users .. " resource(s)."
             else
-              -- Even if not in use, or users field is not populated yet / is 0,
+              -- Even if not in use, users field is not populated, or status is empty (e.g. status: {}),
               -- if status exists, it's considered configured.
               health_status.status = "Healthy"
               health_status.message = "ProviderConfig is configured"
@@ -121,18 +122,20 @@ configs:
           end
           return health_status
 
-      # Crossplane ProviderConfig for GitHub provider
-      github.upbound.io/ProviderConfig:
+      # Generic Crossplane ProviderConfig health check for *.upbound.io group
+      # Covers gcp.upbound.io/ProviderConfig, github.upbound.io/ProviderConfig, aws.upbound.io/ProviderConfig etc.
+      "*.upbound.io/ProviderConfig":
         health.lua: |
           -- ProviderConfigs are generally healthy if they are configured.
           -- The 'status.users' field indicates how many resources are using this config.
+          -- An empty status (e.g. status: {}) is considered configured and healthy.
           local health_status = {}
           if obj.status ~= nil then
             if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
               health_status.status = "Healthy"
-              health_status.message = "ProviderConfig is active and in use by " .. obj.status.users .. " resource(s)"
+              health_status.message = "ProviderConfig is active and in use by " .. obj.status.users .. " resource(s)."
             else
-              -- Even if not in use, or users field is not populated yet / is 0,
+              -- Even if not in use, users field is not populated, or status is empty (e.g. status: {}),
               -- if status exists, it's considered configured.
               health_status.status = "Healthy"
               health_status.message = "ProviderConfig is configured"
