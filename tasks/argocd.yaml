@@ -1,41 +1,105 @@
-
 version: "3"
+
+env:
+  # These variables must be set in your shell environment before running tasks.
+  # Example:
+  # export ARGOCD_STD_HOSTNAME="argocd.gcp.yourdomain.com"
+  # export ARGOCD_MCP_HOSTNAME="argo-mcp.gcp.yourdomain.com"
+  # The tasks will fail if these are not set.
+  ARGOCD_STD_HOSTNAME:
+    sh: |
+      if [ -z "$ARGOCD_STD_HOSTNAME" ]; then
+        echo "Error: Environment variable ARGOCD_STD_HOSTNAME is not set." >&2
+        echo "Please set it to your ArgoCD standard UI hostname, e.g., export ARGOCD_STD_HOSTNAME=\"argocd.gcp.example.com\"" >&2
+        exit 1
+      fi
+      echo "$ARGOCD_STD_HOSTNAME"
+  ARGOCD_MCP_HOSTNAME:
+    sh: |
+      if [ -z "$ARGOCD_MCP_HOSTNAME" ]; then
+        echo "Error: Environment variable ARGOCD_MCP_HOSTNAME is not set." >&2
+        echo "Please set it to your ArgoCD MCP UI hostname, e.g., export ARGOCD_MCP_HOSTNAME=\"argo-mcp.gcp.example.com\"" >&2
+        exit 1
+      fi
+      echo "$ARGOCD_MCP_HOSTNAME"
 
 tasks:
   get-secret:
     desc: "Get Argo CD initial admin password, in current context"
     cmds:
-      - kubectx -c
+      - kubectx -c > /dev/null 2>&1
       - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
   get-server:
     desc: "Get Argo CD server URL from current context"
     cmds:
-      - kubectx -c
+      - kubectx -c > /dev/null 2>&1
       - kubectl -n argocd get svc argocd-server -o jsonpath="{.status.loadBalancer.ingress[0].ip}:{.spec.ports[?(@.name=='https')].port}"
 
   get-server-internal:
     desc: "Get Argo CD server internal URL (cluster IP)"
     cmds:
-      - kubectx -c
+      - kubectx -c > /dev/null 2>&1
       - echo "https://$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}'):$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].port}')"
 
-  get-server-nodeport:
-    desc: "Get Argo CD server NodePort URL"
+  check-gateway-status:
+    desc: "Check ArgoCD Gateway deployment status"
     cmds:
-      - kubectx -c
+      - echo "=== Standard ArgoCD Gateway Status ==="
+      - kubectl get gateway argocd-gateway -n argocd -o wide || echo "Standard Gateway not found"
+      - echo ""
+      - echo "=== kgateway Status ==="
+      - kubectl get gateway shared-gateway -n kgateway-system -o wide || echo "kgateway not found"
+      - echo ""
+      - echo "=== ArgoCD MCP XListenerSet Status ==="
+      - kubectl get xlistenerset argocd-mcp-listener-set -n mcp -o wide || echo "XListenerSet not found"
+      - echo ""
+      - echo "=== HTTPRoute Status ==="
+      - kubectl get httproute -n argocd,mcp -o wide || echo "HTTPRoutes not found"
+      - echo ""
+      - echo "=== Gateway IP Addresses ==="
+      - echo "Standard Gateway IP:"
+      - kubectl get gateway argocd-gateway -n argocd -o jsonpath='{.status.addresses[0].value}' 2>/dev/null || echo "IP not ready"
+
+  get-gateway-urls:
+    desc: "Get ArgoCD Gateway URLs"
+    cmds:
       - |
-        NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')
-        if [ -z "$NODE_IP" ]; then
-          NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-        fi
-        NODE_PORT=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
-        echo "https://${NODE_IP}:${NODE_PORT}"
+        echo "ArgoCD Gateway URLs:"
+        echo "==================="
+        echo "Standard ArgoCD UI: https://$ARGOCD_STD_HOSTNAME/"
+        echo "ArgoCD MCP API:     https://$ARGOCD_MCP_HOSTNAME/"
+        echo ""
+        echo "Note: Ensure DNS records are configured to point to respective Gateway IPs"
+
+  test-gateway-connectivity:
+    desc: "Test ArgoCD Gateway connectivity"
+    cmds:
+      - |
+        echo "Testing ArgoCD Gateway connectivity..."
+
+        echo "1. Testing Standard ArgoCD (Web UI):"
+        curl -I "https://$ARGOCD_STD_HOSTNAME/" || echo "Standard ArgoCD test failed"
+
+        echo ""
+        echo "2. Testing ArgoCD MCP API:"
+        curl -I "https://$ARGOCD_MCP_HOSTNAME/" || echo "MCP API test failed"
+
+        echo ""
+        echo "3. Testing ArgoCD API endpoints:"
+        curl -k -I "https://$ARGOCD_STD_HOSTNAME/api/v1/session" || echo "Standard API test failed"
+        curl -k -I "https://$ARGOCD_MCP_HOSTNAME/api/v1/session" || echo "MCP API test failed"
+
+  cleanup-gateway:
+    desc: "Remove ArgoCD Gateway manifests"
+    cmds:
+      - kubectl delete -f argocd-gateway-manifests.yaml || echo "Some resources may not exist"
+      - echo "✅ Cleaned up ArgoCD Gateway manifests"
 
   debug-service:
     desc: "Debug ArgoCD service configuration"
     cmds:
-      - kubectx -c
+      - kubectx -c > /dev/null 2>&1
       - |
         echo "ArgoCD Service Debug Information:"
         echo "================================"
@@ -51,70 +115,41 @@ tasks:
         fi
 
         echo ""
-        echo "Full Service Details:"
-        kubectl -n argocd get svc argocd-server -o yaml | grep -A 20 "spec:"
+        echo "MCP Gateway URL (example): https://$ARGOCD_MCP_HOSTNAME/"
 
-  get-server-auto:
-    desc: "Auto-detect ArgoCD server URL based on service type"
+  get-secret-simple:
+    desc: "Get ArgoCD admin password (simple approach)"
     cmds:
-      - kubectx -c
-      - |
-        SERVICE_TYPE=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.type}')
-        HTTPS_PORT=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+      - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d
 
-        case $SERVICE_TYPE in
-          LoadBalancer)
-            LB_IP=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            if [ -n "$LB_IP" ]; then
-              echo "https://${LB_IP}:${HTTPS_PORT}"
-            else
-              echo "LoadBalancer IP not ready, falling back to ClusterIP"
-              CLUSTER_IP=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}')
-              echo "https://${CLUSTER_IP}:${HTTPS_PORT}"
-            fi
-            ;;
-          NodePort)
-            NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')
-            if [ -z "$NODE_IP" ]; then
-              NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-            fi
-            NODE_PORT=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
-            echo "https://${NODE_IP}:${NODE_PORT}"
-            ;;
-          *)
-            CLUSTER_IP=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}')
-            echo "https://${CLUSTER_IP}:${HTTPS_PORT}"
-            ;;
-        esac
-
-  get-token:
-    desc: "Get Argo CD API token using admin credentials"
+  get-token-simple:
+    desc: "Get ArgoCD token (simple approach)"
     vars:
-      ARGOCD_SERVER:
-        sh: task argocd:get-server-auto
+      ARGOCD_SERVER_URL: "https://{{.ARGOCD_STD_HOSTNAME}}"
       ARGOCD_PASSWORD:
-        sh: task argocd:get-secret
+        sh: task argocd:get-secret-simple
     cmds:
       - |
-        curl -k -s "{{.ARGOCD_SERVER}}/api/v1/session" \
+        echo "Using server: {{.ARGOCD_SERVER_URL}}" >&2
+        echo "Using password: {{.ARGOCD_PASSWORD}}" >&2
+        curl -k -s "{{.ARGOCD_SERVER_URL}}/api/v1/session" \
           -d '{"username":"admin","password":"{{.ARGOCD_PASSWORD}}"}' \
           -H "Content-Type: application/json" | \
-          jq -r '.token'
+          jq -r '.token' 2>/dev/null || echo "Failed to get token"
 
   get-config:
     desc: "Get complete ArgoCD configuration"
     vars:
-      ARGOCD_SERVER:
-        sh: task argocd:get-server-auto
+      ARGOCD_SERVER_URL: "https://{{.ARGOCD_STD_HOSTNAME}}"
       ARGOCD_PASSWORD:
         sh: task argocd:get-secret
       ARGOCD_TOKEN:
-        sh: task argocd:get-token
+        sh: task argocd:get-token-simple # Assuming get-token-simple is now the standard
     cmds:
       - |
         echo "ArgoCD Configuration:"
         echo "===================="
-        echo "Server URL: {{.ARGOCD_SERVER}}"
+        echo "Server URL: {{.ARGOCD_SERVER_URL}}"
         echo "Username: admin"
         echo "Password: {{.ARGOCD_PASSWORD}}"
         echo "API Token: {{.ARGOCD_TOKEN}}"
@@ -122,14 +157,13 @@ tasks:
   test-api:
     desc: "Test ArgoCD API connectivity"
     vars:
-      ARGOCD_SERVER:
-        sh: task argocd:get-server-auto
+      ARGOCD_SERVER_URL: "https://{{.ARGOCD_STD_HOSTNAME}}"
       ARGOCD_TOKEN:
-        sh: task argocd:get-token
+        sh: task argocd:get-token-simple # Assuming get-token-simple is now the standard
     cmds:
       - |
         echo "Testing ArgoCD API connectivity..."
-        curl -k -s "{{.ARGOCD_SERVER}}/api/v1/applications" \
+        curl -k -s "{{.ARGOCD_SERVER_URL}}/api/v1/applications" \
           -H "Authorization: Bearer {{.ARGOCD_TOKEN}}" \
           -H "Content-Type: application/json" | \
           jq '.items | length' && echo "applications found" || echo "API test failed"
