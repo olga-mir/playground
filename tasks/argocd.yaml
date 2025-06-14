@@ -1,3 +1,4 @@
+
 version: "3"
 
 tasks:
@@ -17,7 +18,7 @@ tasks:
     desc: "Get Argo CD server internal URL (cluster IP)"
     cmds:
       - kubectx -c
-      - echo "https://$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}'):$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name==\"https\")].port}')"
+      - echo "https://$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}'):$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].port}')"
 
   get-server-nodeport:
     desc: "Get Argo CD server NodePort URL"
@@ -31,11 +32,66 @@ tasks:
         NODE_PORT=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
         echo "https://${NODE_IP}:${NODE_PORT}"
 
+  debug-service:
+    desc: "Debug ArgoCD service configuration"
+    cmds:
+      - kubectx -c
+      - |
+        echo "ArgoCD Service Debug Information:"
+        echo "================================"
+        echo "Service Type: $(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.type}')"
+        echo "Cluster IP: $(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}')"
+        echo "HTTPS Port: $(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].port}')"
+
+        SERVICE_TYPE=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.type}')
+        if [ "$SERVICE_TYPE" = "LoadBalancer" ]; then
+          echo "LoadBalancer IP: $(kubectl -n argocd get svc argocd-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+        elif [ "$SERVICE_TYPE" = "NodePort" ]; then
+          echo "NodePort: $(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')"
+        fi
+
+        echo ""
+        echo "Full Service Details:"
+        kubectl -n argocd get svc argocd-server -o yaml | grep -A 20 "spec:"
+
+  get-server-auto:
+    desc: "Auto-detect ArgoCD server URL based on service type"
+    cmds:
+      - kubectx -c
+      - |
+        SERVICE_TYPE=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.type}')
+        HTTPS_PORT=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+
+        case $SERVICE_TYPE in
+          LoadBalancer)
+            LB_IP=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [ -n "$LB_IP" ]; then
+              echo "https://${LB_IP}:${HTTPS_PORT}"
+            else
+              echo "LoadBalancer IP not ready, falling back to ClusterIP"
+              CLUSTER_IP=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}')
+              echo "https://${CLUSTER_IP}:${HTTPS_PORT}"
+            fi
+            ;;
+          NodePort)
+            NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')
+            if [ -z "$NODE_IP" ]; then
+              NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+            fi
+            NODE_PORT=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+            echo "https://${NODE_IP}:${NODE_PORT}"
+            ;;
+          *)
+            CLUSTER_IP=$(kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.clusterIP}')
+            echo "https://${CLUSTER_IP}:${HTTPS_PORT}"
+            ;;
+        esac
+
   get-token:
     desc: "Get Argo CD API token using admin credentials"
     vars:
       ARGOCD_SERVER:
-        sh: task argocd:get-server-internal
+        sh: task argocd:get-server-auto
       ARGOCD_PASSWORD:
         sh: task argocd:get-secret
     cmds:
@@ -49,7 +105,7 @@ tasks:
     desc: "Get complete ArgoCD configuration"
     vars:
       ARGOCD_SERVER:
-        sh: task argocd:get-server-internal
+        sh: task argocd:get-server-auto
       ARGOCD_PASSWORD:
         sh: task argocd:get-secret
       ARGOCD_TOKEN:
@@ -67,7 +123,7 @@ tasks:
     desc: "Test ArgoCD API connectivity"
     vars:
       ARGOCD_SERVER:
-        sh: task argocd:get-server-internal
+        sh: task argocd:get-server-auto
       ARGOCD_TOKEN:
         sh: task argocd:get-token
     cmds:
