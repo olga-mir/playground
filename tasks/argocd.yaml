@@ -61,17 +61,6 @@ tasks:
       - echo "Standard Gateway IP:"
       - kubectl get gateway argocd-gateway -n argocd -o jsonpath='{.status.addresses[0].value}' 2>/dev/null || echo "IP not ready"
 
-  get-gateway-urls:
-    desc: "Get ArgoCD Gateway URLs"
-    cmds:
-      - |
-        echo "ArgoCD Gateway URLs:"
-        echo "==================="
-        echo "Standard ArgoCD UI: https://$ARGOCD_STD_HOSTNAME/"
-        echo "ArgoCD MCP API:     https://$ARGOCD_MCP_HOSTNAME/"
-        echo ""
-        echo "Note: Ensure DNS records are configured to point to respective Gateway IPs"
-
   test-gateway-connectivity:
     desc: "Test ArgoCD Gateway connectivity"
     cmds:
@@ -117,17 +106,12 @@ tasks:
         echo ""
         echo "MCP Gateway URL (example): https://$ARGOCD_MCP_HOSTNAME/"
 
-  get-secret-simple:
-    desc: "Get ArgoCD admin password (simple approach)"
-    cmds:
-      - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d
-
-  get-token-simple:
-    desc: "Get ArgoCD token (simple approach)"
+  get-token:
+    desc: "Get ArgoCD token"
     vars:
       ARGOCD_SERVER_URL: "https://{{.ARGOCD_STD_HOSTNAME}}"
       ARGOCD_PASSWORD:
-        sh: task argocd:get-secret-simple
+        sh: task argocd:get-secret
     cmds:
       - |
         echo "Using server: {{.ARGOCD_SERVER_URL}}" >&2
@@ -140,16 +124,13 @@ tasks:
   get-config:
     desc: "Get complete ArgoCD configuration"
     vars:
-      ARGOCD_SERVER_URL: "https://{{.ARGOCD_STD_HOSTNAME}}"
       ARGOCD_PASSWORD:
         sh: task argocd:get-secret
       ARGOCD_TOKEN:
-        sh: task argocd:get-token-simple # Assuming get-token-simple is now the standard
+        sh: task argocd:get-token
     cmds:
       - |
-        echo "ArgoCD Configuration:"
-        echo "===================="
-        echo "Server URL: {{.ARGOCD_SERVER_URL}}"
+        echo "Server URL: https://{{.ARGOCD_STD_HOSTNAME}}"
         echo "Username: admin"
         echo "Password: {{.ARGOCD_PASSWORD}}"
         echo "API Token: {{.ARGOCD_TOKEN}}"
@@ -159,7 +140,7 @@ tasks:
     vars:
       ARGOCD_SERVER_URL: "https://{{.ARGOCD_STD_HOSTNAME}}"
       ARGOCD_TOKEN:
-        sh: task argocd:get-token-simple # Assuming get-token-simple is now the standard
+        sh: task argocd:get-token
     cmds:
       - |
         echo "Testing ArgoCD API connectivity..."

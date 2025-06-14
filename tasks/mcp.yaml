@@ -255,9 +255,10 @@ tasks:
   generate-configs-mcp:
     desc: "Generate MCP client configs using kgateway MCP endpoint"
     vars:
-      ARGOCD_SERVER_URL: "https://$ARGOCD_MCP_HOSTNAME"
+      ARGOCD_SERVER_URL: "https://$ARGOCD_STD_HOSTNAME"
+      #ARGOCD_SERVER_URL: "https://$ARGOCD_MCP_HOSTNAME" TODO
       ARGOCD_PASSWORD:
-        sh: task argocD:get-secret-simple
+        sh: task argocd:get-secret
     cmds:
       - |
         echo "Generating MCP client configurations for kgateway MCP (https://$ARGOCD_MCP_HOSTNAME)..."
@@ -321,7 +322,7 @@ tasks:
     desc: "Test both ArgoCD Gateway endpoints"
     vars:
       ARGOCD_PASSWORD:
-        sh: task argocd:get-secret-simple
+        sh: task argocd:get-secret
     cmds:
       - |
         echo "Testing both ArgoCD Gateway endpoints..."
