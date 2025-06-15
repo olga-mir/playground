@@ -6,3 +6,8 @@ chart: kagent
 repoURL: ghcr.io/kagent-dev/kagent/helm
 targetRevision: 0.3.15
 namespace: kagent-system
+helm:
+  values:
+    providers:
+      openAI:
+      config: {}
