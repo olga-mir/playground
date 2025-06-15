@@ -146,6 +146,7 @@ spec:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: RepositoryRuleset
           metadata:
+            name: "" # Will be patched with deterministic name
             annotations:
               crossplane.io/resource-policy: Orphan
           spec:
@@ -153,8 +154,9 @@ spec:
               enforcement: active
               target: branch
               conditions:
-                refName:
-                  include: ["refs/heads/main"]
+                - refName:
+                    include: ["refs/heads/main"]
+                  # Add other condition objects here if needed, e.g. - repositoryName: { ... }
               rules:
               - requiredStatusChecks:
                   - requiredCheck: []
@@ -169,6 +171,23 @@ spec:
             providerConfigRef:
               name: github-provider-org
         patches:
+        - type: CombineFromComposite
+          combine:
+            variables:
+            - fromFieldPath: spec.teamName
+            - fromFieldPath: spec.serviceName
+            strategy: string
+            string:
+              fmt: "%s-%s-ruleset-main"
+          toFieldPath: metadata.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.repositoryRef.name
+          transforms:
+          - type: string
+            string:
+              type: Format
+              fmt: "%s-repository"
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
           toFieldPath: spec.forProvider.repository
@@ -245,13 +264,35 @@ spec:
           apiVersion: actions.github.upbound.io/v1alpha1
           kind: ActionsVariable
           metadata:
+            name: "" # Will be patched with deterministic name
             annotations:
               crossplane.io/resource-policy: Orphan
           spec:
-            forProvider: {}
+            forProvider:
+              variableName: TEAM_NAME #TODO
             providerConfigRef:
               name: github-provider-org
         patches:
+        - type: CombineFromComposite
+          combine:
+            variables:
+            - fromFieldPath: spec.teamName
+            - fromFieldPath: spec.serviceName
+            strategy: string
+            string:
+              fmt: "%s-%s-actions-var-team"
+          toFieldPath: metadata.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.repositoryRef.name
+          transforms:
+          - type: string
+            string:
+              type: Format
+              fmt: "%s-repository"
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: spec.forProvider.value
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
           toFieldPath: spec.forProvider.repository
@@ -303,19 +344,28 @@ spec:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: RepositoryWebhook
           metadata:
+            name: "repo-webhook-hardcoded-name"
             annotations:
               crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
               configuration:
-                - contentType: json
-                  insecureSsl: false
-                  url: "https://example.com/default-webhook-url" # TODO
+              - contentType: "json"
+                #insecureSsl: false # Ensure this is a string "false" or "true" if uncommented, or a boolean if the CRD expects that.
+                url: "https://example.com/default-webhook-url"
               active: true
               events: ["push", "pull_request"]
             providerConfigRef:
               name: github-provider-org
         patches:
+        #- type: FromCompositeFieldPath
+        #  fromFieldPath: metadata.name
+        #  toFieldPath: spec.forProvider.repositoryRef.name
+        #  transforms:
+        #  - type: string
+        #    string:
+        #      type: Format
+        #      fmt: "%s-repository"
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
           toFieldPath: spec.forProvider.repository
@@ -414,14 +464,33 @@ spec:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: RepositoryCollaborator
           metadata:
+            name: "" # Will be patched with deterministic name
             annotations:
               crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
-              permission: push
+              username: platform-bot
+              permission: push # One of 'pull', 'push', 'maintain', 'triage' or 'admin' or the name of an existing custom repository role
             providerConfigRef:
               name: github-provider-org
         patches:
+        - type: CombineFromComposite
+          combine:
+            variables:
+            - fromFieldPath: spec.teamName
+            - fromFieldPath: spec.serviceName
+            strategy: string
+            string:
+              fmt: "%s-%s-collab-platform-bot"
+          toFieldPath: metadata.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.repositoryRef.name
+          transforms:
+          - type: string
+            string:
+              type: Format
+              fmt: "%s-repository"
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
           toFieldPath: spec.forProvider.repository
@@ -481,7 +550,7 @@ spec:
               crossplane.io/resource-policy: Orphan
           spec:
             forProvider:
-              file: .github/CODEOWNERS
+              file: CODEOWNERS.md
               commitMessage: "Add CODEOWNERS file via Crossplane"
               commitAuthor: "Platform Engineering"
               commitEmail: "platform@company.com"
@@ -505,7 +574,7 @@ spec:
               - fromFieldPath: spec.settings.defaultBranch # Fallback to 'main' if not set
             strategy: string
             string:
-              fmt: "%s:.github/CODEOWNERS:%s" # Uses spec.settings.defaultBranch or you can hardcode 'main'
+              fmt: "%s:CODEOWNERS.md:%s" # Uses spec.settings.defaultBranch or you can hardcode 'main'
           toFieldPath: metadata.annotations["crossplane.io/external-name"]
           policy:
             fromFieldPath: Optional
@@ -519,9 +588,10 @@ spec:
           combine:
             variables:
             - fromFieldPath: spec.teamName
+            - fromFieldPath: spec.teamName
             strategy: string
             string:
-              fmt: "# Repository owned by %s team\n* @myorg/%s\n"
+              fmt: "# Repository owned by %s team\n* @tornado-demo/%s\n"
           toFieldPath: spec.forProvider.content
           policy:
             fromFieldPath: Optional

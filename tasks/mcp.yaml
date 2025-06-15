@@ -23,196 +23,27 @@ env:
       fi
       echo "$ARGOCD_MCP_HOSTNAME"
 
+  # Absolute path to Claude config mcp file
+  CLAUDE_MCP_CONFIG_FILE:
+    sh: |
+      if [ -z "$CLAUDE_MCP_CONFIG_FILE" ]; then
+        echo "Error: Environment variable CLAUDE_MCP_CONFIG_PATH is not set." >&2
+        echo "Please provide absolute path to Claude MCP config file" >&2
+        exit 1
+      fi
+      echo "$CLAUDE_MCP_CONFIG_PATH"
+
 tasks:
-  list-configs:
-    desc: "List all available MCP server configurations"
-    cmds:
-      - |
-        echo "Available MCP Server Configurations:"
-        echo "==================================="
-        echo ""
-        echo "ArgoCD MCP Server (Standard Gateway):"
-        echo "  task mcp:argocd-config-standard     - Show config for standard gateway (URL: https://$ARGOCD_STD_HOSTNAME/)"
-        echo "  task mcp:generate-configs-standard  - Generate MCP client configs for standard gateway"
-        echo "  📍 Hostname: $ARGOCD_STD_HOSTNAME"
-        echo ""
-        echo "ArgoCD MCP Server (kgateway MCP):"
-        echo "  task mcp:argocd-config-mcp          - Show config for kgateway MCP (URL: https://$ARGOCD_MCP_HOSTNAME/)"
-        echo "  task mcp:generate-configs-mcp       - Generate MCP client configs for kgateway MCP"
-        echo "  📍 Hostname: $ARGOCD_MCP_HOSTNAME"
-        echo ""
-        echo "Testing:"
-        echo "  task mcp:test-both-gateways         - Test both gateway endpoints"
-        echo ""
-        echo "GitHub MCP Server:"
-        echo "  task mcp:github-config              - Show GitHub config template"
-        echo "  task mcp:github-env-file            - Create .env.github template"
-        echo ""
-        echo "Generated files in current directory:"
-        if [ -f .env.argocd ]; then
-          echo "  ✓ .env.argocd (standard gateway)"
-        else
-          echo "  ✗ .env.argocd not found"
-        fi
-        if [ -f .env.argocd-mcp ]; then
-          echo "  ✓ .env.argocd-mcp (kgateway MCP)"
-        else
-          echo "  ✗ .env.argocd-mcp not found"
-        fi
-        if [ -f .env.github ]; then
-          echo "  ✓ .env.github"
-        else
-          echo "  ✗ .env.github not found"
-        fi
-        echo ""
-        echo "VSCode configs:"
-        if [ -f .vscode/mcp.json ]; then
-          echo "  ✓ .vscode/mcp.json (standard gateway)"
-        else
-          echo "  ✗ .vscode/mcp.json not found"
-        fi
-        if [ -f .vscode/mcp-kgateway.json ]; then
-          echo "  ✓ .vscode/mcp-kgateway.json (kgateway MCP)"
-        else
-          echo "  ✗ .vscode/mcp-kgateway.json not found"
-        fi
-        echo ""
-        echo "Note: Ensure ARGOCD_STD_HOSTNAME and ARGOCD_MCP_HOSTNAME are set in your environment."
-
-  argocd-config:
-    desc: "Get ArgoCD MCP server configuration"
-    vars:
-      ARGOCD_SERVER:
-        sh: task argocd:get-server-auto
-      ARGOCD_TOKEN:
-        sh: task argocd:get-token
-    cmds:
-      - |
-        echo "ArgoCD MCP Server Configuration:"
-        echo "================================"
-        echo "Server URL: {{.ARGOCD_SERVER}}"
-        echo "API Token: {{.ARGOCD_TOKEN}}"
-        echo ""
-        echo "Environment variables for MCP server:"
-        echo "ARGOCD_SERVER={{.ARGOCD_SERVER}}"
-        echo "ARGOCD_TOKEN={{.ARGOCD_TOKEN}}"
-
-  argocd-config-local:
-    desc: "Get ArgoCD config for local port-forwarded access"
-    vars:
-      ARGOCD_PASSWORD:
-        sh: task argocd:get-secret
-    cmds:
-      - |
-        echo "Starting port-forward in background..."
-        kubectl -n argocd port-forward svc/argocd-server 8080:443 &
-        PF_PID=$!
-        sleep 3
-
-        echo "Getting token..."
-        TOKEN=$(curl -k -s "https://localhost:8080/api/v1/session" \
-          -d '{"username":"admin","password":"{{.ARGOCD_PASSWORD}}"}' \
-          -H "Content-Type: application/json" | \
-          jq -r '.token')
-
-        echo "ArgoCD MCP Server Configuration (Local):"
-        echo "========================================"
-        echo "Server URL: https://localhost:8080"
-        echo "API Token: $TOKEN"
-        echo ""
-        echo "Environment variables for MCP server:"
-        echo "ARGOCD_SERVER=https://localhost:8080"
-        echo "ARGOCD_TOKEN=$TOKEN"
-
-        kill $PF_PID 2>/dev/null || true
-
-  argocd-env-file:
-    desc: "Create .env file for ArgoCD MCP server"
-    vars:
-      ARGOCD_SERVER:
-        sh: task argocd:get-server-internal
-      ARGOCD_TOKEN:
-        sh: task argocd:get-token
-    cmds:
-      - |
-        cat > .env.argocd << EOF
-        ARGOCD_SERVER={{.ARGOCD_SERVER}}
-        ARGOCD_TOKEN={{.ARGOCD_TOKEN}}
-        ARGOCD_INSECURE=true
-        EOF
-        echo "Created .env.argocd file with ArgoCD configuration"
-
-  argocd-config-standard:
-    desc: "Get ArgoCD MCP config using standard Gateway URL"
-    vars:
-      ARGOCD_SERVER_URL: "https://$ARGOCD_STD_HOSTNAME"
-      ARGOCD_PASSWORD:
-        sh: task argocd:get-secret-simple
-    cmds:
-      - |
-        echo "Getting ArgoCD token from Standard Gateway..."
-        TOKEN=$(curl -k -s "{{.ARGOCD_SERVER}}/api/v1/session" \
-          -d '{"username":"admin","password":"{{.ARGOCD_PASSWORD}}"}' \
-          -H "Content-Type: application/json" | jq -r '.token' 2>/dev/null || echo "Failed to get token")
-
-        echo "ArgoCD MCP Server Configuration (Standard Gateway - https://$ARGOCD_STD_HOSTNAME):"
-        echo "======================================================================"
-        echo "Server URL: {{.ARGOCD_SERVER_URL}}"
-        echo "API Token: $TOKEN"
-        echo ""
-        echo "Environment variables for MCP client:"
-        echo "ARGOCD_BASE_URL={{.ARGOCD_SERVER_URL}}"
-        echo "ARGOCD_API_TOKEN=$TOKEN"
-
-  argocd-config-mcp:
-    desc: "Get ArgoCD MCP config using kgateway MCP URL"
-    vars:
-      ARGOCD_SERVER_URL: "https://$ARGOCD_MCP_HOSTNAME"
-      ARGOCD_PASSWORD:
-        sh: task argocd:get-secret-simple
-    cmds:
-      - |
-        echo "Getting ArgoCD token from kgateway MCP..."
-        TOKEN=$(curl -k -s "{{.ARGOCD_SERVER_URL}}/api/v1/session" \
-          -d '{"username":"admin","password":"{{.ARGOCD_PASSWORD}}"}' \
-          -H "Content-Type: application/json" | jq -r '.token' 2>/dev/null || echo "Failed to get token")
-
-        echo "ArgoCD MCP Server Configuration (kgateway MCP - https://$ARGOCD_MCP_HOSTNAME):"
-        echo "==================================================================="
-        echo "Server URL: {{.ARGOCD_SERVER_URL}}"
-        echo "API Token: $TOKEN"
-        echo ""
-        echo "Environment variables for MCP client:"
-        echo "ARGOCD_BASE_URL={{.ARGOCD_SERVER_URL}}"
-        echo "ARGOCD_API_TOKEN=$TOKEN"
-
   generate-configs-standard:
     desc: "Generate MCP client configs using standard Gateway"
     vars:
       ARGOCD_SERVER_URL: "https://$ARGOCD_STD_HOSTNAME"
-      ARGOCD_PASSWORD:
-        sh: task argocd:get-secret-simple
+      ARGOCD_TOKEN:
+        sh: task argocd:get-token
+    deps:
+      - mcp:argocd-env-file
     cmds:
       - |
-        echo "Generating MCP client configurations for Standard Gateway (https://$ARGOCD_STD_HOSTNAME)..."
-        TOKEN=$(curl -k -s "{{.ARGOCD_SERVER_URL}}/api/v1/session" \
-          -d '{"username":"admin","password":"{{.ARGOCD_PASSWORD}}"}' \
-          -H "Content-Type: application/json" | \
-          jq -r '.token' 2>/dev/null || echo "Failed to get token")
-
-        if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
-          echo "❌ Failed to get ArgoCD token from {{.ARGOCD_SERVER_URL}}"
-          echo "   Check if Gateway is accessible and ArgoCD is running."
-          exit 1
-        fi
-
-        # Create .env file
-        cat > .env.argocd << EOF
-        ARGOCD_SERVER={{.ARGOCD_SERVER}}
-        ARGOCD_TOKEN=$TOKEN
-        ARGOCD_INSECURE=false
-        EOF
-
         # Create VSCode config
         mkdir -p .vscode
         cat > .vscode/mcp.json << EOF
@@ -224,7 +55,7 @@ tasks:
               "args": ["argocd-mcp@latest", "stdio"],
               "env": {
                 "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER_URL}}",
-                "ARGOCD_API_TOKEN": "$TOKEN"
+                "ARGOCD_API_TOKEN": "{{.TOKEN}}"
               }
             }
           }
@@ -240,7 +71,7 @@ tasks:
               "args": ["argocd-mcp@latest", "stdio"],
               "env": {
                 "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER_URL}}",
-                "ARGOCD_API_TOKEN": "$TOKEN"
+                "ARGOCD_API_TOKEN": "{{.TOKEN}}"
               }
             }
           }
@@ -248,49 +79,37 @@ tasks:
         EOF
 
         echo "✅ Generated MCP client configurations (Standard Gateway):"
-        echo "   - .env.argocd"
         echo "   - .vscode/mcp.json"
         echo "   - claude_desktop_config.json"
 
-  generate-configs-mcp:
+  generate-configs-mcp-not-ready:
     desc: "Generate MCP client configs using kgateway MCP endpoint"
+    # however the MCP server urls will need to change to hosted URLs not stdio
     vars:
-      ARGOCD_SERVER_URL: "https://$ARGOCD_STD_HOSTNAME"
-      #ARGOCD_SERVER_URL: "https://$ARGOCD_MCP_HOSTNAME" TODO
-      ARGOCD_PASSWORD:
-        sh: task argocd:get-secret
+      ARGOCD_SERVER_URL: "https://$ARGOCD_MCP_HOSTNAME" # This is correct for MCP endpoint
+      # Fetch token specifically for the MCP endpoint
+      TOKEN:
+        sh: |
+          echo "Fetching token for MCP endpoint: {{.ARGOCD_SERVER_URL}}" >&2
+          MCP_PASSWORD=$(task argocd:get-secret)
+          curl -k -s "{{.ARGOCD_SERVER_URL}}/api/v1/session" \
+            -d "{\"username\":\"admin\",\"password\":\"$MCP_PASSWORD\"}" \
+            -H "Content-Type: application/json" | \
+            jq -r '.token' 2>/dev/null || echo "mcp-token-fetch-failed"
     cmds:
       - |
-        echo "Generating MCP client configurations for kgateway MCP (https://$ARGOCD_MCP_HOSTNAME)..."
-        TOKEN=$(curl -k -s "{{.ARGOCD_SERVER_URL}}/api/v1/session" \
-          -d '{"username":"admin","password":"{{.ARGOCD_PASSWORD}}"}' \
-          -H "Content-Type: application/json" | jq -r '.token' 2>/dev/null)
-
-        if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
-          echo "❌ Failed to get ArgoCD token from {{.ARGOCD_SERVER_URL}}"
-          echo "   Check if kgateway MCP is accessible and ArgoCD is running."
-          exit 1
-        fi
-
-        # Create .env file
-        cat > .env.argocd-mcp << EOF
-        ARGOCD_SERVER={{.ARGOCD_SERVER}}
-        ARGOCD_TOKEN=$TOKEN
-        ARGOCD_INSECURE=false
-        EOF
-
         # Create VSCode config
         mkdir -p .vscode
         cat > .vscode/mcp-kgateway.json << EOF
         {
           "servers": {
-            "argocd-mcp-kgateway": {
+            "argocd-mcp": {
               "type": "stdio",
               "command": "npx",
               "args": ["argocd-mcp@latest", "stdio"],
               "env": {
-                "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER_URL}}",
-                "ARGOCD_API_TOKEN": "$TOKEN"
+                "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER_URL}}", # Use the MCP server URL
+                "ARGOCD_API_TOKEN": "{{.TOKEN}}"
               }
             }
           }
@@ -301,12 +120,12 @@ tasks:
         cat > claude_desktop_config_mcp.json << EOF
         {
           "mcpServers": {
-            "argocd-mcp-kgateway": {
+            "argocd-mcp": {
               "command": "npx",
               "args": ["argocd-mcp@latest", "stdio"],
               "env": {
-                "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER_URL}}",
-                "ARGOCD_API_TOKEN": "$TOKEN"
+                "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER_URL}}", # Use the MCP server URL
+                "ARGOCD_API_TOKEN": "{{.TOKEN}}"
               }
             }
           }
@@ -314,11 +133,42 @@ tasks:
         EOF
 
         echo "✅ Generated MCP client configurations (kgateway MCP):"
-        echo "   - .env.argocd-mcp"
         echo "   - .vscode/mcp-kgateway.json"
         echo "   - claude_desktop_config_mcp.json"
 
-  test-both-gateways:
+  update-claude-config-token:
+    desc: "Update ARGOCD_API_TOKEN in the Claude config file specified by CLAUDE_MCP_CONFIG_PATH."
+    vars:
+      ARGOCD_TOKEN:
+        sh: task argocd:get-token
+    cmds:
+      - |
+        # Expand tilde for CLAUDE_MCP_CONFIG_PATH
+        CLAUDE_MCP_CONFIG_FILE=$(eval echo "$CLAUDE_MCP_CONFIG_PATH")
+
+        if [ ! -f "$CLAUDE_MCP_CONFIG_FILE" ]; then
+          echo "Error: Config file not found at CLAUDE_MCP_CONFIG_PATH: $CLAUDE_MCP_CONFIG_FILE" >&2
+          exit 1
+        fi
+
+        echo "Updating token in $CLAUDE_MCP_CONFIG_FILE..."
+        # Create timestamped backup
+        BACKUP_FILE="${CLAUDE_MCP_CONFIG_FILE}.$(date +%Y%m%d%H%M%S).bak"
+        cp "$CLAUDE_MCP_CONFIG_FILE" "$BACKUP_FILE"
+        echo "Created backup: $BACKUP_FILE"
+
+        # Escape the new token for sed (handles \, /, &, |)
+        ESCAPED_NEW_TOKEN=$(printf '%s\n' "{{.ARGOCD_TOKEN}}" | sed -e 's/\\/\\\\/g' -e 's/\//\\\//g' -e 's/&/\\\&/g' -e 's/|/\\\|/g')
+
+        # Use sed to replace the token. Using temp file for safer in-place edit.
+        TMP_SED_FILE=$(mktemp)
+        sed "s|\(\"ARGOCD_API_TOKEN\":[[:space:]]*\"\)[^\"]*\"|\1${ESCAPED_NEW_TOKEN}\"|" "$CLAUDE_MCP_CONFIG_FILE" > "$TMP_SED_FILE" && mv "$TMP_SED_FILE" "$CLAUDE_MCP_CONFIG_FILE"
+
+        # Basic verification (grep might be unreliable if token has special characters)
+        echo "Token update attempt complete. Please verify the content of $CLAUDE_MCP_CONFIG_FILE."
+        echo "The new token starts with: $(echo {{.ARGOCD_TOKEN}} | cut -c 1-10)..."
+
+  test-gateways:
     desc: "Test both ArgoCD Gateway endpoints"
     vars:
       ARGOCD_PASSWORD:
@@ -360,78 +210,3 @@ tasks:
         else
           echo "   ❌ kgateway MCP authentication failed"
         fi
-
-  github-env-file:
-    desc: "Create template .env file for GitHub MCP server"
-    cmds:
-      - |
-        if [ -f .env.github ]; then
-          echo ".env.github already exists. Backing up to .env.github.bak"
-          cp .env.github .env.github.bak
-        fi
-        cat > .env.github << EOF
-        # GitHub Personal Access Token
-        # Create at: https://github.com/settings/personal-access-tokens
-        # Required scopes: repo, read:org, read:user
-        GITHUB_TOKEN=your_github_token_here
-
-        # Optional: Default repository (format: owner/repo)
-        # GITHUB_DEFAULT_REPO=your-org/your-repo
-
-        # Optional: GitHub API base URL (usually not needed)
-        # GITHUB_API_BASE_URL=https://api.github.com
-        EOF
-        echo "Created .env.github template file"
-        echo "Please edit .env.github and add your GitHub token"
-
-  generate-vscode-config:
-    desc: "Generate VSCode MCP configuration for ArgoCD"
-    vars:
-      ARGOCD_SERVER:
-        sh: task argocd:get-server-internal
-      ARGOCD_TOKEN:
-        sh: task argocd:get-token
-    cmds:
-      - mkdir -p .vscode
-      - |
-        cat > .vscode/mcp.json << EOF
-        {
-          "servers": {
-            "argocd-mcp": {
-              "type": "stdio",
-              "command": "npx",
-              "args": ["argocd-mcp@latest", "stdio"],
-              "env": {
-                "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER}}",
-                "ARGOCD_API_TOKEN": "{{.ARGOCD_TOKEN}}"
-              }
-            }
-          }
-        }
-        EOF
-      - echo "Created .vscode/mcp.json for ArgoCD MCP"
-
-  generate-claude-config:
-    desc: "Generate Claude Desktop MCP configuration for ArgoCD"
-    vars:
-      ARGOCD_SERVER:
-        sh: task argocd:get-server-internal
-      ARGOCD_TOKEN:
-        sh: task argocd:get-token
-    cmds:
-      - |
-        cat > claude_desktop_config.json << EOF
-        {
-          "mcpServers": {
-            "argocd-mcp": {
-              "command": "npx",
-              "args": ["argocd-mcp@latest", "stdio"],
-              "env": {
-                "ARGOCD_BASE_URL": "{{.ARGOCD_SERVER}}",
-                "ARGOCD_API_TOKEN": "{{.ARGOCD_TOKEN}}"
-              }
-            }
-          }
-        }
-        EOF
-        echo "Created claude_desktop_config.json for ArgoCD MCP"
