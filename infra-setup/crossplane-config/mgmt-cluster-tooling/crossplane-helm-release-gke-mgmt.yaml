@@ -1,0 +1,20 @@
+# Helm release resource applied on kind cluster
+# to install Crossplane on the target cluster
+---
+apiVersion: helm.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: crossplane-on-gke-mgmt
+  namespace: crossplane-system
+spec:
+  providerConfigRef:
+    name: gke-mgmt-cluster-k8s-config
+  chart:
+    name: crossplane
+    repository: https://charts.crossplane.io/preview
+    version: ${CROSSPLANE_VERSION} # "v2.0.0-preview.1"
+  namespace: crossplane-system
+  createNamespace: true
+  # Custom values for the Crossplane Helm chart, add them under a 'values:' key here.
+  # values:
+  #   someValue: example

@@ -22,6 +22,7 @@ set +x
 required_vars=(
     PROJECT_ID
     REGION
+    ZONE
     GKE_MGMT_CLUSTER
     GKE_APPS_DEV_CLUSTER
     CROSSPLANE_GSA_KEY_FILE
@@ -49,6 +50,7 @@ fi
 #export MGMT_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${REGION}_${GKE_MGMT_CLUSTER}"
 #export APPS_DEV_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${REGION}_${GKE_APPS_DEV_CLUSTER}"
 export MGMT_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_MGMT_CLUSTER}"
+export KIND_CROSSPLANE_CONTEXT="kind-kind" # TODO
 export APPS_DEV_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_APPS_DEV_CLUSTER}"
 export CROSSPLANE_VERSION="v2.0.0-preview.1"
 export ARGOCD_VERSION="v2.14.10"
@@ -202,25 +204,28 @@ else
     echo "Skipping ArgoCD installation and configuration..."
 fi
 
-echo "Installing Crossplane on management cluster..."
+echo "Applying Crossplane ProviderConfig for GKE Management Cluster to Kind Crossplane..."
+envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/mgmt-cluster-tooling/providerconfig-gke-mgmt.yaml" | \
+  kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
-if ! helm status crossplane --kube-context "${MGMT_CLUSTER_CONTEXT}" --namespace crossplane-system &>/dev/null; then
-    helm install crossplane crossplane-preview/crossplane \
-        --kube-context="${MGMT_CLUSTER_CONTEXT}" \
-        --namespace crossplane-system \
-        --create-namespace \
-        --version "${CROSSPLANE_VERSION}" || { echo "Error installing crossplane"; exit 1; }
-    sleep 10
-else
-    echo "Crossplane is already installed in the management cluster. Skipping installation."
-fi
+echo "Applying Crossplane Helm Release for GKE Management Cluster to Kind Crossplane..."
+envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/mgmt-cluster-tooling/crossplane-helm-release-gke-mgmt.yaml" | \
+  kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
-# Create secret for GCP provider
-if ! kubectl --context="${MGMT_CLUSTER_CONTEXT}" get secret gcp-creds -n crossplane-system >/dev/null 2>&1; then
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic gcp-creds \
-        --namespace crossplane-system \
-        --from-file=credentials.json="${CROSSPLANE_GSA_KEY_FILE}" || { echo "Error creating gcp-creds secret"; exit 1; }
-fi
+echo "Creating GCP credentials secret in GKE Management Cluster via Kind Crossplane..."
+export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
+envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/mgmt-cluster-tooling/gcp-creds-secret-gke-mgmt.yaml.tpl" | \
+  kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+unset BASE64_ENCODED_GCP_CREDS
+
+echo "Waiting for Crossplane to be installed in GKE Management cluster (by Kind Crossplane)..."
+echo "This might take a few minutes. Monitor the 'crossplane-on-gke-mgmt' Release in namespace 'crossplane-system' in your Kind cluster."
+
+while ! kubectl --context "${MGMT_CLUSTER_CONTEXT}" -n crossplane-system get deployment crossplane --output=jsonpath='{.status.readyReplicas}' | grep -qP '^[1-9]\d*$'; do
+  echo -n "."
+  sleep 10
+done
+echo "Crossplane pods seem ready in GKE management cluster."
 
 # Create secret for apps-dev cluster kubeconfig
 echo "Creating secret for apps-dev cluster kubeconfig..."
