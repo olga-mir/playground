@@ -350,8 +350,8 @@ spec:
           spec:
             forProvider:
               configuration:
-                contentType: "json"
-                #insecureSsl: false # Assuming boolean is acceptable by the schema
+              - contentType: "json"
+                #insecureSsl: false # Ensure this is a string "false" or "true" if uncommented, or a boolean if the CRD expects that.
                 url: "https://example.com/default-webhook-url"
               active: true
               events: ["push", "pull_request"]
