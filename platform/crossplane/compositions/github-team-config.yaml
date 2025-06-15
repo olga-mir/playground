@@ -75,10 +75,9 @@ spec:
                 combine:
                   variables:
                     - fromFieldPath: spec.teamName
-                    - fromFieldPath: spec.repositoryAccess[0].repositoryName
                   strategy: string
                   string:
-                    fmt: "%s-%s"
+                    fmt: "%s-repoaccess" # Ensures a unique name like 'teamname-repoaccess'
                 toFieldPath: metadata.name
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.repositoryAccess[0].repositoryName
