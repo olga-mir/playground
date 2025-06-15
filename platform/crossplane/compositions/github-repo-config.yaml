@@ -153,8 +153,9 @@ spec:
               enforcement: active
               target: branch
               conditions:
-                refName:
-                  include: ["refs/heads/main"]
+                - refName:
+                    include: ["refs/heads/main"]
+                  # Add other condition objects here if needed, e.g. - repositoryName: { ... }
               rules:
               - requiredStatusChecks:
                   - requiredCheck: []
@@ -267,8 +268,9 @@ spec:
           fromFieldPath: metadata.name
           toFieldPath: spec.forProvider.repositoryRef.name
           transforms:
-          - type: string
+          - type: string # This specifies a string transformation
             string:
+              type: Format # This specifies the *kind* of string transformation
               fmt: "%s-repository"
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
