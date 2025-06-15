@@ -245,13 +245,34 @@ spec:
           apiVersion: actions.github.upbound.io/v1alpha1
           kind: ActionsVariable
           metadata:
+            name: "" # Will be patched with deterministic name
             annotations:
               crossplane.io/resource-policy: Orphan
           spec:
-            forProvider: {}
+            forProvider:
+              variableName: TEAM_NAME #TODO
             providerConfigRef:
               name: github-provider-org
         patches:
+        - type: CombineFromComposite
+          combine:
+            variables:
+            - fromFieldPath: spec.teamName
+            - fromFieldPath: spec.serviceName
+            strategy: string
+            string:
+              fmt: "%s-%s-actions-var-team"
+          toFieldPath: metadata.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.repositoryRef.name
+          transforms:
+          - type: string
+            string:
+              fmt: "%s-repository"
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.teamName
+          toFieldPath: spec.forProvider.value
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
           toFieldPath: spec.forProvider.repository
@@ -303,6 +324,7 @@ spec:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: RepositoryWebhook
           metadata:
+            name: "" # Will be patched with deterministic name
             annotations:
               crossplane.io/resource-policy: Orphan
           spec:
@@ -316,6 +338,13 @@ spec:
             providerConfigRef:
               name: github-provider-org
         patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.repositoryRef.name
+          transforms:
+          - type: string
+            string:
+              fmt: "%s-repository"
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
           toFieldPath: spec.forProvider.repository
