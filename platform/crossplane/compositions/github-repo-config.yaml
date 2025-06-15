@@ -344,7 +344,7 @@ spec:
           apiVersion: repo.github.upbound.io/v1alpha1
           kind: RepositoryWebhook
           metadata:
-            name: "" # Will be patched with deterministic name
+            name: "repo-webhook-hardcoded-name"
             annotations:
               crossplane.io/resource-policy: Orphan
           spec:
@@ -358,14 +358,14 @@ spec:
             providerConfigRef:
               name: github-provider-org
         patches:
-        - type: FromCompositeFieldPath
-          fromFieldPath: metadata.name
-          toFieldPath: spec.forProvider.repositoryRef.name
-          transforms:
-          - type: string
-            string:
-              type: Format
-              fmt: "%s-repository"
+        #- type: FromCompositeFieldPath
+        #  fromFieldPath: metadata.name
+        #  toFieldPath: spec.forProvider.repositoryRef.name
+        #  transforms:
+        #  - type: string
+        #    string:
+        #      type: Format
+        #      fmt: "%s-repository"
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
           toFieldPath: spec.forProvider.repository
