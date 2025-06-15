@@ -308,9 +308,9 @@ spec:
           spec:
             forProvider:
               configuration:
-                - contentType: json
-                  insecureSsl: false
-                  url: "https://example.com/default-webhook-url" # TODO
+                contentType: "json"
+                #insecureSsl: false # Assuming boolean is acceptable by the schema
+                url: "https://example.com/default-webhook-url"
               active: true
               events: ["push", "pull_request"]
             providerConfigRef:
