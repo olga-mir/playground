@@ -268,9 +268,9 @@ spec:
           fromFieldPath: metadata.name
           toFieldPath: spec.forProvider.repositoryRef.name
           transforms:
-          - type: string # This specifies a string transformation
+          - type: string
             string:
-              type: Format # This specifies the *kind* of string transformation
+              type: Format
               fmt: "%s-repository"
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
@@ -346,6 +346,7 @@ spec:
           transforms:
           - type: string
             string:
+              type: Format
               fmt: "%s-repository"
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
