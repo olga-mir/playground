@@ -9,5 +9,5 @@ namespace: kagent-system
 helm:
   values:
     providers:
-      openAI:
-      config: {}
+      OpenAI:
+        config: {}
