@@ -346,7 +346,7 @@ spec:
           transforms:
           - type: string
             string:
-              type: Format
+              #type: Format
               fmt: "%s-repository"
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
