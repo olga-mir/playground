@@ -1,4 +1,4 @@
-apiVersion: kagent.ai/v1alpha1
+apiVersion: kagent.dev/v1alpha1
 kind: Agent
 metadata:
   name: crossplane-monitor
@@ -41,7 +41,7 @@ spec:
 
 ---
 # Workflow orchestration agent
-apiVersion: kagent.ai/v1alpha1
+apiVersion: kagent.dev/v1alpha1
 kind: Agent
 metadata:
   name: crossplane-workflow-orchestrator
@@ -71,7 +71,7 @@ spec:
 
 ---
 # GitHub Integration Tool for autonomous PRs
-apiVersion: kagent.ai/v1alpha1
+apiVersion: kagent.dev/v1alpha1
 kind: ToolsServer
 metadata:
   name: github-auto-pr

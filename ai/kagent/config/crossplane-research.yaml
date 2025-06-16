@@ -1,5 +1,5 @@
 # Advanced Research Integration for Complex Crossplane Issues
-apiVersion: kagent.ai/v1alpha1
+apiVersion: kagent.dev/v1alpha1
 kind: Agent
 metadata:
   name: crossplane-research-agent
@@ -37,7 +37,7 @@ spec:
 
 ---
 # Integration with Claude's Advanced Research
-apiVersion: kagent.ai/v1alpha1
+apiVersion: kagent.dev/v1alpha1
 kind: ToolsServer
 metadata:
   name: advanced-research
@@ -72,7 +72,7 @@ spec:
 
 ---
 # Workflow for escalation to Advanced Research
-apiVersion: kagent.ai/v1alpha1
+apiVersion: kagent.dev/v1alpha1
 kind: Agent
 metadata:
   name: crossplane-escalation-handler

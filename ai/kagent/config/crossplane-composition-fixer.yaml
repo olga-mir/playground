@@ -1,4 +1,4 @@
-apiVersion: kagent.ai/v1alpha1
+apiVersion: kagent.dev/v1alpha1
 kind: Agent
 metadata:
   name: crossplane-composition-fixer
@@ -41,7 +41,7 @@ spec:
   - name: github-mcp
 
 ---
-apiVersion: kagent.ai/v1alpha1
+apiVersion: kagent.dev/v1alpha1
 kind: ToolsServer
 metadata:
   name: argo-app-status
@@ -65,7 +65,7 @@ spec:
       kubectl get application $app_name -n $namespace -o jsonpath='{.status}' | jq .
 
 ---
-apiVersion: kagent.ai/v1alpha1
+apiVersion: kagent.dev/v1alpha1
 kind: ToolsServer
 metadata:
   name: crossplane-debug
