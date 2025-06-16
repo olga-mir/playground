@@ -104,21 +104,89 @@ configs:
       "*.crossplane.io/ProviderConfig":
         health.lua: |
           -- ProviderConfigs are generally healthy if they are configured.
-          -- The 'status.users' field indicates how many resources are using this config.
+          -- This check prioritizes Ready conditions if present, otherwise assumes configured if status exists.
           local health_status = {}
           if obj.status ~= nil then
-            if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+            local has_definitive_condition = false
+            if obj.status.conditions ~= nil then
+              for _, condition in ipairs(obj.status.conditions) do
+                if condition.type == "Ready" then
+                  if condition.status == "False" then
+                    health_status.status = "Degraded"
+                    health_status.message = condition.reason or condition.message or "ProviderConfig not ready"
+                    has_definitive_condition = true
+                    break
+                  elseif condition.status == "True" then
+                    health_status.status = "Healthy"
+                    if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+                      health_status.message = "ProviderConfig is ready and in use by " .. obj.status.users .. " resource(s)."
+                    else
+                      health_status.message = "ProviderConfig is ready."
+                    end
+                    has_definitive_condition = true
+                    break
+                  end
+                end
+              end
+            end
+
+            if not has_definitive_condition then
+              -- No definitive Ready:True or Ready:False condition found.
+              -- Fallback: if status exists, it's generally considered configured/healthy.
               health_status.status = "Healthy"
-              health_status.message = "ProviderConfig is active and in use by " .. obj.status.users .. " resource(s)."
-            else
-              -- Even if not in use, users field is not populated, or status is empty (e.g. status: {}),
-              -- if status exists, it's considered configured.
-              health_status.status = "Healthy"
-              health_status.message = "ProviderConfig is configured"
+              if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+                health_status.message = "ProviderConfig is configured and in use by " .. obj.status.users .. " resource(s)."
+              else
+                health_status.message = "ProviderConfig is configured."
+              end
             end
           else
             health_status.status = "Progressing"
-            health_status.message = "Waiting for ProviderConfig status"
+            health_status.message = "Waiting for ProviderConfig status."
+          end
+          return health_status
+
+      # Specific Crossplane ProviderConfig health check for gcp.upbound.io
+      gcp.upbound.io/ProviderConfig:
+        health.lua: |
+          -- ProviderConfigs are generally healthy if they are configured.
+          -- This check prioritizes Ready conditions if present, otherwise assumes configured if status exists.
+          local health_status = {}
+          if obj.status ~= nil then
+            local has_definitive_condition = false
+            if obj.status.conditions ~= nil then
+              for _, condition in ipairs(obj.status.conditions) do
+                if condition.type == "Ready" then
+                  if condition.status == "False" then
+                    health_status.status = "Degraded"
+                    health_status.message = condition.reason or condition.message or "ProviderConfig not ready"
+                    has_definitive_condition = true
+                    break
+                  elseif condition.status == "True" then
+                    health_status.status = "Healthy"
+                    if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+                      health_status.message = "ProviderConfig is ready and in use by " .. obj.status.users .. " resource(s)."
+                    else
+                      health_status.message = "ProviderConfig is ready."
+                    end
+                    has_definitive_condition = true
+                    break
+                  end
+                end
+              end
+            end
+
+            if not has_definitive_condition then
+              health_status.status = "Healthy"
+              if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+                health_status.message = "ProviderConfig is configured and in use by " .. obj.status.users .. " resource(s)."
+              else
+                health_status.message = "ProviderConfig is configured."
+              end
+            end
+          else
+            health_status.status = "Progressing"
+            health_status.message = "Waiting for ProviderConfig status."
           end
           return health_status
 
@@ -127,22 +195,45 @@ configs:
       "*.upbound.io/ProviderConfig":
         health.lua: |
           -- ProviderConfigs are generally healthy if they are configured.
-          -- The 'status.users' field indicates how many resources are using this config.
-          -- An empty status (e.g. status: {}) is considered configured and healthy.
+          -- This check prioritizes Ready conditions if present, otherwise assumes configured if status exists.
           local health_status = {}
           if obj.status ~= nil then
-            if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+            local has_definitive_condition = false
+            if obj.status.conditions ~= nil then
+              for _, condition in ipairs(obj.status.conditions) do
+                if condition.type == "Ready" then
+                  if condition.status == "False" then
+                    health_status.status = "Degraded"
+                    health_status.message = condition.reason or condition.message or "ProviderConfig not ready"
+                    has_definitive_condition = true
+                    break
+                  elseif condition.status == "True" then
+                    health_status.status = "Healthy"
+                    if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+                      health_status.message = "ProviderConfig is ready and in use by " .. obj.status.users .. " resource(s)."
+                    else
+                      health_status.message = "ProviderConfig is ready."
+                    end
+                    has_definitive_condition = true
+                    break
+                  end
+                end
+              end
+            end
+
+            if not has_definitive_condition then
+              -- No definitive Ready:True or Ready:False condition found.
+              -- Fallback: if status exists, it's generally considered configured/healthy.
               health_status.status = "Healthy"
-              health_status.message = "ProviderConfig is active and in use by " .. obj.status.users .. " resource(s)."
-            else
-              -- Even if not in use, users field is not populated, or status is empty (e.g. status: {}),
-              -- if status exists, it's considered configured.
-              health_status.status = "Healthy"
-              health_status.message = "ProviderConfig is configured"
+              if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+                health_status.message = "ProviderConfig is configured and in use by " .. obj.status.users .. " resource(s)."
+              else
+                health_status.message = "ProviderConfig is configured."
+              end
             end
           else
             health_status.status = "Progressing"
-            health_status.message = "Waiting for ProviderConfig status"
+            health_status.message = "Waiting for ProviderConfig status."
           end
           return health_status
 
@@ -327,6 +418,28 @@ configs:
           end
           health_status.status = "Progressing"
           health_status.message = "Waiting for function status"
+          return health_status
+
+      pkg.crossplane.io/ProviderRevision:
+        health.lua: |
+          local health_status = {}
+          if obj.status ~= nil then
+            if obj.status.conditions ~= nil then
+              for i, condition in ipairs(obj.status.conditions) do
+                if condition.type == "Healthy" and condition.status == "True" then
+                  health_status.status = "Healthy"
+                  health_status.message = "ProviderRevision is healthy"
+                  return health_status
+                elseif condition.type == "Healthy" and condition.status == "False" then
+                  health_status.status = "Degraded"
+                  health_status.message = condition.reason or "ProviderRevision is not healthy"
+                  return health_status
+                end
+              end
+            end
+          end
+          health_status.status = "Progressing"
+          health_status.message = "Waiting for ProviderRevision to be ready"
           return health_status
 
     # Increase timeouts for slow Crossplane resources
