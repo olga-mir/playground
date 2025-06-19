@@ -43,7 +43,7 @@ spec:
               deleteBranchOnMerge: true
               autoInit: true
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-org-lvl
         patches:
         # Use serviceName as repository name if name not provided
         - type: FromCompositeFieldPath
@@ -117,7 +117,7 @@ spec:
             forProvider:
               branch: main
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         # Patch for external-name: repository name
         - type: FromCompositeFieldPath
@@ -169,7 +169,7 @@ spec:
                   # requiredReviewThreadResolution: false
                   # requireLastPushApproval: false
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         - type: CombineFromComposite
           combine:
@@ -271,7 +271,7 @@ spec:
             forProvider:
               variableName: TEAM_NAME #TODO
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         - type: CombineFromComposite
           combine:
@@ -356,7 +356,7 @@ spec:
               active: true
               events: ["push", "pull_request"]
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         #- type: FromCompositeFieldPath
         #  fromFieldPath: metadata.name
@@ -422,7 +422,7 @@ spec:
               # one of pull, triage, push, maintain, admin or the name of an existing custom repository role within the organisation
               permission: maintain
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-org-lvl
         patches:
 
         - type: FromCompositeFieldPath
@@ -472,7 +472,7 @@ spec:
               username: platform-bot
               permission: push # One of 'pull', 'push', 'maintain', 'triage' or 'admin' or the name of an existing custom repository role
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         - type: CombineFromComposite
           combine:
@@ -555,7 +555,7 @@ spec:
               commitAuthor: "Platform Engineering"
               commitEmail: "platform@company.com"
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName
