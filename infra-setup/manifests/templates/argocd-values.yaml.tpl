@@ -147,6 +147,50 @@ configs:
           return health_status
 
       # Specific Crossplane ProviderConfig health check for gcp.upbound.io
+      github.upbound.io/ProviderConfig:
+        health.lua: |
+          -- ProviderConfigs are generally healthy if they are configured.
+          -- This check prioritizes Ready conditions if present, otherwise assumes configured if status exists.
+          local health_status = {}
+          if obj.status ~= nil then
+            local has_definitive_condition = false
+            if obj.status.conditions ~= nil then
+              for _, condition in ipairs(obj.status.conditions) do
+                if condition.type == "Ready" then
+                  if condition.status == "False" then
+                    health_status.status = "Degraded"
+                    health_status.message = condition.reason or condition.message or "ProviderConfig not ready"
+                    has_definitive_condition = true
+                    break
+                  elseif condition.status == "True" then
+                    health_status.status = "Healthy"
+                    if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+                      health_status.message = "ProviderConfig is ready and in use by " .. obj.status.users .. " resource(s)."
+                    else
+                      health_status.message = "ProviderConfig is ready."
+                    end
+                    has_definitive_condition = true
+                    break
+                  end
+                end
+              end
+            end
+
+            if not has_definitive_condition then
+              health_status.status = "Healthy"
+              if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+                health_status.message = "ProviderConfig is configured and in use by " .. obj.status.users .. " resource(s)."
+              else
+                health_status.message = "ProviderConfig is configured."
+              end
+            end
+          else
+            health_status.status = "Progressing"
+            health_status.message = "Waiting for ProviderConfig status."
+          end
+          return health_status
+
+      # Specific Crossplane ProviderConfig health check for gcp.upbound.io
       gcp.upbound.io/ProviderConfig:
         health.lua: |
           -- ProviderConfigs are generally healthy if they are configured.

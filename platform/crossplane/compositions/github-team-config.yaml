@@ -26,7 +26,7 @@ spec:
                   privacy: closed
                   description: Team created by Crossplane
                 providerConfigRef:
-                  name: github-provider-org
+                  name: github-provider-org-lvl
             patches:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
@@ -83,7 +83,7 @@ spec:
                 permission: {{ $access.permission | default "pull" }} {{/* Default to 'pull' if not specified */}}
                 teamId: {{ $teamName }} {{/* Assumes teamName from XR is the GitHub team slug */}}
               providerConfigRef:
-                name: github-provider-org
+                name: github-provider-org-lvl
             {{- end }}
 
             {{/* Conditionally create TeamMembership for the maintainer */}}
@@ -102,7 +102,7 @@ spec:
                 username: {{ $teamMaintainerUsername }}
                 role: maintainer
               providerConfigRef:
-                name: github-provider-org
+                name: github-provider-org-lvl
             {{- end }}
 
 
