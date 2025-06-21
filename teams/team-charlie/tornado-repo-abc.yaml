@@ -38,7 +38,7 @@ spec:
           strictRequired: true
       - type: "required_pull_request_reviews"
         parameters:
-          requiredApprovingReviewCount: 3
+          # requiredApprovingReviewCount: 3 - omitting this for demo, this value will be picked up from env config
           dismissStaleReviews: true
           requireCodeOwnerReviews: true
       - type: "required_signatures"

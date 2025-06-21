@@ -7,11 +7,11 @@ metadata:
 data:
   # Team-specific repository defaults
   team: "team-charlie"
-  requiredApprovingReviewCount: "2"
+  requiredApprovingReviewCount: 12 # something rediculous for demo
   defaultWebhookUrl: "https://charlie-team.company.com/webhook"
   serviceTier: "standard"
-  # Security requirements
   requireSignedCommits: "true"
+
   # Team-specific variables that should be applied to all repos
   teamVariables:
     TEAM_NAME: "team-charlie" 
