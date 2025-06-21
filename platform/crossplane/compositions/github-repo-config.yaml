@@ -14,6 +14,22 @@ spec:
   mode: Pipeline
   pipeline:
 
+  # Step 0: Load environment configuration
+  - step: load-environment-configs
+    functionRef:
+      name: function-environment-configs
+    input:
+      apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+      kind: Input
+      spec:
+        environmentConfigs:
+        - ref:
+            name: dev-environment
+        - type: Selector
+          selector:
+            matchLabels:
+              team: "" # Will be patched from spec.teamName
+
   # Step 1: Patch and Transform function for basic resource creation
   - step: patch-and-transform
     functionRef:
@@ -162,12 +178,13 @@ spec:
                   - requiredCheck: []
                     # strictRequiredStatusChecksPolicy: true # Optional boolean
               - pullRequest:
-                  - requiredApprovingReviewCount: 2
+                  - requiredApprovingReviewCount: 2 # Will be overridden by environment config
                     dismissStaleReviewsOnPush: true
                     requireCodeOwnerReview: true
                   # Other potential parameters:
                   # requiredReviewThreadResolution: false
                   # requireLastPushApproval: false
+              - requiredSignatures: {} # Always require signed commits
             providerConfigRef:
               name: github-provider-repo-lvl
         patches:
@@ -239,6 +256,12 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.branchProtection.customRulesets
           toFieldPath: spec.forProvider
+          policy:
+            fromFieldPath: Optional
+        # Override review count from environment config
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: requiredApprovingReviewCount
+          toFieldPath: spec.forProvider.rules[1].pullRequest[0].requiredApprovingReviewCount
           policy:
             fromFieldPath: Optional
         # Add labels
@@ -321,6 +344,12 @@ spec:
           toFieldPath: spec.forProvider
           policy:
             fromFieldPath: Optional
+        # Add team-specific variables from environment config
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: teamVariables.TEAM_NAME
+          toFieldPath: spec.forProvider.value
+          policy:
+            fromFieldPath: Optional
         # Add labels
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
@@ -391,6 +420,12 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.webhooks
           toFieldPath: spec.forProvider
+          policy:
+            fromFieldPath: Optional
+        # Add team default webhook URL from environment config
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: defaultWebhookUrl
+          toFieldPath: spec.forProvider.configuration[0].url
           policy:
             fromFieldPath: Optional
         # Add labels

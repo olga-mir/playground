@@ -274,9 +274,6 @@ spec:
               compliance:
                 type: object
                 properties:
-                  requireSignedCommits:
-                    type: boolean
-                    default: false
                   requireBranchUpToDate:
                     type: boolean
                     default: true

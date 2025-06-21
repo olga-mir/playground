@@ -87,7 +87,6 @@ spec:
     permission: admin
 
   compliance:
-    requireSignedCommits: true
     codeowners:
       enabled: true
       content: |
