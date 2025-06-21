@@ -42,7 +42,7 @@ spec:
 
 ---
 apiVersion: kagent.dev/v1alpha1
-kind: ToolServers
+kind: ToolServer
 metadata:
   name: argo-app-status
   namespace: kagent
@@ -66,7 +66,7 @@ spec:
 
 ---
 apiVersion: kagent.dev/v1alpha1
-kind: ToolServers
+kind: ToolServer
 metadata:
   name: crossplane-debug
   namespace: kagent
