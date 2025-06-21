@@ -281,13 +281,13 @@ spec:
           toFieldPath: metadata.labels["github.platform.io/service"]
 
   # Step 2: Handle Actions Secrets (if provided)
-  - step: actions-secrets
-    functionRef:
-      name: function-patch-and-transform
-    input:
-      apiVersion: pt.fn.crossplane.io/v1beta1
-      kind: Resources
-      resources:
+  #- step: actions-secrets
+  #  functionRef:
+  #    name: function-patch-and-transform
+  #  input:
+  #    apiVersion: pt.fn.crossplane.io/v1beta1
+  #    kind: Resources
+  #    resources:
 
       # Repository Variables
       # TODO - removing this resource for now. As it is setup now it can't be created with PAT

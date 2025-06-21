@@ -90,6 +90,26 @@ configs:
           health_status.message = "Waiting for XRD to be established"
           return health_status
 
+      # Specific health check for Kubernetes ProviderConfig
+      kubernetes.crossplane.io/ProviderConfig:
+        health.lua: |
+          local health_status = {}
+          if obj.status ~= nil then
+            -- kubernetes ProviderConfig is considered healthy if status exists,
+            -- indicating it has been processed by the provider.
+            -- The 'users' field indicates it's in use.
+            health_status.status = "Healthy"
+            if obj.status.users ~= nil and tonumber(obj.status.users) >= 0 then
+              health_status.message = "ProviderConfig is configured and in use by " .. obj.status.users .. " resource(s)."
+            else
+              health_status.message = "ProviderConfig is configured."
+            end
+          else
+            health_status.status = "Progressing"
+            health_status.message = "Waiting for ProviderConfig status."
+          end
+          return health_status
+
       # Crossplane EnvironmentConfig health check
       apiextensions.crossplane.io/EnvironmentConfig:
         health.lua: |
