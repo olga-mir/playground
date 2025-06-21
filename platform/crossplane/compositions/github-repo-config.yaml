@@ -282,81 +282,84 @@ spec:
       resources:
 
       # Repository Variables
-      - name: repository-variables
-        base:
-          apiVersion: actions.github.upbound.io/v1alpha1
-          kind: ActionsVariable
-          metadata:
-            name: "" # Will be patched with deterministic name
-            annotations:
-              crossplane.io/resource-policy: Orphan
-          spec:
-            forProvider:
-              variableName: TEAM_NAME #TODO
-            providerConfigRef:
-              name: github-provider-repo-lvl
-        patches:
-        - type: CombineFromComposite
-          combine:
-            variables:
-            - fromFieldPath: spec.teamName
-            - fromFieldPath: spec.serviceName
-            strategy: string
-            string:
-              fmt: "%s-%s-actions-var-team"
-          toFieldPath: metadata.name
-        - type: FromCompositeFieldPath
-          fromFieldPath: metadata.name
-          toFieldPath: spec.forProvider.repositoryRef.name
-          transforms:
-          - type: string
-            string:
-              type: Format
-              fmt: "%s-repository"
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.teamName
-          toFieldPath: spec.forProvider.value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serviceName
-          toFieldPath: spec.forProvider.repository
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.name
-          toFieldPath: spec.forProvider.repository
-          policy:
-            fromFieldPath: Optional
-        # Patch for external-name: repository_name:variable_name
-        # This assumes 'spec.variables' is an array and we're targeting the first variable's name.
-        # If spec.variables is not an array or has a different structure, this needs adjustment.
-        # This also assumes the 'ActionsVariable' resource manages one variable.
-        - type: CombineFromComposite
-          combine:
-            variables:
-              - fromFieldPath: spec.serviceName # or spec.name
-              - fromFieldPath: spec.variables[0].name
-            strategy: string
-            string:
-              fmt: "%s:%s"
-          toFieldPath: metadata.annotations["crossplane.io/external-name"]
-          policy:
-            fromFieldPath: Optional
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.variables
-          toFieldPath: spec.forProvider
-          policy:
-            fromFieldPath: Optional
-        # Add team-specific variables from environment config
-        - type: FromEnvironmentFieldPath
-          fromFieldPath: teamVariables.TEAM_NAME
-          toFieldPath: spec.forProvider.value
-          policy:
-            fromFieldPath: Optional
-        # Add labels
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.teamName
-          toFieldPath: metadata.labels["github.platform.io/team"]
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serviceName
-          toFieldPath: metadata.labels["github.platform.io/service"]
+      # TODO - removing this resource for now. As it is setup now it can't be created with PAT
+      # (or the PAT does not have enough permissions
+
+      # - name: repository-variables
+      #   base:
+      #     apiVersion: actions.github.upbound.io/v1alpha1
+      #     kind: ActionsVariable
+      #     metadata:
+      #       name: "" # Will be patched with deterministic name
+      #       annotations:
+      #         crossplane.io/resource-policy: Orphan
+      #     spec:
+      #       forProvider:
+      #         variableName: TEAM_NAME
+      #       providerConfigRef:
+      #         name: github-provider-repo-lvl
+      #   patches:
+      #   - type: CombineFromComposite
+      #     combine:
+      #       variables:
+      #       - fromFieldPath: spec.teamName
+      #       - fromFieldPath: spec.serviceName
+      #       strategy: string
+      #       string:
+      #         fmt: "%s-%s-actions-var-team"
+      #     toFieldPath: metadata.name
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: metadata.name
+      #     toFieldPath: spec.forProvider.repositoryRef.name
+      #     transforms:
+      #     - type: string
+      #       string:
+      #         type: Format
+      #         fmt: "%s-repository"
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.teamName
+      #     toFieldPath: spec.forProvider.value
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.serviceName
+      #     toFieldPath: spec.forProvider.repository
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.name
+      #     toFieldPath: spec.forProvider.repository
+      #     policy:
+      #       fromFieldPath: Optional
+      #   # Patch for external-name: repository_name:variable_name
+      #   # This assumes 'spec.variables' is an array and we're targeting the first variable's name.
+      #   # If spec.variables is not an array or has a different structure, this needs adjustment.
+      #   # This also assumes the 'ActionsVariable' resource manages one variable.
+      #   - type: CombineFromComposite
+      #     combine:
+      #       variables:
+      #         - fromFieldPath: spec.serviceName # or spec.name
+      #         - fromFieldPath: spec.variables[0].name
+      #       strategy: string
+      #       string:
+      #         fmt: "%s:%s"
+      #     toFieldPath: metadata.annotations["crossplane.io/external-name"]
+      #     policy:
+      #       fromFieldPath: Optional
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.variables
+      #     toFieldPath: spec.forProvider
+      #     policy:
+      #       fromFieldPath: Optional
+      #   # Add team-specific variables from environment config
+      #   - type: FromEnvironmentFieldPath
+      #     fromFieldPath: teamVariables.TEAM_NAME
+      #     toFieldPath: spec.forProvider.value
+      #     policy:
+      #       fromFieldPath: Optional
+      #   # Add labels
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.teamName
+      #     toFieldPath: metadata.labels["github.platform.io/team"]
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.serviceName
+      #     toFieldPath: metadata.labels["github.platform.io/service"]
 
   # Step 3: Handle integrations (webhooks, permissions)
   - step: integrations
