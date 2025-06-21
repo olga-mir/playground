@@ -28,8 +28,7 @@ spec:
         - type: Selector
           selector:
             matchLabels:
-            - key: team
-              value: team-charlie
+              team: "" # Will be patched from spec.teamName
 
   # Step 1: Patch and Transform function for basic resource creation
   - step: patch-and-transform

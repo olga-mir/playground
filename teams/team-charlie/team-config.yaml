@@ -6,4 +6,5 @@ spec:
   teamName: team-charlie
   description: "Charlie Team - managed by Crossplane"
   privacy: closed
+  teamMaintainerUsername: "actual-github-username-for-charlie-maintainer" # Add this line
   # repositoryAccess: TODO
