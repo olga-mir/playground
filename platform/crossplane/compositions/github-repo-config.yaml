@@ -14,6 +14,23 @@ spec:
   mode: Pipeline
   pipeline:
 
+  # Step 0: Load environment configuration
+  - step: load-environment-configs
+    functionRef:
+      name: function-environment-configs
+    input:
+      apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+      kind: Input
+      spec:
+        environmentConfigs:
+        - ref:
+            name: dev-environment
+        - type: Selector
+          selector:
+            matchLabels:
+            - key: team
+              value: team-charlie
+
   # Step 1: Patch and Transform function for basic resource creation
   - step: patch-and-transform
     functionRef:
@@ -43,7 +60,7 @@ spec:
               deleteBranchOnMerge: true
               autoInit: true
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-org-lvl
         patches:
         # Use serviceName as repository name if name not provided
         - type: FromCompositeFieldPath
@@ -117,7 +134,7 @@ spec:
             forProvider:
               branch: main
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         # Patch for external-name: repository name
         - type: FromCompositeFieldPath
@@ -162,14 +179,15 @@ spec:
                   - requiredCheck: []
                     # strictRequiredStatusChecksPolicy: true # Optional boolean
               - pullRequest:
-                  - requiredApprovingReviewCount: 2
+                  - requiredApprovingReviewCount: 2 # Will be overridden by environment config
                     dismissStaleReviewsOnPush: true
                     requireCodeOwnerReview: true
                   # Other potential parameters:
                   # requiredReviewThreadResolution: false
                   # requireLastPushApproval: false
+              - requiredSignatures: {} # Always require signed commits
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         - type: CombineFromComposite
           combine:
@@ -241,6 +259,22 @@ spec:
           toFieldPath: spec.forProvider
           policy:
             fromFieldPath: Optional
+        # Set the required approving review count.
+        # The order of precedence is:
+        # 1. From the claim (`spec.branchProtection.requiredApprovingReviewCount`)
+        # 2. From the team's environment config (`data.requiredApprovingReviewCount`)
+        # 3. The default value in the 'base' template.
+        # Patches are applied sequentially, so the last one to find a value wins.
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: requiredApprovingReviewCount
+          toFieldPath: spec.forProvider.rules[1].pullRequest[0].requiredApprovingReviewCount
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.branchProtection.requiredApprovingReviewCount
+          toFieldPath: spec.forProvider.rules[1].pullRequest[0].requiredApprovingReviewCount
+          policy:
+            fromFieldPath: Optional
         # Add labels
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
@@ -259,75 +293,84 @@ spec:
       resources:
 
       # Repository Variables
-      - name: repository-variables
-        base:
-          apiVersion: actions.github.upbound.io/v1alpha1
-          kind: ActionsVariable
-          metadata:
-            name: "" # Will be patched with deterministic name
-            annotations:
-              crossplane.io/resource-policy: Orphan
-          spec:
-            forProvider:
-              variableName: TEAM_NAME #TODO
-            providerConfigRef:
-              name: github-provider-org
-        patches:
-        - type: CombineFromComposite
-          combine:
-            variables:
-            - fromFieldPath: spec.teamName
-            - fromFieldPath: spec.serviceName
-            strategy: string
-            string:
-              fmt: "%s-%s-actions-var-team"
-          toFieldPath: metadata.name
-        - type: FromCompositeFieldPath
-          fromFieldPath: metadata.name
-          toFieldPath: spec.forProvider.repositoryRef.name
-          transforms:
-          - type: string
-            string:
-              type: Format
-              fmt: "%s-repository"
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.teamName
-          toFieldPath: spec.forProvider.value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serviceName
-          toFieldPath: spec.forProvider.repository
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.name
-          toFieldPath: spec.forProvider.repository
-          policy:
-            fromFieldPath: Optional
-        # Patch for external-name: repository_name:variable_name
-        # This assumes 'spec.variables' is an array and we're targeting the first variable's name.
-        # If spec.variables is not an array or has a different structure, this needs adjustment.
-        # This also assumes the 'ActionsVariable' resource manages one variable.
-        - type: CombineFromComposite
-          combine:
-            variables:
-              - fromFieldPath: spec.serviceName # or spec.name
-              - fromFieldPath: spec.variables[0].name
-            strategy: string
-            string:
-              fmt: "%s:%s"
-          toFieldPath: metadata.annotations["crossplane.io/external-name"]
-          policy:
-            fromFieldPath: Optional
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.variables
-          toFieldPath: spec.forProvider
-          policy:
-            fromFieldPath: Optional
-        # Add labels
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.teamName
-          toFieldPath: metadata.labels["github.platform.io/team"]
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serviceName
-          toFieldPath: metadata.labels["github.platform.io/service"]
+      # TODO - removing this resource for now. As it is setup now it can't be created with PAT
+      # (or the PAT does not have enough permissions
+
+      # - name: repository-variables
+      #   base:
+      #     apiVersion: actions.github.upbound.io/v1alpha1
+      #     kind: ActionsVariable
+      #     metadata:
+      #       name: "" # Will be patched with deterministic name
+      #       annotations:
+      #         crossplane.io/resource-policy: Orphan
+      #     spec:
+      #       forProvider:
+      #         variableName: TEAM_NAME
+      #       providerConfigRef:
+      #         name: github-provider-repo-lvl
+      #   patches:
+      #   - type: CombineFromComposite
+      #     combine:
+      #       variables:
+      #       - fromFieldPath: spec.teamName
+      #       - fromFieldPath: spec.serviceName
+      #       strategy: string
+      #       string:
+      #         fmt: "%s-%s-actions-var-team"
+      #     toFieldPath: metadata.name
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: metadata.name
+      #     toFieldPath: spec.forProvider.repositoryRef.name
+      #     transforms:
+      #     - type: string
+      #       string:
+      #         type: Format
+      #         fmt: "%s-repository"
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.teamName
+      #     toFieldPath: spec.forProvider.value
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.serviceName
+      #     toFieldPath: spec.forProvider.repository
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.name
+      #     toFieldPath: spec.forProvider.repository
+      #     policy:
+      #       fromFieldPath: Optional
+      #   # Patch for external-name: repository_name:variable_name
+      #   # This assumes 'spec.variables' is an array and we're targeting the first variable's name.
+      #   # If spec.variables is not an array or has a different structure, this needs adjustment.
+      #   # This also assumes the 'ActionsVariable' resource manages one variable.
+      #   - type: CombineFromComposite
+      #     combine:
+      #       variables:
+      #         - fromFieldPath: spec.serviceName # or spec.name
+      #         - fromFieldPath: spec.variables[0].name
+      #       strategy: string
+      #       string:
+      #         fmt: "%s:%s"
+      #     toFieldPath: metadata.annotations["crossplane.io/external-name"]
+      #     policy:
+      #       fromFieldPath: Optional
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.variables
+      #     toFieldPath: spec.forProvider
+      #     policy:
+      #       fromFieldPath: Optional
+      #   # Add team-specific variables from environment config
+      #   - type: FromEnvironmentFieldPath
+      #     fromFieldPath: teamVariables.TEAM_NAME
+      #     toFieldPath: spec.forProvider.value
+      #     policy:
+      #       fromFieldPath: Optional
+      #   # Add labels
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.teamName
+      #     toFieldPath: metadata.labels["github.platform.io/team"]
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.serviceName
+      #     toFieldPath: metadata.labels["github.platform.io/service"]
 
   # Step 3: Handle integrations (webhooks, permissions)
   - step: integrations
@@ -356,7 +399,7 @@ spec:
               active: true
               events: ["push", "pull_request"]
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         #- type: FromCompositeFieldPath
         #  fromFieldPath: metadata.name
@@ -393,6 +436,12 @@ spec:
           toFieldPath: spec.forProvider
           policy:
             fromFieldPath: Optional
+        # Add team default webhook URL from environment config
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: defaultWebhookUrl
+          toFieldPath: spec.forProvider.configuration[0].url
+          policy:
+            fromFieldPath: Optional
         # Add labels
         - type: FromCompositeFieldPath
           fromFieldPath: spec.teamName
@@ -422,7 +471,7 @@ spec:
               # one of pull, triage, push, maintain, admin or the name of an existing custom repository role within the organisation
               permission: maintain
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-org-lvl
         patches:
 
         - type: FromCompositeFieldPath
@@ -472,7 +521,7 @@ spec:
               username: platform-bot
               permission: push # One of 'pull', 'push', 'maintain', 'triage' or 'admin' or the name of an existing custom repository role
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         - type: CombineFromComposite
           combine:
@@ -555,7 +604,7 @@ spec:
               commitAuthor: "Platform Engineering"
               commitEmail: "platform@company.com"
             providerConfigRef:
-              name: github-provider-org
+              name: github-provider-repo-lvl
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.serviceName

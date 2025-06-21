@@ -1,11 +1,11 @@
 apiVersion: github.upbound.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: github-provider-org
+  name: github-provider-repo-lvl
 spec:
   credentials:
     source: Secret
     secretRef:
-      name: github-provider-secret-org
+      name: github-provider-credentials-repo
       namespace: crossplane-system
       key: credentials

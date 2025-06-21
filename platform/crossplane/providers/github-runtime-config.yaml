@@ -1,0 +1,11 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: github-runtime-config
+spec:
+  deploymentTemplate:
+    metadata:
+      annotations:
+        deployment-runtime-config-demo: "injected-from-runtime-config"
+      labels:
+        manadatory-label: "mandatory-label-from-runtime-config"

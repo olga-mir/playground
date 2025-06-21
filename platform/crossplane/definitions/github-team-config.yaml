@@ -25,6 +25,9 @@ spec:
                 privacy:
                   type: string
                   enum: [secret, closed]
+                teamMaintainerUsername:
+                  type: string
+                  description: "The GitHub username of the primary maintainer for this team."
                 parentTeam:
                   type: string
                 members:

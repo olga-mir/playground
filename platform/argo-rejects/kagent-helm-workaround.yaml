@@ -1,7 +1,0 @@
-# git mv platform/config/applications/kagent-helm-workaround.yaml platform/argo-rejects
-# trying out new helm release
-name: kagent-rendered-helm-workaround
-path: ai/kagent/kagent-app
-namespace: kagent-system
-syncWave: "2"
-project: ai

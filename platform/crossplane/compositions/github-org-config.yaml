@@ -20,7 +20,7 @@ spec:
               apiVersion: organization.github.upbound.io/v1alpha1
               kind: OrganizationRuleset
               metadata:
-                name: default-ruleset
+                name: default-branch-protection-ruleset
               spec:
                 forProvider:
                   enforcement: active
@@ -36,7 +36,7 @@ spec:
                       requireCodeOwnerReview: true
                       requiredReviewThreadResolution: true
                 providerConfigRef:
-                  name: default
+                  name: github-provider-org-lvl
             patches:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.organizationRulesets[0].name
@@ -48,35 +48,29 @@ spec:
                 fromFieldPath: spec.organizationRulesets[0].enforcement
                 toFieldPath: spec.forProvider.enforcement
 
-    - step: create-default-teams
+    # Repository access level based on repo labels
+    - step: configure-actions-access-levels
       functionRef:
         name: function-patch-and-transform
       input:
         apiVersion: pt.fn.crossplane.io/v1beta1
         kind: Resources
         resources:
-          - name: default-team
+          - name: prod-critical-repo-actions-policy
             base:
-              apiVersion: team.github.upbound.io/v1alpha1
-              kind: Team
+              apiVersion: actions.github.upbound.io/v1alpha1
+              kind: RepositoryAccessLevel
               metadata:
-                name: default-team
+                name: prod-critical-verified-actions-policy
               spec:
                 forProvider:
-                  privacy: closed
-                  description: Default team created by Crossplane
+                  accessLevel: "selected"
+                  selectedActionsConfig:
+                    githubOwnedAllowed: true # Recommended to allow GitHub's own actions (e.g., actions/checkout)
+                    verifiedAllowed: true    # Allows actions from verified creators
+                    # patternsAllowed: []    # Optionally, specify specific action patterns. Empty means only the above are allowed.
+                  repositorySelector:
+                    matchLabels:
+                      "production-critical": "true"
                 providerConfigRef:
-                  name: default
-            patches:
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.defaultTeams[0].name
-                toFieldPath: metadata.name
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.defaultTeams[0].name
-                toFieldPath: spec.forProvider.name
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.defaultTeams[0].description
-                toFieldPath: spec.forProvider.description
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.defaultTeams[0].privacy
-                toFieldPath: spec.forProvider.privacy
+                  name: github-provider-org-lvl

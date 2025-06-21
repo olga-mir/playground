@@ -2,17 +2,17 @@
 apiVersion: gateway.networking.x-k8s.io/v1alpha1
 kind: XListenerSet
 metadata:
-  name: mcp-listener-set
-  namespace: mcp
+  name: mcp-website-fetcher
+  namespace: kagent
 spec:
   parentRef:
     kind: Gateway
     group: gateway.networking.k8s.io
     name: shared-mcp-kgateway
-    namespace: mcp
+    namespace: kgateway-system
   listeners:
   - name: mcp
-    protocol: kgateway.dev/mcp  # Use the custom MCP protocol
+    protocol: kgateway.dev/mcp
     port: 3000
     allowedRoutes:
       namespaces:
@@ -21,21 +21,22 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: mcp-route
-  namespace: mcp
+  name: mcp-website-fetcher
+  namespace: kagent
 spec:
   parentRefs:
   - kind: XListenerSet
     group: gateway.networking.x-k8s.io
-    name: mcp-listener-set
-    namespace: mcp
+    name: mcp-website-fetcher
+    namespace: kagent
     sectionName: mcp
   rules:
   - backendRefs:
     - group: ""
       kind: Service
-      name: mcp-everything-service
-      port: 3000
+      name: mcp-website-fetcher
+      namespace: kagent
+      port: 80
       weight: 1
     matches:
     - path:

@@ -6,3 +6,4 @@ spec:
   teamName: team-charlie
   description: "Charlie Team - managed by Crossplane"
   privacy: closed
+  # repositoryAccess: TODO

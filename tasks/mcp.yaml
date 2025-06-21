@@ -27,11 +27,11 @@ env:
   CLAUDE_MCP_CONFIG_FILE:
     sh: |
       if [ -z "$CLAUDE_MCP_CONFIG_FILE" ]; then
-        echo "Error: Environment variable CLAUDE_MCP_CONFIG_PATH is not set." >&2
+        echo "Error: Environment variable CLAUDE_MCP_CONFIG_FILE is not set." >&2
         echo "Please provide absolute path to Claude MCP config file" >&2
         exit 1
       fi
-      echo "$CLAUDE_MCP_CONFIG_PATH"
+      echo "$CLAUDE_MCP_CONFIG_FILE"
 
 tasks:
   generate-configs-standard:
@@ -137,17 +137,17 @@ tasks:
         echo "   - claude_desktop_config_mcp.json"
 
   update-claude-config-token:
-    desc: "Update ARGOCD_API_TOKEN in the Claude config file specified by CLAUDE_MCP_CONFIG_PATH."
+    desc: "Update ARGOCD_API_TOKEN in the Claude config file specified by CLAUDE_MCP_CONFIG_FILE."
     vars:
       ARGOCD_TOKEN:
         sh: task argocd:get-token
     cmds:
       - |
-        # Expand tilde for CLAUDE_MCP_CONFIG_PATH
-        CLAUDE_MCP_CONFIG_FILE=$(eval echo "$CLAUDE_MCP_CONFIG_PATH")
+        # Expand tilde for CLAUDE_MCP_CONFIG_FILE
+        CLAUDE_MCP_CONFIG_FILE=$(eval echo "$CLAUDE_MCP_CONFIG_FILE")
 
         if [ ! -f "$CLAUDE_MCP_CONFIG_FILE" ]; then
-          echo "Error: Config file not found at CLAUDE_MCP_CONFIG_PATH: $CLAUDE_MCP_CONFIG_FILE" >&2
+          echo "Error: Config file not found at CLAUDE_MCP_CONFIG_FILE: $CLAUDE_MCP_CONFIG_FILE" >&2
           exit 1
         fi
 
