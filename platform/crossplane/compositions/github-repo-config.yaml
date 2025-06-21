@@ -25,13 +25,12 @@ spec:
         environmentConfigs:
         - ref:
             name: dev-environment
-        # Note: Dynamic team selection not yet supported
-        # Will match any EnvironmentConfig with team label
         - type: Selector
           selector:
             matchLabels:
             - key: team
-              value: team-charlie
+              type: FromCompositeFieldPath
+              valueFromFieldPath: spec.teamName
 
   # Step 1: Patch and Transform function for basic resource creation
   - step: patch-and-transform
