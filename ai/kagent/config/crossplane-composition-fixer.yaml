@@ -31,12 +31,10 @@ spec:
 
     Always provide detailed error analysis and clear fix explanations.
   tools:
-  - name: get-resources
-  - name: get-logs
-  - name: describe-resource
-  - name: argo-app-status
-  - name: prometheus-query
-  - name: github-mcp
+  - type: McpServer
+    mcpServer:
+      toolServer: get-resources
+      toolNames: ["get-resources"]
 
 ---
 apiVersion: kagent.dev/v1alpha1
@@ -45,20 +43,11 @@ metadata:
   name: argo-app-status
   namespace: kagent
 spec:
-  name: "get_argo_app_status"
   description: "Retrieve ArgoCD application status for monitoring sync failures"
-  parameters:
-    type: object
-    properties:
-      app_name:
-        type: string
-        description: "ArgoCD application name"
-      namespace:
-        type: string
-        description: "ArgoCD application namespace"
-        default: "argocd"
-  implementation: |
-    kubectl get application $app_name -n $namespace -o jsonpath='{.status}' | jq .
+  config:
+    stdio:
+      command: "kubectl"
+      args: ["get", "application", "-n", "argocd", "-o", "jsonpath={.status}"]
 
 ---
 apiVersion: kagent.dev/v1alpha1
@@ -67,60 +56,8 @@ metadata:
   name: crossplane-debug
   namespace: kagent
 spec:
-  name: "debug_crossplane_composition"
   description: "Analyze Crossplane composition and XR (Composite Resource) issues"
-  parameters:
-    type: object
-    properties:
-      xr_name:
-        type: string
-        description: "Name of the Crossplane XR (Composite Resource)"
-      xr_namespace:
-        type: string
-        description: "Namespace of the XR (Composite Resource)"
-      composition_name:
-        type: string
-        description: "Name of the composition (optional)"
-  implementation: |
-    # Get XR status
-    echo "=== XR Status ($xr_name in $xr_namespace) ==="
-      kubectl get xr "$xr_name" -n "$xr_namespace" -o yaml
-
-      # Get related events for the XR
-      echo "=== Events for XR $xr_name ==="
-      # Fetch UID for more precise event matching
-      XR_UID=$(kubectl get xr "$xr_name" -n "$xr_namespace" -o jsonpath='{.metadata.uid}' 2>/dev/null)
-      if [ -n "$XR_UID" ]; then
-        kubectl get events --namespace "$xr_namespace" --field-selector "involvedObject.uid=$XR_UID"
-      else
-        # Fallback if UID cannot be fetched (e.g., XR doesn't exist)
-        kubectl get events --namespace "$xr_namespace" --field-selector "involvedObject.name=$xr_name"
-      fi
-
-      # Get composition if specified or derive from XR
-      CURRENT_COMPOSITION_NAME="$composition_name" # Use the provided one if available
-
-      if [ -z "$CURRENT_COMPOSITION_NAME" ]; then
-        # Try to get composition name from XR's spec.compositionRef.name
-        COMP_REF_NAME=$(kubectl get xr "$xr_name" -n "$xr_namespace" -o jsonpath='{.spec.compositionRef.name}' 2>/dev/null)
-        if [ -n "$COMP_REF_NAME" ]; then
-          CURRENT_COMPOSITION_NAME="$COMP_REF_NAME"
-          echo "Derived composition name from XR spec: $CURRENT_COMPOSITION_NAME"
-        else
-          # Try to get composition name from XR's status.currentCompositionRef.name (if available and more accurate)
-          CURRENT_COMP_REF_NAME=$(kubectl get xr "$xr_name" -n "$xr_namespace" -o jsonpath='{.status.currentCompositionRef.name}' 2>/dev/null)
-          if [ -n "$CURRENT_COMP_REF_NAME" ]; then
-            CURRENT_COMPOSITION_NAME="$CURRENT_COMP_REF_NAME"
-            echo "Derived current composition name from XR status: $CURRENT_COMPOSITION_NAME"
-          else
-            echo "Composition name not provided and could not be derived from XR .spec.compositionRef.name or .status.currentCompositionRef.name."
-          fi
-        fi
-      fi
-
-      if [ -n "$CURRENT_COMPOSITION_NAME" ]; then
-        echo "=== Composition ($CURRENT_COMPOSITION_NAME) ==="
-        kubectl get composition "$CURRENT_COMPOSITION_NAME" -o yaml
-      else
-        echo "=== Composition (Name not specified and could not be derived) ==="
-      fi
+  config:
+    stdio:
+      command: "echo"
+      args: ["Crossplane debug tool placeholder"]

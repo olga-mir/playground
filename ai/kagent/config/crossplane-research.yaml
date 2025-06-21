@@ -5,10 +5,8 @@ metadata:
   name: crossplane-research-agent
   namespace: kagent
 spec:
-  model:
-    provider: "anthropic"
-    name: "claude-3-5-sonnet-20241022"
-  systemPrompt: |
+  modelConfig: "claude-model-config"
+  systemMessage: |
     You are a research agent that handles complex Crossplane composition issues requiring deep investigation.
 
     When the primary debugging agent encounters unknown errors:
@@ -30,10 +28,10 @@ spec:
     - Similar composition patterns in public repositories
     - Breaking changes in provider versions
   tools:
-  - name: advanced-research
-  - name: github-mcp
-  - name: crossplane-debug
-  - name: documentation-generator
+  - type: McpServer
+    mcpServer:
+      toolServer: advanced-research
+      toolNames: ["advanced-research"]
 
 ---
 # Integration with Claude's Advanced Research
@@ -44,31 +42,10 @@ metadata:
   namespace: kagent
 spec:
   description: "Trigger Claude Advanced Research for complex issues"
-  function:
-    name: "trigger_research"
-    description: "Use Claude's 45-minute research capability for complex Crossplane issues"
-    parameters:
-      type: object
-      properties:
-        issue_description:
-          type: string
-          description: "Detailed description of the complex issue"
-        error_context:
-          type: string
-          description: "Full error logs and context"
-        research_scope:
-          type: string
-          description: "Specific areas to research (providers, functions, etc.)"
-    implementation: |
-      # This would trigger Claude's Advanced Research mode
-      # through the MCP integration
-      echo "Triggering Advanced Research for: $issue_description"
-      echo "Research scope: $research_scope"
-      echo "Error context: $error_context"
-
-      # Integration point with Claude's research capabilities
-      # The research would be conducted automatically and results
-      # fed back into the kagent workflow
+  config:
+    stdio:
+      command: "echo"
+      args: ["Advanced research tool placeholder"]
 
 ---
 # Workflow for escalation to Advanced Research
@@ -78,10 +55,8 @@ metadata:
   name: crossplane-escalation-handler
   namespace: kagent
 spec:
-  model:
-    provider: "anthropic"
-    name: "claude-3-5-sonnet-20241022"
-  systemPrompt: |
+  modelConfig: "claude-model-config"
+  systemMessage: |
     You handle escalation from basic debugging to advanced research.
 
     Escalation criteria:
@@ -97,6 +72,7 @@ spec:
     4. Create detailed issue documentation
     5. Notify human maintainers if research inconclusive
   tools:
-  - name: advanced-research
-  - name: github-mcp
-  - name: notification-service
+  - type: McpServer
+    mcpServer:
+      toolServer: advanced-research
+      toolNames: ["advanced-research"]

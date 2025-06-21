@@ -4,10 +4,8 @@ metadata:
   name: crossplane-monitor
   namespace: kagent
 spec:
-  model:
-    provider: "anthropic"
-    name: "claude-3-5-sonnet-20241022"
-  systemPrompt: |
+  modelConfig: "claude-model-config"
+  systemMessage: |
     You are an autonomous monitoring agent for Crossplane compositions in the olga-mir/playground repository.
 
     Run this monitoring loop every 5 minutes:
@@ -32,12 +30,10 @@ spec:
     - Test the fix logic before committing
   schedule: "*/5 * * * *"  # Every 5 minutes
   tools:
-  - name: get-resources
-  - name: get-logs
-  - name: argo-app-status
-  - name: crossplane-debug
-  - name: github-mcp
-  - name: prometheus-query
+  - type: McpServer
+    mcpServer:
+      toolServer: get-resources
+      toolNames: ["get-resources"]
 
 ---
 # Workflow orchestration agent
@@ -47,10 +43,8 @@ metadata:
   name: crossplane-workflow-orchestrator
   namespace: kagent
 spec:
-  model:
-    provider: "anthropic"
-    name: "claude-3-5-sonnet-20241022"
-  systemPrompt: |
+  modelConfig: "claude-model-config"
+  systemMessage: |
     You orchestrate the autonomous Crossplane debugging workflow by coordinating multiple agents:
 
     Workflow Steps:
@@ -65,9 +59,10 @@ spec:
     - Breaking changes are detected
     - Security-related configurations need changes
   tools:
-  - name: agent-coordinator
-  - name: github-mcp
-  - name: get-logs
+  - type: McpServer
+    mcpServer:
+      toolServer: agent-coordinator
+      toolNames: ["agent-coordinator"]
 
 ---
 # GitHub Integration Tool for autonomous PRs
@@ -78,24 +73,7 @@ metadata:
   namespace: kagent
 spec:
   description: "Create autonomous GitHub PRs for Crossplane fixes"
-  function:
-    name: "create_crossplane_fix_pr"
-    description: "Create a PR with Crossplane composition fixes"
-    parameters:
-      type: object
-      properties:
-        issue_description:
-          type: string
-          description: "Description of the Crossplane issue"
-        fix_files:
-          type: array
-          description: "Files to be modified with their new content"
-        error_logs:
-          type: string
-          description: "Error logs to include in PR description"
-    implementation: |
-      # This would integrate with your GitHub MCP
-      # to create branches, commit fixes, and create PRs
-      echo "Creating autonomous PR for Crossplane fix..."
-      # Implementation details would use the GitHub MCP tools
-      # that you already have connected
+  config:
+    stdio:
+      command: "echo"
+      args: ["Creating autonomous PR for Crossplane fix..."]
