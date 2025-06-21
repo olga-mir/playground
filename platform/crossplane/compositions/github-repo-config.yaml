@@ -25,11 +25,8 @@ spec:
         environmentConfigs:
         - ref:
             name: dev-environment
-        - type: Selector
-          selector:
-            matchLabels:
-            - key: team
-              value: team-charlie
+        - ref:
+            name: team-charlie-environment
 
   # Step 1: Patch and Transform function for basic resource creation
   - step: patch-and-transform
