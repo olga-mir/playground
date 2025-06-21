@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: List
+items:
+- apiVersion: kagent.dev/v1alpha1
+  kind: ToolsServer
+  metadata:
+    name: get-resources
+    namespace: kagent
+  spec:
+    description: "A tool to get Kubernetes resources."
+    function:
+      name: "get_k8s_resources"
+      description: "Gets Kubernetes resources based on kind, name, and namespace."
+      implementation: |
+        # Placeholder: Implement with kubectl get or a client library
+        echo "Getting resources for $1..."
+
+- apiVersion: kagent.dev/v1alpha1
+  kind: ToolsServer
+  metadata:
+    name: get-logs
+    namespace: kagent
+  spec:
+    description: "A tool to get logs from a Kubernetes pod."
+    function:
+      name: "get_pod_logs"
+      description: "Gets logs from a specific pod."
+      implementation: |
+        # Placeholder: Implement with kubectl logs
+        echo "Getting logs for pod $1..."
+
+- apiVersion: kagent.dev/v1alpha1
+  kind: ToolsServer
+  metadata:
+    name: describe-resource
+    namespace: kagent
+  spec:
+    description: "A tool to describe a Kubernetes resource."
+    function:
+      name: "describe_k8s_resource"
+      description: "Describes a specific Kubernetes resource."
+      implementation: |
+        # Placeholder: Implement with kubectl describe
+        echo "Describing resource $1..."
+
+- apiVersion: kagent.dev/v1alpha1
+  kind: ToolsServer
+  metadata:
+    name: prometheus-query
+    namespace: kagent
+  spec:
+    description: "A tool to query a Prometheus instance."
+    function:
+      name: "query_prometheus"
+      description: "Executes a PromQL query."
+      implementation: |
+        # Placeholder: Implement with a Prometheus client
+        echo "Querying Prometheus with $1..."
+
+- apiVersion: kagent.dev/v1alpha1
+  kind: ToolsServer
+  metadata:
+    name: github-mcp
+    namespace: kagent
+  spec:
+    description: "A tool to interact with GitHub via MCP."
+    function:
+      name: "interact_with_github"
+      description: "Performs actions on GitHub like creating PRs."
+      implementation: |
+        # Placeholder: Implement with GitHub MCP integration
+        echo "Interacting with GitHub..."
+
+- apiVersion: kagent.dev/v1alpha1
+  kind: ToolsServer
+  metadata:
+    name: agent-coordinator
+    namespace: kagent
+  spec:
+    description: "A tool to coordinate other agents."
+    function:
+      name: "coordinate_agents"
+      description: "Orchestrates a workflow involving multiple agents."
+      implementation: |
+        # Placeholder: Implement agent coordination logic
+        echo "Coordinating agents..."
