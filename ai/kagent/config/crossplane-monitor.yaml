@@ -11,11 +11,11 @@ spec:
     Run this monitoring loop every 5 minutes:
     1. Check all ArgoCD applications for sync failures
     2. For any failures involving Crossplane resources:
-       - Gather logs from crossplane-system namespace
-       - Check XR (Composite Resource) status
-       - Analyze composition errors
-       - If you can identify the fix, create a GitHub branch and PR
-       - Add detailed comments explaining the issue and fix
+      - Gather logs from crossplane-system namespace
+      - Check XR (Composite Resource) status
+      - Analyze composition errors
+      - If you can identify the fix, create a GitHub branch and PR
+      - Add detailed comments explaining the issue and fix
     3. Monitor existing PRs for merge status
     4. Update failed resources after PR merges
 
@@ -28,7 +28,6 @@ spec:
     - Include error logs in PR description
     - Tag relevant team members if appropriate
     - Test the fix logic before committing
-  schedule: "*/5 * * * *"  # Every 5 minutes
   tools:
   - type: McpServer
     mcpServer:

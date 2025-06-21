@@ -31,12 +31,12 @@ spec:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
                 toFieldPath: metadata.name
-              # The explicit patch for external-name using teamName (slug) is removed.
-              # Crossplane will populate external-name from status.atProvider.id (numerical ID)
-              # after the team is created by the provider using spec.forProvider.name (slug).
-              #- type: FromCompositeFieldPath
-              #  fromFieldPath: spec.teamName
-              #  toFieldPath: metadata.annotations["crossplane.io/external-name"]
+              # The external-name for a GitHub Team managed by this provider is the team's slug.
+              # This patch ensures that for both creation of new teams and import of existing teams,
+              # the external-name is correctly set to the team slug specified in the TeamConfig.
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.teamName
+                toFieldPath: metadata.annotations["crossplane.io/external-name"]
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
                 toFieldPath: spec.forProvider.name
