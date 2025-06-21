@@ -5,4 +5,6 @@ metadata:
 spec:
   package: xpkg.upbound.io/crossplane-contrib/provider-upjet-github:v0.18.0
   runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
     name: github-runtime-config
