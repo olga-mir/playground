@@ -486,6 +486,16 @@ configs:
           health_status.message = "Waiting for ProviderRevision to be ready"
           return health_status
 
+      # Crossplane DeploymentRuntimeConfig health check
+      pkg.crossplane.io/DeploymentRuntimeConfig:
+        health.lua: |
+          -- DeploymentRuntimeConfigs are data holders.
+          -- If they exist, they are considered healthy.
+          local health_status = {}
+          health_status.status = "Healthy"
+          health_status.message = "DeploymentRuntimeConfig is present"
+          return health_status
+
     # Increase timeouts for slow Crossplane resources
     timeout.reconciliation: 300s
     timeout.hard.reconciliation: 600s

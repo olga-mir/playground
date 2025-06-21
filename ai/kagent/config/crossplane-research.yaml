@@ -38,7 +38,7 @@ spec:
 ---
 # Integration with Claude's Advanced Research
 apiVersion: kagent.dev/v1alpha1
-kind: ToolsServer
+kind: ToolServers
 metadata:
   name: advanced-research
   namespace: kagent

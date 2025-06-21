@@ -72,7 +72,7 @@ spec:
 ---
 # GitHub Integration Tool for autonomous PRs
 apiVersion: kagent.dev/v1alpha1
-kind: ToolsServer
+kind: ToolServers
 metadata:
   name: github-auto-pr
   namespace: kagent
