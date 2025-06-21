@@ -4,10 +4,8 @@ metadata:
   name: crossplane-composition-fixer
   namespace: kagent
 spec:
-  model:
-    provider: "anthropic"
-    name: "claude-3-5-sonnet-20241022"
-  systemPrompt: |
+  modelConfig: "claude-3-5-sonnet-20241022"
+  systemMessage: |
     You are a Crossplane composition debugging expert for the olga-mir/playground repository.
 
     Your workflow:
@@ -47,22 +45,20 @@ metadata:
   name: argo-app-status
   namespace: kagent
 spec:
-  description: "Get ArgoCD application sync status and health"
-  function:
-    name: "get_argo_app_status"
-    description: "Retrieve ArgoCD application status for monitoring sync failures"
-    parameters:
-      type: object
-      properties:
-        app_name:
-          type: string
-          description: "ArgoCD application name"
-        namespace:
-          type: string
-          description: "ArgoCD application namespace"
-          default: "argocd"
-    implementation: |
-      kubectl get application $app_name -n $namespace -o jsonpath='{.status}' | jq .
+  name: "get_argo_app_status"
+  description: "Retrieve ArgoCD application status for monitoring sync failures"
+  parameters:
+    type: object
+    properties:
+      app_name:
+        type: string
+        description: "ArgoCD application name"
+      namespace:
+        type: string
+        description: "ArgoCD application namespace"
+        default: "argocd"
+  implementation: |
+    kubectl get application $app_name -n $namespace -o jsonpath='{.status}' | jq .
 
 ---
 apiVersion: kagent.dev/v1alpha1
@@ -71,25 +67,23 @@ metadata:
   name: crossplane-debug
   namespace: kagent
 spec:
-  description: "Debug Crossplane composition and XR (Composite Resource) issues"
-  function:
-    name: "debug_crossplane_composition"
-    description: "Analyze Crossplane composition and XR (Composite Resource) issues"
-    parameters:
-      type: object
-      properties:
-        xr_name:
-          type: string
-          description: "Name of the Crossplane XR (Composite Resource)"
-        xr_namespace:
-          type: string
-          description: "Namespace of the XR (Composite Resource)"
-        composition_name:
-          type: string
-          description: "Name of the composition (optional)"
-    implementation: |
-      # Get XR status
-      echo "=== XR Status ($xr_name in $xr_namespace) ==="
+  name: "debug_crossplane_composition"
+  description: "Analyze Crossplane composition and XR (Composite Resource) issues"
+  parameters:
+    type: object
+    properties:
+      xr_name:
+        type: string
+        description: "Name of the Crossplane XR (Composite Resource)"
+      xr_namespace:
+        type: string
+        description: "Namespace of the XR (Composite Resource)"
+      composition_name:
+        type: string
+        description: "Name of the composition (optional)"
+  implementation: |
+    # Get XR status
+    echo "=== XR Status ($xr_name in $xr_namespace) ==="
       kubectl get xr "$xr_name" -n "$xr_namespace" -o yaml
 
       # Get related events for the XR
