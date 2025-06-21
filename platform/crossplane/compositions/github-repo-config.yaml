@@ -254,18 +254,8 @@ spec:
             string:
               fmt: "%s-%s-protection"
           toFieldPath: spec.forProvider.name
-        # Apply custom rulesets if provided
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.branchProtection.customRulesets
-          toFieldPath: spec.forProvider
-          policy:
-            fromFieldPath: Optional
-        # Set the required approving review count.
-        # The order of precedence is:
-        # 1. From the claim (`spec.branchProtection.requiredApprovingReviewCount`)
-        # 2. From the team's environment config (`data.requiredApprovingReviewCount`)
-        # 3. The default value in the 'base' template.
-        # Patches are applied sequentially, so the last one to find a value wins.
+        # Set the required approving review count from environment config first
+        # This must be done BEFORE applying custom rulesets which replace the entire spec.forProvider
         - type: FromEnvironmentFieldPath
           fromFieldPath: requiredApprovingReviewCount
           toFieldPath: spec.forProvider.rules[1].pullRequest[0].requiredApprovingReviewCount
@@ -274,6 +264,12 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.branchProtection.requiredApprovingReviewCount
           toFieldPath: spec.forProvider.rules[1].pullRequest[0].requiredApprovingReviewCount
+          policy:
+            fromFieldPath: Optional
+        # Apply custom rulesets if provided (this replaces the entire spec.forProvider)
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.branchProtection.customRulesets
+          toFieldPath: spec.forProvider
           policy:
             fromFieldPath: Optional
         # Add labels
