@@ -20,8 +20,10 @@ spec:
               apiVersion: team.github.upbound.io/v1alpha1
               kind: Team
               metadata:
-                name: team-name
-              spec:
+                name: ""
+                annotations:
+                  crossplane.io/resource-policy: Orphan
+            spec:
                 forProvider:
                   privacy: closed
                   description: Team created by Crossplane
@@ -33,7 +35,7 @@ spec:
                 toFieldPath: metadata.annotations["crossplane.io/external-name"]
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
-                toFieldPath: spec.forProvider.name
+                toFieldPath: metadata.name
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.description
                 toFieldPath: spec.forProvider.description
