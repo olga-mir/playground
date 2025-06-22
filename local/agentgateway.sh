@@ -57,7 +57,7 @@ EOF
 
 # With this configuration (and running whatever magic is baked into `agentgateway` CLI),
 # This is what is available out of the box:
-# % k get gatewayclass -A                                                                                                                                                                                                                                                 develop 13:00:05
+# % k get gatewayclass -A
 # NAME                CONTROLLER              ACCEPTED   AGE
 # agentgateway        kgateway.dev/kgateway   True       11m
 # kgateway            kgateway.dev/kgateway   True       11m
