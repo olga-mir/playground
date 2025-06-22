@@ -4,7 +4,7 @@ metadata:
   name: crossplane-composition-fixer
   namespace: kagent
 spec:
-  modelConfig: "claude-3-5-sonnet-20241022"
+  modelConfig: "claude-3-7-sonnet-20250219"
   systemMessage: |
     You are a Crossplane composition debugging expert for the olga-mir/playground repository.
 
