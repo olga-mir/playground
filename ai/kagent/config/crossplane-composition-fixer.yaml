@@ -33,8 +33,8 @@ spec:
   tools:
   - type: McpServer
     mcpServer:
-      toolServer: get-resources
-      toolNames: ["get-resources"]
+      toolServer: mcp-website-fetcher
+      toolNames: ["fetch"]
 
 # ---
 # apiVersion: kagent.dev/v1alpha1
