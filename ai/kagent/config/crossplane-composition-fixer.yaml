@@ -45,9 +45,8 @@ metadata:
 spec:
   description: "Retrieve ArgoCD application status for monitoring sync failures"
   config:
-    stdio:
-      command: "kubectl"
-      args: ["get", "application", "-n", "argocd", "-o", "jsonpath={.status}"]
+    sse:
+      url: http://argo-app-status.kagent.svc.cluster.local/sse
 
 ---
 apiVersion: kagent.dev/v1alpha1
@@ -58,6 +57,5 @@ metadata:
 spec:
   description: "Analyze Crossplane composition and XR (Composite Resource) issues"
   config:
-    stdio:
-      command: "echo"
-      args: ["Crossplane debug tool placeholder"]
+    sse:
+      url: http://crossplane-debug.kagent.svc.cluster.local/sse
