@@ -64,7 +64,7 @@ apiVersion: kagent.dev/v1alpha1
 kind: ToolServer
 metadata:
   name: mcp-website-fetcher
-  namespace: kagent
+  namespace: kagent-system
 spec:
   description: "Test - website fetcher"
   config:
