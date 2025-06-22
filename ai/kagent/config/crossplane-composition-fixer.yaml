@@ -36,26 +36,37 @@ spec:
       toolServer: get-resources
       toolNames: ["get-resources"]
 
+# ---
+# apiVersion: kagent.dev/v1alpha1
+# kind: ToolServer
+# metadata:
+#   name: argo-app-status
+#   namespace: kagent
+# spec:
+#   description: "Retrieve ArgoCD application status for monitoring sync failures"
+#   config:
+#     sse:
+#       url: http://argo-app-status.kagent.svc.cluster.local/sse
+# 
+# ---
+# apiVersion: kagent.dev/v1alpha1
+# kind: ToolServer
+# metadata:
+#   name: crossplane-debug
+#   namespace: kagent
+# spec:
+#   description: "Analyze Crossplane composition and XR (Composite Resource) issues"
+#   config:
+#     sse:
+#       url: http://crossplane-debug.kagent.svc.cluster.local/sse
 ---
 apiVersion: kagent.dev/v1alpha1
 kind: ToolServer
 metadata:
-  name: argo-app-status
+  name: mcp-website-fetcher
   namespace: kagent
 spec:
-  description: "Retrieve ArgoCD application status for monitoring sync failures"
+  description: "Test - website fetcher"
   config:
     sse:
-      url: http://argo-app-status.kagent.svc.cluster.local/sse
-
----
-apiVersion: kagent.dev/v1alpha1
-kind: ToolServer
-metadata:
-  name: crossplane-debug
-  namespace: kagent
-spec:
-  description: "Analyze Crossplane composition and XR (Composite Resource) issues"
-  config:
-    sse:
-      url: http://crossplane-debug.kagent.svc.cluster.local/sse
+      url: http://mcp-website-fetcher.kagent.svc.cluster.local/sse
