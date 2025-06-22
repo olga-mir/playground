@@ -624,12 +624,8 @@ spec:
           toFieldPath: metadata.annotations["crossplane.io/external-name"]
           policy:
             fromFieldPath: Optional
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.compliance.codeowners.content
-          toFieldPath: spec.forProvider.content
-          policy:
-            fromFieldPath: Optional
         # Generate default CODEOWNERS content if not provided
+        # This patch runs first to apply a sensible default.
         - type: CombineFromComposite
           combine:
             variables:
@@ -638,6 +634,13 @@ spec:
             strategy: string
             string:
               fmt: "# Repository owned by %s team\n* @tornado-demo/%s\n"
+          toFieldPath: spec.forProvider.content
+          policy:
+            fromFieldPath: Optional
+        # This patch runs second, overwriting the default with custom
+        # content if it is provided in the Composite Resource.
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.compliance.codeowners.content
           toFieldPath: spec.forProvider.content
           policy:
             fromFieldPath: Optional
