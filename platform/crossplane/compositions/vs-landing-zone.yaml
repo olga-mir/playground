@@ -216,8 +216,8 @@ spec:
                   hasProjects: true
                   hasWiki: true
                   vulnerabilityAlerts: true
-                providerConfigRef:
-                  name: github-provider-org
+                providerConfigRef: # Org level for creating repositories
+                  name: github-provider-org-lvl
             patches:
               - type: CombineFromComposite
                 combine:
@@ -257,8 +257,8 @@ spec:
                 annotations:
                   crossplane.io/external-name: "team-alpha"
               spec:
-                providerConfigRef:
-                  name: github-provider-org
+                providerConfigRef: # Org level for creating teams
+                  name: github-provider-org-lvl
             patches:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
@@ -280,8 +280,8 @@ spec:
               spec:
                 forProvider:
                   permission: "maintain"
-                providerConfigRef:
-                  name: github-provider-org
+                providerConfigRef: # Org level for managing team access to repositories
+                  name: github-provider-org-lvl
             patches:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName

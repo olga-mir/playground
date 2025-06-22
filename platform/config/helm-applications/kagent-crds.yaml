@@ -4,5 +4,5 @@ syncWave: "0"
 name: kagent-crds
 chart: kagent-crds
 repoURL: ghcr.io/kagent-dev/kagent/helm
-targetRevision: 0.3.11
+targetRevision: 0.3.17
 namespace: kagent-system

@@ -20,26 +20,22 @@ spec:
               apiVersion: team.github.upbound.io/v1alpha1
               kind: Team
               metadata:
-                name: team-name
-              spec:
+                name: ""
+                annotations:
+                  crossplane.io/resource-policy: Orphan
+            spec:
                 forProvider:
                   privacy: closed
                   description: Team created by Crossplane
                 providerConfigRef:
-                  name: github-provider-org
+                  name: github-provider-org-lvl
             patches:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
-                toFieldPath: metadata.name
-              # The explicit patch for external-name using teamName (slug) is removed.
-              # Crossplane will populate external-name from status.atProvider.id (numerical ID)
-              # after the team is created by the provider using spec.forProvider.name (slug).
-              #- type: FromCompositeFieldPath
-              #  fromFieldPath: spec.teamName
-              #  toFieldPath: metadata.annotations["crossplane.io/external-name"]
+                toFieldPath: metadata.annotations["crossplane.io/external-name"]
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.teamName
-                toFieldPath: spec.forProvider.name
+                toFieldPath: metadata.name
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.description
                 toFieldPath: spec.forProvider.description
@@ -54,40 +50,58 @@ spec:
 
     - step: configure-repository-access
       functionRef:
-        name: function-patch-and-transform
+        name: function-go-templating
       input:
-        apiVersion: pt.fn.crossplane.io/v1beta1
-        kind: Resources
-        resources:
-          - name: team-repository
-            base:
-              apiVersion: team.github.upbound.io/v1alpha1
-              kind: TeamRepository
-              metadata:
-                name: team-repo-access
-              spec:
-                forProvider:
-                  permission: push
-                providerConfigRef:
-                  name: github-provider-org
-            patches:
-              - type: CombineFromComposite
-                combine:
-                  variables:
-                    - fromFieldPath: spec.teamName
-                  strategy: string
-                  string:
-                    fmt: "%s-repoaccess" # Ensures a unique name like 'teamname-repoaccess'
-                toFieldPath: metadata.name
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryAccess[0].repositoryName
-                toFieldPath: spec.forProvider.repository
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.repositoryAccess[0].permission
-                toFieldPath: spec.forProvider.permission
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.teamName
-                toFieldPath: spec.forProvider.teamId
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $teamName := .observed.composite.resource.spec.teamName -}}
+            {{- $teamMaintainerUsername := .observed.composite.resource.spec.teamMaintainerUsername -}}
+
+            {{/* Iterate over repositoryAccess array from the XR spec */}}
+            {{- range $i, $access := .observed.composite.resource.spec.repositoryAccess }}
+            ---
+            apiVersion: team.github.upbound.io/v1alpha1
+            kind: TeamRepository
+            metadata:
+              {{/* Generate a unique name for the TeamRepository MR */}}
+              {{/* Ensure $access.repositoryName is sanitized if it can contain invalid K8s name characters */}}
+              name: {{ printf "%s-%s-repoaccess" $teamName ($access.repositoryName | lower | replace "." "-") }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ printf "team-repository-%d" $i }}
+                crossplane.io/external-name: {{ printf "%s:%s" $teamName $access.repositoryName }}
+            spec:
+              forProvider:
+                repository: {{ $access.repositoryName }}
+                {{/* permission can be a built-in one or a custom organizational role name */}}
+                permission: {{ $access.permission | default "pull" }} {{/* Default to 'pull' if not specified */}}
+                teamId: {{ $teamName }} {{/* Assumes teamName from XR is the GitHub team slug */}}
+              providerConfigRef:
+                name: github-provider-org-lvl
+            {{- end }}
+
+            {{/* Conditionally create TeamMembership for the maintainer */}}
+            {{- if $teamMaintainerUsername }}
+            ---
+            apiVersion: team.github.upbound.io/v1alpha1
+            kind: TeamMembership
+            metadata:
+              name: {{ printf "%s-%s-maintainer" $teamName ($teamMaintainerUsername | lower) }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: "team-maintainer-membership"
+                crossplane.io/external-name: {{ printf "%s:%s" $teamName $teamMaintainerUsername }}
+            spec:
+              forProvider:
+                teamId: {{ $teamName }}
+                username: {{ $teamMaintainerUsername }}
+                role: maintainer
+              providerConfigRef:
+                name: github-provider-org-lvl
+            {{- end }}
+
+
 
     - step: automatically-detect-ready-composed-resources
       functionRef:
