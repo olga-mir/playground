@@ -9,6 +9,8 @@ tasks:
       - sleep 240
       - "{{.TASKFILE_DIR}}/infra-setup/03-w-deploy-gke-clusters-wait.sh"
       - "{{.TASKFILE_DIR}}/infra-setup/04-setup-gke-clusters.sh"
+      - kubectl create namespace crossplane-provider-upjet-github
+      - "{{.TASKFILE_DIR}}/infra-setup/98-argocd-gateway-api.sh"
 
   full-cleanup:
     desc: "Cleanup infrastructure (forcefull)"
