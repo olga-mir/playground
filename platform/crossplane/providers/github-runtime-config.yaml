@@ -6,12 +6,16 @@ spec:
   deploymentTemplate:
     metadata:
       annotations:
-        deployment-runtime-config-demo: "injected-from-runtime-config"
+        demo-deployment-runtime-config: "demo-annotation"
       labels:
-        manadatory-label: "mandatory-label-from-runtime-config"
+        demo-label: "demo-label"
     spec:
+      selector:
+        matchLabels:
+          demo-label: "demo-label"
       template:
         metadata:
-          namespace: crossplane-provider-upjet-github
-
-# https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/DeploymentRuntimeConfig/v1beta1@v2.0.0-preview.1#spec-deploymentTemplate-spec-template-metadata-namespace
+          annotations:
+            demo-deployment-runtime-config: "demo-annotation"
+          labels:
+            demo-label: "demo-label"
