@@ -29,26 +29,20 @@ spec:
     - platform/ contains compositions and configurations
     - Use ArgoCD ApplicationSets for deployment
 
+    The project uses Crossplane v2-preview
+    Use configured website fetcher MCP tool to browse documentation using v2-preview path: https://github.com/crossplane/docs/tree/master/content/v2.0-preview
+
+
     Always provide detailed error analysis and clear fix explanations.
   tools:
   - type: McpServer
     mcpServer:
       toolServer: mcp-website-fetcher
       toolNames: ["fetch"]
-
-# ---
-# apiVersion: kagent.dev/v1alpha1
-# kind: ToolServer
-# metadata:
-#   name: argo-app-status
-#   namespace: kagent
-# spec:
-#   description: "Retrieve ArgoCD application status for monitoring sync failures"
-#   config:
-#     sse:
-#       url: http://argo-app-status.kagent.svc.cluster.local/sse
-#
-# ---
+  - type: Agent
+    agent:
+      ref: k8s-agent
+---
 # apiVersion: kagent.dev/v1alpha1
 # kind: ToolServer
 # metadata:
@@ -66,7 +60,7 @@ metadata:
   name: mcp-website-fetcher
   namespace: kagent-system
 spec:
-  description: "Test - website fetcher"
+  description: "website fetcher"
   config:
     sse:
       url: http://mcp-website-fetcher.kagent.svc.cluster.local/sse
