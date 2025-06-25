@@ -30,7 +30,8 @@ required_vars=(
     GITHUB_DEMO_REPO_NAME
     GITHUB_DEST_ORG_NAME
     GITHUB_DEMO_REPO_PAT
-    GITHUB_DEST_ORG_PAT
+    GITHUB_DEST_ORG_REPO_LVL_PAT # For repo-level operations in the destination org
+    GITHUB_DEST_ORG_ORG_LVL_PAT  # For org-level operations in the destination org
 )
 
 echo "Checking required environment variables..."
@@ -56,8 +57,9 @@ export CROSSPLANE_VERSION="v2.0.0-preview.1"
 export ARGOCD_VERSION="v2.14.10"
 export ARGOCD_CHART_VERSION="7.8.26"
 export ARGOCD_NAMESPACE="argocd"
-export GITHUB_DEST_ORG_SECRET_NAME="github-provider-secret-org"
-export GITHUB_DEST_ORG_SECRET_NAMESPACE="crossplane-system"
+export CROSSPLANE_GITHUB_ORG_LEVEL_SECRET_NAME="github-provider-credentials-org"
+export CROSSPLANE_GITHUB_REPO_LEVEL_SECRET_NAME="github-provider-credentials-repo"
+export CROSSPLANE_GITHUB_SECRET_NAMESPACE="crossplane-system"
 
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 
@@ -260,14 +262,25 @@ kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic apps-dev-clust
     --from-literal=kubeconfig="${KUBECONFIG_CONTENT}" \
     --dry-run=client -o yaml | kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f -
 
-# Create secret for GitHub provider (org access)
-# name needs to match this in Github provider-config
+# Create secret for Crossplane GitHub provider (ORGANIZATION LEVEL access)
+# This secret will be referenced by a ProviderConfig for org-level operations (e.g., creating repositories)
 set +x
-echo "Creating secret for GitHub provider (org access)"
-if ! kubectl --context="${MGMT_CLUSTER_CONTEXT}" get secret ${GITHUB_DEST_ORG_SECRET_NAME} -n ${GITHUB_DEST_ORG_SECRET_NAMESPACE} >/dev/null 2>&1; then
+echo "Creating Crossplane GitHub provider secret for ORG LEVEL access: ${CROSSPLANE_GITHUB_ORG_LEVEL_SECRET_NAME}"
+if ! kubectl --context="${MGMT_CLUSTER_CONTEXT}" get secret "${CROSSPLANE_GITHUB_ORG_LEVEL_SECRET_NAME}" -n "${CROSSPLANE_GITHUB_SECRET_NAMESPACE}" >/dev/null 2>&1; then
     # Create the secret with proper JSON format for Crossplane GitHub provider
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic ${GITHUB_DEST_ORG_SECRET_NAME} -n ${GITHUB_DEST_ORG_SECRET_NAMESPACE} \
-        --from-literal=credentials="{\"token\":\"${GITHUB_DEST_ORG_PAT}\",\"owner\":\"${GITHUB_DEST_ORG_NAME}\"}" || { echo "Error creating provider-secret-org secret"; exit 1; }
+    kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic "${CROSSPLANE_GITHUB_ORG_LEVEL_SECRET_NAME}" -n "${CROSSPLANE_GITHUB_SECRET_NAMESPACE}" \
+        --from-literal=credentials="{\"token\":\"${GITHUB_DEST_ORG_ORG_LVL_PAT}\",\"owner\":\"${GITHUB_DEST_ORG_NAME}\"}" || { echo "Error creating GitHub org-level provider secret"; exit 1; }
+fi
+set -x
+
+# Create secret for Crossplane GitHub provider (REPOSITORY LEVEL access)
+# This secret will be referenced by a ProviderConfig for repo-level operations (e.g., managing files, deploy keys within existing repos)
+set +x
+echo "Creating Crossplane GitHub provider secret for REPO LEVEL access: ${CROSSPLANE_GITHUB_REPO_LEVEL_SECRET_NAME}"
+if ! kubectl --context="${MGMT_CLUSTER_CONTEXT}" get secret "${CROSSPLANE_GITHUB_REPO_LEVEL_SECRET_NAME}" -n "${CROSSPLANE_GITHUB_SECRET_NAMESPACE}" >/dev/null 2>&1; then
+    # Create the secret with proper JSON format for Crossplane GitHub provider
+    kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic "${CROSSPLANE_GITHUB_REPO_LEVEL_SECRET_NAME}" -n "${CROSSPLANE_GITHUB_SECRET_NAMESPACE}" \
+        --from-literal=credentials="{\"token\":\"${GITHUB_DEST_ORG_REPO_LVL_PAT}\",\"owner\":\"${GITHUB_DEST_ORG_NAME}\"}" || { echo "Error creating GitHub repo-level provider secret"; exit 1; }
 fi
 set -x
 

@@ -5,7 +5,6 @@ metadata:
   namespace: team-alpha-tenant
   annotations:
     argocd.argoproj.io/sync-options: ServerSideApply=true
-    crossplane.io/external-name: service-one
 spec:
   environment: "dev"
   teamName: "team-alpha"
