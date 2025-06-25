@@ -29,6 +29,7 @@ spec:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
           spec:
             providerConfigRef:
               name: crossplane-provider-gcp
@@ -56,6 +57,7 @@ spec:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
           spec:
             forProvider:
               clusterRef:
@@ -80,6 +82,9 @@ spec:
           kind: ProviderConfig
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+              crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}
           spec:
             credentials:
               source: Secret
@@ -107,12 +112,16 @@ spec:
             name: argocd
             annotations:
               crossplane.io/external-name: argocd
+              gotemplating.fn.crossplane.io/composition-resource-name: argocd-namespace
           ---
           # ArgoCD Helm Release
           apiVersion: helm.crossplane.io/v1beta1
           kind: Release
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd
+              crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
           spec:
             providerConfigRef:
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
@@ -170,6 +179,22 @@ spec:
                       memory: "2Gi"
           {{ else if and (.observed.composite.resource.spec.parameters.argocd.enabled) (eq .observed.composite.resource.spec.parameters.clusterType "apps") }}
           ---
+          # Kubernetes ProviderConfig for apps cluster
+          apiVersion: kubernetes.crossplane.io/v1alpha1
+          kind: ProviderConfig
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider-apps
+              crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}
+          spec:
+            credentials:
+              source: Secret
+              secretRef:
+                namespace: crossplane-system
+                name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
+                key: kubeconfig
+          ---
           # ArgoCD Agent Namespace
           apiVersion: v1
           kind: Namespace
@@ -177,12 +202,16 @@ spec:
             name: argocd
             annotations:
               crossplane.io/external-name: argocd
+              gotemplating.fn.crossplane.io/composition-resource-name: argocd-agent-namespace
           ---
           # ArgoCD Agent (minimal installation for apps clusters)
           apiVersion: helm.crossplane.io/v1beta1
           kind: Release
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd-agent
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd-agent
+              crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
           spec:
             providerConfigRef:
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
@@ -233,12 +262,16 @@ spec:
             name: crossplane-system
             annotations:
               crossplane.io/external-name: crossplane-system
+              gotemplating.fn.crossplane.io/composition-resource-name: crossplane-namespace
           ---
           # Crossplane Helm Release
           apiVersion: helm.crossplane.io/v1beta1
           kind: Release
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane
+              crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
           spec:
             providerConfigRef:
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
@@ -269,6 +302,8 @@ spec:
           kind: Provider
           metadata:
             name: provider-gcp-beta-container
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: provider-gcp-beta-container
           spec:
             package: xpkg.upbound.io/upbound/provider-gcp-beta-container:v0.5.1
           {{ end }}

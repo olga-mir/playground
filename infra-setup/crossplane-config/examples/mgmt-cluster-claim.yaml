@@ -31,4 +31,3 @@ spec:
       version: "v2.0.0-preview.1"
   
   compositeDeletePolicy: Foreground
-  writeConnectionSecretsToNamespace: crossplane-system

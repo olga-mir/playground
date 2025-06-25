@@ -38,6 +38,7 @@ done
 
 # gke-provider is not templated, but rendered folder is .gitignor'ed
 # so it is an exception that can be applied directly
+sleep 10
 kubectl apply -f ${REPO_ROOT}/infra-setup/manifests/templates/gke-provider.yaml
 
 # Wait for CRDs to be established
