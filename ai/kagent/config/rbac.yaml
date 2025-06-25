@@ -1,0 +1,65 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kagent-crossplane-github-access
+rules:
+- apiGroups:
+  - "apiextensions.crossplane.io"
+  - "pkg.crossplane.io"
+  - "environmentconfigs.fn.crossplane.io"
+  - "gotemplating.fn.crossplane.io"
+  - "kubernetes.crossplane.io"
+  - "protection.crossplane.io"
+  - "pt.fn.crossplane.io"
+  resources:
+  - "*"
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - "actions.github.upbound.io"
+  - "enterprise.github.upbound.io"
+  - "github.upbound.io"
+  - "repo.github.upbound.io"
+  - "team.github.upbound.io"
+  - "user.github.upbound.io"
+  resources:
+  - "*"
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - "platform.tornado-demo.io"
+  resources:
+  - "tornadorepos"
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kagent-crossplane-github-access-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kagent-crossplane-github-access
+subjects:
+- kind: ServiceAccount
+  name: kagent
+  namespace: kagent-system
