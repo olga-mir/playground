@@ -34,6 +34,7 @@ spec:
 
 
     Always provide detailed error analysis and clear fix explanations.
+  memory: ["crossplane-docs-memory"]
   tools:
   - type: McpServer
     mcpServer:
