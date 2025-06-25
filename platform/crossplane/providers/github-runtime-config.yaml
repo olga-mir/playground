@@ -6,6 +6,16 @@ spec:
   deploymentTemplate:
     metadata:
       annotations:
-        deployment-runtime-config-demo: "injected-from-runtime-config"
+        demo-deployment-runtime-config: "demo-annotation"
       labels:
-        manadatory-label: "mandatory-label-from-runtime-config"
+        demo-label: "demo-label"
+    spec:
+      selector:
+        matchLabels:
+          demo-label: "demo-label"
+      template:
+        metadata:
+          annotations:
+            demo-deployment-runtime-config: "demo-annotation"
+          labels:
+            demo-label: "demo-label"
