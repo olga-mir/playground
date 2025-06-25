@@ -29,8 +29,7 @@ spec:
     - platform/ contains compositions and configurations
     - Use ArgoCD ApplicationSets for deployment
 
-    The project uses Crossplane v2-preview
-    Use configured website fetcher MCP tool to browse documentation using v2-preview path: https://github.com/crossplane/docs/tree/master/content/v2.0-preview
+    The project uses Crossplane v2-preview. Use configured Memory to browse documentation for this version of Crossplane
 
 
     Always provide detailed error analysis and clear fix explanations.
