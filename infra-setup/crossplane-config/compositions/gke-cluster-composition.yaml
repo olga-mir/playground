@@ -1,0 +1,274 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: gke-cluster-composition
+  labels:
+    provider: gcp
+    service: gke
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.com/v1alpha1
+    kind: XGKECluster
+  
+  mode: Pipeline
+  pipeline:
+  - step: cluster-resources
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          ---
+          # GKE Cluster
+          apiVersion: container.gcp-beta.upbound.io/v1beta2
+          kind: Cluster
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+            annotations:
+              crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+          spec:
+            providerConfigRef:
+              name: crossplane-provider-gcp
+            forProvider:
+              network: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/global/networks/{{ .observed.composite.resource.spec.parameters.vpcName }}"
+              subnetwork: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/regions/{{ .observed.composite.resource.spec.parameters.region }}/subnetworks/{{ .observed.composite.resource.spec.parameters.subnetName }}"
+              location: "{{ .observed.composite.resource.spec.parameters.zone }}"
+              workloadIdentityConfig:
+                workloadPool: "{{ .observed.composite.resource.spec.parameters.projectId }}.svc.id.goog"
+              initialNodeCount: 1
+              removeDefaultNodePool: true
+              gatewayApiConfig:
+                channel: CHANNEL_STANDARD
+              enableAutopilot: false
+              releaseChannel:
+                channel: RAPID
+            writeConnectionSecretToRef:
+              namespace: crossplane-system
+              name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
+          ---
+          # GKE Node Pool
+          apiVersion: container.gcp-beta.upbound.io/v1beta2
+          kind: NodePool
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+            annotations:
+              crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+          spec:
+            forProvider:
+              clusterRef:
+                name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+              maxPodsPerNode: 32
+              nodeConfig:
+                spot: true
+                machineType: {{ .observed.composite.resource.spec.parameters.machineType }}
+                diskSizeGb: 50
+              autoscaling:
+                minNodeCount: {{ .observed.composite.resource.spec.parameters.minNodes }}
+                maxNodeCount: {{ .observed.composite.resource.spec.parameters.maxNodes }}
+              management:
+                autoRepair: true
+                autoUpgrade: true
+            providerConfigRef:
+              name: crossplane-provider-gcp
+          {{ if eq .observed.composite.resource.spec.parameters.clusterType "mgmt" }}
+          ---
+          # Kubernetes ProviderConfig for this cluster
+          apiVersion: kubernetes.crossplane.io/v1alpha1
+          kind: ProviderConfig
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+          spec:
+            credentials:
+              source: Secret
+              secretRef:
+                namespace: crossplane-system
+                name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
+                key: kubeconfig
+          {{ end }}
+  
+  - step: argocd-resources
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          {{ if and (.observed.composite.resource.spec.parameters.argocd.enabled) (eq .observed.composite.resource.spec.parameters.clusterType "mgmt") }}
+          ---
+          # ArgoCD Namespace
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: argocd
+            annotations:
+              crossplane.io/external-name: argocd
+          ---
+          # ArgoCD Helm Release
+          apiVersion: helm.crossplane.io/v1beta1
+          kind: Release
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd
+          spec:
+            providerConfigRef:
+              name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+            forProvider:
+              namespace: argocd
+              chart:
+                name: argo-cd
+                repository: https://argoproj.github.io/argo-helm
+                version: {{ .observed.composite.resource.spec.parameters.argocd.chartVersion }}
+              values:
+                global:
+                  image:
+                    tag: {{ .observed.composite.resource.spec.parameters.argocd.version }}
+                configs:
+                  params:
+                    server.insecure: true
+                  cm:
+                    kustomize.buildOptions: "--enable-helm"
+                    application.instanceLabelKey: argocd.argoproj.io/instance
+                    timeout.reconciliation: 300s
+                    timeout.hard.reconciliation: 600s
+                    resource.trackingMethod: annotation
+                applicationSet:
+                  enabled: true
+                  resources:
+                    requests:
+                      cpu: "500m"
+                      memory: "1Gi"
+                    limits:
+                      memory: "2Gi"
+                server:
+                  resources:
+                    requests:
+                      cpu: "1000m"
+                      memory: "2Gi"
+                    limits:
+                      memory: "3Gi"
+                  replicas: 2
+                controller:
+                  resources:
+                    requests:
+                      cpu: "700m"
+                      memory: "2Gi"
+                    limits:
+                      memory: "3Gi"
+                  env:
+                    - name: ARGOCD_RECONCILIATION_TIMEOUT
+                      value: "600s"
+                repoServer:
+                  resources:
+                    requests:
+                      cpu: "250m"
+                      memory: "1Gi"
+                    limits:
+                      memory: "2Gi"
+          {{ else if and (.observed.composite.resource.spec.parameters.argocd.enabled) (eq .observed.composite.resource.spec.parameters.clusterType "apps") }}
+          ---
+          # ArgoCD Agent Namespace
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: argocd
+            annotations:
+              crossplane.io/external-name: argocd
+          ---
+          # ArgoCD Agent (minimal installation for apps clusters)
+          apiVersion: helm.crossplane.io/v1beta1
+          kind: Release
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd-agent
+          spec:
+            providerConfigRef:
+              name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+            forProvider:
+              namespace: argocd
+              chart:
+                name: argo-cd
+                repository: https://argoproj.github.io/argo-helm
+                version: {{ .observed.composite.resource.spec.parameters.argocd.chartVersion }}
+              values:
+                global:
+                  image:
+                    tag: {{ .observed.composite.resource.spec.parameters.argocd.version }}
+                controller:
+                  enabled: false
+                dex:
+                  enabled: false
+                server:
+                  enabled: false
+                applicationSet:
+                  enabled: false
+                notifications:
+                  enabled: false
+                repoServer:
+                  replicas: 1
+                redis:
+                  enabled: false
+                configs:
+                  params:
+                    controller.k8s.clusterAdminAccess: true
+          {{ end }}
+          
+  - step: crossplane-resources
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          {{ if and (.observed.composite.resource.spec.parameters.crossplane.enabled) (eq .observed.composite.resource.spec.parameters.clusterType "mgmt") }}
+          ---
+          # Crossplane Namespace
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: crossplane-system
+            annotations:
+              crossplane.io/external-name: crossplane-system
+          ---
+          # Crossplane Helm Release
+          apiVersion: helm.crossplane.io/v1beta1
+          kind: Release
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane
+          spec:
+            providerConfigRef:
+              name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+            forProvider:
+              namespace: crossplane-system
+              chart:
+                name: crossplane
+                repository: https://charts.crossplane.io/experimental
+                version: {{ .observed.composite.resource.spec.parameters.crossplane.version }}
+              values:
+                resourcesCrossplane:
+                  limits:
+                    cpu: 100m
+                    memory: 512Mi
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                resourcesRBACManager:
+                  limits:
+                    cpu: 100m
+                    memory: 512Mi
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+          ---
+          # GCP Beta Container Provider
+          apiVersion: pkg.crossplane.io/v1
+          kind: Provider
+          metadata:
+            name: provider-gcp-beta-container
+          spec:
+            package: xpkg.upbound.io/upbound/provider-gcp-beta-container:v0.5.1
+          {{ end }}
