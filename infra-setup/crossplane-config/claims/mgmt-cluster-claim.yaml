@@ -1,11 +1,11 @@
-apiVersion: platform.example.com/v1alpha1
+apiVersion: platform.tornado-demo.io/v1alpha1
 kind: GKECluster
 metadata:
-  name: mgmt-cluster-example
-  namespace: default
+  name: mgmt
+  namespace: gke
 spec:
   parameters:
-    clusterName: gke-mgmt-cluster
+    clusterName: "${GKE_MGMT_CLUSTER}"
     clusterType: mgmt
     projectId: "${PROJECT_ID}"
     region: "${REGION}"
@@ -15,7 +15,7 @@ spec:
     machineType: "e2-standard-4"
     minNodes: 2
     maxNodes: 5
-    
+
     # ArgoCD configuration
     argocd:
       enabled: true
@@ -24,10 +24,10 @@ spec:
       repoUrl: "https://github.com/${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}.git"
       repoToken: "${GITHUB_DEMO_REPO_PAT}"
       repoOwner: "${GITHUB_DEMO_REPO_OWNER}"
-    
+
     # Crossplane configuration
     crossplane:
       enabled: true
       version: "v2.0.0-preview.1"
-  
+
   compositeDeletePolicy: Foreground

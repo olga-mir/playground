@@ -49,7 +49,7 @@ while true; do
     current_time=$(date +%s)
     elapsed_time=$((current_time - start_time))
     if [ "$elapsed_time" -ge "$timeout" ]; then
-        echo "RRRRRR Timeout reached while waiting for clusters to be ready."
+        echo "Timeout reached while waiting for clusters to be ready."
     fi
 
     echo "Retrying in $interval seconds..."

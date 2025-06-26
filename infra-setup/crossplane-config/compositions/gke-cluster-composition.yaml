@@ -7,9 +7,9 @@ metadata:
     service: gke
 spec:
   compositeTypeRef:
-    apiVersion: platform.example.com/v1alpha1
+    apiVersion: platform.tornado-demo.io/v1alpha1
     kind: XGKECluster
-  
+
   mode: Pipeline
   pipeline:
   - step: cluster-resources
@@ -30,6 +30,7 @@ spec:
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
           spec:
             providerConfigRef:
               name: crossplane-provider-gcp
@@ -58,6 +59,7 @@ spec:
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
           spec:
             forProvider:
               clusterRef:
@@ -84,6 +86,7 @@ spec:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
               crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}
           spec:
             credentials:
@@ -93,7 +96,7 @@ spec:
                 name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
                 key: kubeconfig
           {{ end }}
-  
+
   - step: argocd-resources
     functionRef:
       name: function-go-templating
@@ -113,6 +116,7 @@ spec:
             annotations:
               crossplane.io/external-name: argocd
               gotemplating.fn.crossplane.io/composition-resource-name: argocd-namespace
+              crossplane.io/composition-resource-name: argocd-namespace
           ---
           # ArgoCD Helm Release
           apiVersion: helm.crossplane.io/v1beta1
@@ -121,6 +125,7 @@ spec:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd
               crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
           spec:
             providerConfigRef:
@@ -186,6 +191,7 @@ spec:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider-apps
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider-apps
               crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}
           spec:
             credentials:
@@ -203,6 +209,7 @@ spec:
             annotations:
               crossplane.io/external-name: argocd
               gotemplating.fn.crossplane.io/composition-resource-name: argocd-agent-namespace
+              crossplane.io/composition-resource-name: argocd-agent-namespace
           ---
           # ArgoCD Agent (minimal installation for apps clusters)
           apiVersion: helm.crossplane.io/v1beta1
@@ -211,6 +218,7 @@ spec:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd-agent
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd-agent
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-argocd-agent
               crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
           spec:
             providerConfigRef:
@@ -243,7 +251,7 @@ spec:
                   params:
                     controller.k8s.clusterAdminAccess: true
           {{ end }}
-          
+
   - step: crossplane-resources
     functionRef:
       name: function-go-templating
@@ -263,6 +271,7 @@ spec:
             annotations:
               crossplane.io/external-name: crossplane-system
               gotemplating.fn.crossplane.io/composition-resource-name: crossplane-namespace
+              crossplane.io/composition-resource-name: crossplane-namespace
           ---
           # Crossplane Helm Release
           apiVersion: helm.crossplane.io/v1beta1
@@ -271,6 +280,7 @@ spec:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane
               crossplane.io/depends-on: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
           spec:
             providerConfigRef:
@@ -304,6 +314,12 @@ spec:
             name: provider-gcp-beta-container
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: provider-gcp-beta-container
+              crossplane.io/composition-resource-name: provider-gcp-beta-container
           spec:
             package: xpkg.upbound.io/upbound/provider-gcp-beta-container:v0.5.1
           {{ end }}
+
+  - step: ready
+    functionRef:
+      name: function-auto-ready
+

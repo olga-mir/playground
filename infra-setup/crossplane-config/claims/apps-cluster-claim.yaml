@@ -1,11 +1,11 @@
-apiVersion: platform.example.com/v1alpha1
+apiVersion: platform.tornado-demo.io/v1alpha1
 kind: GKECluster
 metadata:
-  name: apps-dev-cluster-example
-  namespace: default
+  name: apps-dev
+  namespace: gke
 spec:
   parameters:
-    clusterName: gke-apps-dev-cluster
+    clusterName: "${GKE_APPS_DEV_CLUSTER}"
     clusterType: apps
     projectId: "${PROJECT_ID}"
     region: "${REGION}"
@@ -15,15 +15,15 @@ spec:
     machineType: "e2-medium"
     minNodes: 2
     maxNodes: 5
-    
+
     # ArgoCD agent configuration (minimal for apps clusters)
     argocd:
       enabled: true
       version: "v2.14.10"
       chartVersion: "7.8.26"
-    
+
     # No Crossplane on apps clusters
     crossplane:
       enabled: false
-  
+
   compositeDeletePolicy: Foreground

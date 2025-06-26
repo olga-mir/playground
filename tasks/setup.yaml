@@ -2,34 +2,11 @@ version: "3"
 
 tasks:
   auto-deploy:
-    desc: "Run full infrastructure setup"
-    cmds:
-      - "{{.TASKFILE_DIR}}/infra-setup/02-create-and-setup-kind.sh"
-      - "{{.TASKFILE_DIR}}/infra-setup/03-deploy-gke-clusters.sh"
-      - sleep 240
-      - "{{.TASKFILE_DIR}}/infra-setup/03-w-deploy-gke-clusters-wait.sh"
-      - "{{.TASKFILE_DIR}}/infra-setup/04-setup-gke-clusters.sh"
-      - sleep 100
-      - "{{.TASKFILE_DIR}}/infra-setup/98-argocd-gateway-api.sh"
-
-  # New composition-based deployment
-  auto-deploy-composition:
     desc: "Run full infrastructure setup using Crossplane compositions"
     cmds:
       - "{{.TASKFILE_DIR}}/infra-setup/02-create-and-setup-kind.sh"
       - "{{.TASKFILE_DIR}}/infra-setup/05-apply-compositions.sh"
-      - sleep 300  # Allow more time for composition-based deployment
-      - "{{.TASKFILE_DIR}}/infra-setup/04-setup-gke-clusters-composition.sh"
-      - sleep 100
-      - "{{.TASKFILE_DIR}}/infra-setup/98-argocd-gateway-api.sh"
-
-  # Legacy bash-based deployment (kept for comparison)
-  auto-deploy-legacy:
-    desc: "Run full infrastructure setup (legacy bash scripts)"
-    cmds:
-      - "{{.TASKFILE_DIR}}/infra-setup/02-create-and-setup-kind.sh"
-      - "{{.TASKFILE_DIR}}/infra-setup/03-deploy-gke-clusters.sh"
-      - sleep 240
+      - sleep 300
       - "{{.TASKFILE_DIR}}/infra-setup/03-w-deploy-gke-clusters-wait.sh"
       - "{{.TASKFILE_DIR}}/infra-setup/04-setup-gke-clusters.sh"
       - sleep 100

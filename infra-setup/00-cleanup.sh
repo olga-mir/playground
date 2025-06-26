@@ -7,7 +7,7 @@ export REPO_ROOT=$(git rev-parse --show-toplevel)
 
 kind delete clusters kind-test-cluster
 
-kubectl --context "${MGMT_CLUSTER_CONTEXT}" delete -f ${REPO_ROOT}/teams/team-alpha/landing-zone-claim.yaml
+# kubectl --context "${MGMT_CLUSTER_CONTEXT}" delete -f ${REPO_ROOT}/teams/team-alpha/landing-zone-claim.yaml
 helm --kube-context "${MGMT_CLUSTER_CONTEXT}" uninstall argocd -n argocd
 
 sleep 20

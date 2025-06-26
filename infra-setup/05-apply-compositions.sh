@@ -38,38 +38,27 @@ export REPO_ROOT=$(git rev-parse --show-toplevel)
 
 echo "Installing Crossplane compositions and functions..."
 
-# Install required functions
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f - <<EOF
-apiVersion: pkg.crossplane.io/v1beta1
-kind: Function
-metadata:
-  name: function-go-templating
-spec:
-  package: xpkg.upbound.io/crossplane-contrib/function-go-templating:v0.10.0
----
-apiVersion: pkg.crossplane.io/v1
-kind: Provider
-metadata:
-  name: provider-helm
-spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-helm:v0.21.0
----
-apiVersion: pkg.crossplane.io/v1
-kind: Provider
-metadata:
-  name: provider-kubernetes
-spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v0.18.0
-EOF
+echo "Creating namespaces..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/namespaces/"
+
+echo "Applying Crossplane RBAC..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/rbac/"
+
+echo "Installing Crossplane functions..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/functions/"
+
+echo "Installing Crossplane providers..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/providers/"
 
 echo "Waiting for providers and functions to be ready..."
-sleep 30
+sleep 45
 
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy provider --all --timeout=300s
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers --all --timeout=300s
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy function --all --timeout=300s
 
 echo "Applying Crossplane XRD and Composition..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/compositions/"
+sleep 15
 
 echo "Waiting for XRD to be established..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=60s
@@ -91,14 +80,12 @@ envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/provider-configs/gcp-prov
 
 echo "Creating GKE clusters using compositions..."
 
-# Create management cluster
 echo "Creating management cluster..."
-envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/examples/mgmt-cluster-claim.yaml" | \
+envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/claims/mgmt-cluster-claim.yaml" | \
   kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
-# Create apps cluster  
 echo "Creating apps cluster..."
-envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/examples/apps-cluster-claim.yaml" | \
+envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/claims/apps-cluster-claim.yaml" | \
   kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
 echo "Clusters creation initiated via Crossplane compositions!"

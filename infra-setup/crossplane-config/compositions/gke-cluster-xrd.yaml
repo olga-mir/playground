@@ -1,9 +1,9 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xgkeclusters.platform.example.com
+  name: xgkeclusters.platform.tornado-demo.io
 spec:
-  group: platform.example.com
+  group: platform.tornado-demo.io
   names:
     kind: XGKECluster
     plural: xgkeclusters
@@ -38,7 +38,7 @@ spec:
                   zone:
                     type: string
                     description: "GCP Zone"
-                  
+
                   # Networking
                   vpcName:
                     type: string
@@ -46,7 +46,7 @@ spec:
                   subnetName:
                     type: string
                     description: "Subnet name"
-                  
+
                   # Node configuration
                   machineType:
                     type: string
@@ -60,7 +60,7 @@ spec:
                     type: integer
                     default: 5
                     description: "Maximum number of nodes"
-                  
+
                   # ArgoCD configuration (mgmt clusters only)
                   argocd:
                     type: object
@@ -86,7 +86,7 @@ spec:
                       repoOwner:
                         type: string
                         description: "Git repository owner"
-                  
+
                   # Crossplane configuration (mgmt clusters only)
                   crossplane:
                     type: object
