@@ -89,4 +89,39 @@ envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/claims/apps-cluster-claim
   kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
 echo "Clusters creation initiated via Crossplane compositions!"
-echo "Monitor progress with: kubectl --context=${KIND_CROSSPLANE_CONTEXT} get gkeclusters -w"
+
+echo "Waiting for clusters to be ready..."
+echo "This may take 10-15 minutes for GKE clusters to provision..."
+
+# Function to wait for a cluster to be ready using the actual cluster resource
+wait_for_cluster_ready() {
+    local cluster_name="$1"
+    local max_retries=60  # 30 minutes total
+    local retry_count=0
+
+    while [ $retry_count -lt $max_retries ]; do
+        if kubectl --context="${KIND_CROSSPLANE_CONTEXT}" get cluster "${cluster_name}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
+            echo "✅ Cluster $cluster_name is ready!"
+            return 0
+        fi
+
+        echo "⏳ Waiting for cluster $cluster_name to be ready... (${retry_count}/${max_retries})"
+        retry_count=$((retry_count+1))
+
+        # Handle interruption properly
+        if ! sleep 30; then
+            echo "❌ Interrupted waiting for cluster $cluster_name"
+            return 1
+        fi
+    done
+
+    echo "❌ Timeout waiting for cluster $cluster_name to be ready"
+    return 1
+}
+
+# Wait for both clusters sequentially to handle Ctrl+C properly
+wait_for_cluster_ready "${GKE_MGMT_CLUSTER}"
+wait_for_cluster_ready "${GKE_APPS_DEV_CLUSTER}"
+
+echo "✅ All clusters are ready!"
+echo "Monitor detailed progress with: kubectl --context=${KIND_CROSSPLANE_CONTEXT} get gkeclusters -w"
