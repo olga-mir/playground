@@ -36,18 +36,10 @@ fi
 
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 
-echo "Installing Crossplane compositions and functions..."
-
-echo "Creating namespaces..."
+echo "Applying resources..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/namespaces/"
-
-echo "Applying Crossplane RBAC..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/rbac/"
-
-echo "Installing Crossplane functions..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/functions/"
-
-echo "Installing Crossplane providers..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/providers/"
 
 echo "Waiting for providers and functions to be ready..."
