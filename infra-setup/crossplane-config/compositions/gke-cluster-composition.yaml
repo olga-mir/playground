@@ -337,17 +337,10 @@ spec:
               namespace: crossplane-system
               chart:
                 name: crossplane
-                repository: https://charts.crossplane.io/experimental
+                repository: https://charts.crossplane.io/preview
                 version: {{ .observed.composite.resource.spec.parameters.crossplane.version }}
               values:
                 resourcesCrossplane:
-                  limits:
-                    cpu: 100m
-                    memory: 512Mi
-                  requests:
-                    cpu: 100m
-                    memory: 256Mi
-                resourcesRBACManager:
                   limits:
                     cpu: 100m
                     memory: 512Mi
