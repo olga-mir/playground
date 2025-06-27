@@ -117,3 +117,6 @@ wait_for_cluster_ready "${GKE_APPS_DEV_CLUSTER}"
 
 echo "✅ All clusters are ready!"
 echo "Monitor detailed progress with: kubectl --context=${KIND_CROSSPLANE_CONTEXT} get gkeclusters -w"
+
+gcloud container clusters get-credentials "${GKE_APPS_DEV_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
+gcloud container clusters get-credentials "${GKE_MGMT_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
