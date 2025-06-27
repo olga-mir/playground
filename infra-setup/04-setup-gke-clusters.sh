@@ -111,34 +111,7 @@ add_repo_to_argocd() {
   echo "Repository ${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME} added to Argo CD successfully."
 }
 
-# Function to configure ArgoCD to connect to target cluster
-configure_argocd_cluster_connection() {
-  local target_cluster_name="$1"
-  local target_context="$2"
-
-  # Get the kubeconfig for the target cluster
-  kubectl --context="${target_context}" config view --raw --minify > "${target_cluster_name}.kubeconfig"
-
-  # Extract the server address and certificate authority data from the kubeconfig
-  SERVER=$(yq e '.clusters[0].cluster.server' "${target_cluster_name}.kubeconfig")
-  CERTIFICATE_AUTHORITY_DATA=$(yq e '.clusters[0].cluster.certificate-authority-data' "${target_cluster_name}.kubeconfig")
-  TOKEN=$(yq e '.users[0].user.token' "${target_cluster_name}.kubeconfig" || echo "")
-  if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
-      # Get token from current context
-      TOKEN=$(kubectl --context="${target_context}" create token default)
-  fi
-
-  # Create a secret for the cluster credentials
-  kubectl --context="${MGMT_CLUSTER_CONTEXT}" -n "${ARGOCD_NAMESPACE}" create secret generic "${target_cluster_name}-cluster-secret" \
-    --from-literal=server="${SERVER}" \
-    --from-literal=token="${TOKEN}" \
-    --from-literal=certificateAuthorityData="${CERTIFICATE_AUTHORITY_DATA}" \
-    --dry-run=client -o yaml | kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f - || { echo "Error creating cluster secret for Argo in Management cluster"; exit 1; }
-
-  rm "${target_cluster_name}.kubeconfig"
-
-  echo "Argo CD on management cluster configured to connect to ${target_cluster_name}"
-}
+# Function removed - ArgoCD cluster connection now handled by Helm composition
 
 echo "Starting setup..."
 
@@ -147,8 +120,7 @@ if [ "$SKIP_ARGO" = false ]; then
     echo "Waiting for ArgoCD to be ready (installed by Composition)..."
     wait_for_argocd_ready
 
-    echo "Configuring ArgoCD multi-cluster setup..."
-    configure_argocd_cluster_connection "apps-dev-cluster" "${APPS_DEV_CLUSTER_CONTEXT}"
+    echo "ArgoCD multi-cluster setup now handled by Crossplane Helm compositions..."
 
     echo "Adding repository to ArgoCD..."
     add_repo_to_argocd

@@ -26,8 +26,9 @@ spec:
       repoOwner: "${GITHUB_DEMO_REPO_OWNER}"
 
     # Crossplane configuration
+    # no "v": https://charts.crossplane.io/preview/
     crossplane:
       enabled: true
-      version: "v2.0.0-preview.1"
+      version: "2.0.0-preview.1"
 
   compositeDeletePolicy: Foreground

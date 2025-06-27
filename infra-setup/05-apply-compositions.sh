@@ -96,7 +96,7 @@ echo "This may take 10-15 minutes for GKE clusters to provision..."
 # Function to wait for a cluster to be ready using the actual cluster resource
 wait_for_cluster_ready() {
     local cluster_name="$1"
-    local max_retries=60  # 30 minutes total
+    local max_retries=60  # x45 sec
     local retry_count=0
 
     while [ $retry_count -lt $max_retries ]; do
@@ -109,7 +109,7 @@ wait_for_cluster_ready() {
         retry_count=$((retry_count+1))
 
         # Handle interruption properly
-        if ! sleep 30; then
+        if ! sleep 45; then
             echo "❌ Interrupted waiting for cluster $cluster_name"
             return 1
         fi

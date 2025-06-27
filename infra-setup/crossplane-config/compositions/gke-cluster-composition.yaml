@@ -337,7 +337,7 @@ spec:
               namespace: crossplane-system
               chart:
                 name: crossplane
-                repository: https://charts.crossplane.io/preview
+                url: https://charts.crossplane.io/preview/crossplane-{{ .observed.composite.resource.spec.parameters.crossplane.version }}.tgz
                 version: {{ .observed.composite.resource.spec.parameters.crossplane.version }}
               values:
                 resourcesCrossplane:
