@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branch Refactor vs. main</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .infographic-container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: #ffffff;
+            padding: 25px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+            font-weight: 600;
+        }
+        .header .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            border-bottom: 2px solid;
+            padding-bottom: 10px;
+        }
+        .from-section h2 { border-color: #e74c3c; color: #c0392b; }
+        .to-section h2 { border-color: #2ecc71; color: #27ae60; }
+        .stats-section h2 { border-color: #3498db; color: #2980b9; }
+        .upgrades-section h2 { border-color: #f1c40f; color: #f39c12; }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        li {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 12px;
+            font-size: 1.05em;
+            line-height: 1.6;
+        }
+        li::before {
+            position: absolute;
+            left: 0;
+            top: 5px;
+            font-size: 1.2em;
+        }
+        .from-section li::before { content: '●'; color: #c0392b; }
+        .to-section li::before { content: '✨'; color: #27ae60; }
+        .upgrades-section li::before { content: '🚀'; color: #f39c12; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            text-align: center;
+        }
+        .stat-item {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .stat-item .value {
+            font-size: 2em;
+            font-weight: 700;
+        }
+        .stat-item .label {
+            font-size: 1em;
+            color: #6c757d;
+        }
+        .stat-item .added { color: #28a745; }
+        .stat-item .removed { color: #dc3545; }
+
+        .footer {
+            background-color: #34495e;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="infographic-container">
+        <div class="header">
+            <h1>Branch Refactor vs. main</h1>
+            <p class="subtitle">A Visual Summary of Key Changes</p>
+        </div>
+
+        <div class="content">
+            <div class="section from-section">
+                <h2>FROM: Imperative Shell Scripts</h2>
+                <ul>
+                    <li>Manual cluster deployment logic embedded in scripts (e.g., <code>03-deploy-gke-clusters.sh</code>).</li>
+                    <li>Complex, multi-step setup process that was hard to maintain and scale (<code>04-setup-gke-clusters.sh</code>).</li>
+                    <li>High risk of configuration drift and manual errors.</li>
+                </ul>
+            </div>
+
+            <div class="section to-section">
+                <h2>TO: Declarative Crossplane</h2>
+                <ul>
+                    <li>"Configuration as Code" using Crossplane Compositions to define GKE clusters (<code>gke-cluster-composition.yaml</code>).</li>
+                    <li>New, simplified API for creating clusters (<code>gke-cluster-xrd.yaml</code>).</li>
+                    <li>Infrastructure is now claimed via simple YAML files (<code>apps-cluster-claim.yaml</code>).</li>
+                    <li>Automation is handled by a simple script that applies these configurations (<code>03-apply-compositions.sh</code>).</li>
+                </ul>
+            </div>
+
+            <div class="section stats-section">
+                <h2>Impact by the Numbers</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="value">12</div>
+                        <div class="label">Commits</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">27</div>
+                        <div class="label">Files Changed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value added">+826</div>
+                        <div class="label">Lines Added</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value removed">-350</div>
+                        <div class="label">Lines Removed</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section upgrades-section">
+                <h2>Key Upgrades</h2>
+                <ul>
+                    <li>ArgoCD upgraded to v3.1.0-rc1 for better GitOps deployment.</li>
+                    <li>Crossplane Helm chart version updated.</li>
+                    <li>General cleanup and bug fixes for a more stable base.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>CONCLUSION: A major refactoring towards a more robust, scalable, and maintainable infrastructure-as-code platform.</p>
+        </div>
+    </div>
+</body>
+</html>
