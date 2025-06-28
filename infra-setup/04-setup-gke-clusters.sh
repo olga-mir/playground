@@ -51,9 +51,6 @@ fi
 
 export MGMT_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_MGMT_CLUSTER}"
 export APPS_DEV_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_APPS_DEV_CLUSTER}"
-export CROSSPLANE_VERSION="v2.0.0-preview.1"
-export ARGOCD_VERSION="v2.14.10"
-export ARGOCD_CHART_VERSION="7.8.26"
 export ARGOCD_NAMESPACE="argocd"
 export CROSSPLANE_GITHUB_ORG_LEVEL_SECRET_NAME="github-provider-credentials-org"
 export CROSSPLANE_GITHUB_REPO_LEVEL_SECRET_NAME="github-provider-credentials-repo"
@@ -111,27 +108,18 @@ add_repo_to_argocd() {
   echo "Repository ${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME} added to Argo CD successfully."
 }
 
-# Function removed - ArgoCD cluster connection now handled by Helm composition
+echo "Waiting for ArgoCD to be ready (installed by Composition)..."
+wait_for_argocd_ready
 
-echo "Starting setup..."
+echo "ArgoCD multi-cluster setup now handled by Crossplane Helm compositions..."
 
-# Configure ArgoCD only if not skipped
-if [ "$SKIP_ARGO" = false ]; then
-    echo "Waiting for ArgoCD to be ready (installed by Composition)..."
-    wait_for_argocd_ready
+echo "Adding repository to ArgoCD..."
+add_repo_to_argocd
 
-    echo "ArgoCD multi-cluster setup now handled by Crossplane Helm compositions..."
-
-    echo "Adding repository to ArgoCD..."
-    add_repo_to_argocd
-
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/rendered/argo-env-plugin-configmap.yaml
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/argo-projects.yaml
-    sleep 3
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations
-else
-    echo "Skipping ArgoCD configuration..."
-fi
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/rendered/argo-env-plugin-configmap.yaml
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/argo-projects.yaml
+sleep 3
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations
 
 # Create secret for apps-dev cluster kubeconfig
 echo "Creating secret for apps-dev cluster kubeconfig..."
