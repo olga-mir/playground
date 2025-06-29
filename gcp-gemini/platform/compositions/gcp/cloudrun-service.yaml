@@ -1,0 +1,74 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: cloudrunservice.gcp.upbound.io
+  labels:
+    provider: gcp
+    gcp.upbound.io/cloudrun-service: "true"
+spec:
+  compositeTypeRef:
+    apiVersion: gcp.upbound.io/v1alpha1
+    kind: CloudRunService
+  patchSets:
+  - name: common-metadata
+    patches:
+    - fromFieldPath: metadata.labels
+  resources:
+  - name: cloudrun-service-sa
+    base:
+      apiVersion: iam.gcp.upbound.io/v1beta1
+      kind: ServiceAccount
+      metadata:
+        labels:
+          gcp.upbound.io/cloudrun-service: "true"
+    patches:
+    - fromFieldPath: "spec.serviceAccountName"
+      toFieldPath: "metadata.name"
+
+  - name: cloudrun-service
+    base:
+      apiVersion: cloudrun.gcp.upbound.io/v1beta1
+      kind: Service
+      metadata:
+        labels:
+          gcp.upbound.io/cloudrun-service: "true"
+      spec:
+        forProvider:
+          template:
+          - spec:
+              containers: 
+              - image: ""
+              serviceAccountNameSelector:
+                matchControllerRef: true
+            networkSettings:
+            - egress: "AllTraffic"
+              vpcAccess:
+                networkInterfaces:
+                - subnetworkSelector:
+                    matchControllerRef: true
+          traffic: []
+    patches:
+    - fromFieldPath: "spec.image"
+      toFieldPath: "spec.forProvider.template[0].spec.containers[0].image"
+    - fromFieldPath: "spec.region"
+      toFieldPath: "spec.forProvider.location"
+    - fromFieldPath: "metadata.name"
+      toFieldPath: "metadata.name"
+    - fromFieldPath: "spec.traffic"
+      toFieldPath: "spec.forProvider.traffic"
+    - fromFieldPath: "spec.subnet"
+      toFieldPath: "spec.forProvider.template[0].spec.networkSettings[0].vpcAccess.networkInterfaces[0].subnetwork"
+
+  - name: cloudrun-invoker-binding
+    base:
+      apiVersion: cloudrun.gcp.upbound.io/v1beta1
+      kind: IamMember
+      spec:
+        forProvider:
+          member: "allUsers"
+          role: "roles/run.invoker"
+          serviceSelector:
+            matchControllerRef: true
+    patches:
+    - fromFieldPath: "spec.region"
+      toFieldPath: "spec.forProvider.location"
