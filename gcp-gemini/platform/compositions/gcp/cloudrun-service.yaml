@@ -43,16 +43,10 @@ spec:
             networkSettings:
             - egress: "AllTraffic"
               vpcAccess:
-                connectorSelector:
-                  matchLabels:
-                    gcp.upbound.io/cloudrun-service: "true"
-                egress: "AllTraffic"
-          traffic:
-          traffic:
-          - percent: 50
-            latestRevision: true
-          - percent: 50
-            latestRevision: false
+                networkInterfaces:
+                - subnetworkSelector:
+                    matchControllerRef: true
+          traffic: []
     patches:
     - fromFieldPath: "spec.image"
       toFieldPath: "spec.forProvider.template[0].spec.containers[0].image"
@@ -62,26 +56,8 @@ spec:
       toFieldPath: "metadata.name"
     - fromFieldPath: "spec.traffic"
       toFieldPath: "spec.forProvider.traffic"
-
-  - name: vpc-connector
-    base:
-      apiVersion: vpcaccess.gcp.upbound.io/v1beta1
-      kind: Connector
-      metadata:
-        labels:
-          gcp.upbound.io/cloudrun-service: "true"
-      spec:
-        forProvider:
-          regionSelector:
-            matchControllerRef: true
-          subnet:
-          - nameSelector:
-              matchControllerRef: true
-    patches:
     - fromFieldPath: "spec.subnet"
-      toFieldPath: "spec.forProvider.subnet[0].name"
-    - fromFieldPath: "spec.region"
-      toFieldPath: "spec.forProvider.region"
+      toFieldPath: "spec.forProvider.template[0].spec.networkSettings[0].vpcAccess.networkInterfaces[0].subnetwork"
 
   - name: cloudrun-invoker-binding
     base:
