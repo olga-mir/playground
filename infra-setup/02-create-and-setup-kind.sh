@@ -82,7 +82,7 @@ GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
   --owner=${GITHUB_DEMO_REPO_OWNER} \
   --repository=${GITHUB_DEMO_REPO_NAME} \
   --branch=base-refactor \
-  --path=./clusters/kind-test-cluster \
+  --path=./infra-setup/manifests/flux-root \
   --personal
 set -x
 

@@ -20,7 +20,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./clusters/kind-test-cluster
+  path: ./infra-setup/manifests/flux-root
   prune: true
   sourceRef:
     kind: GitRepository
