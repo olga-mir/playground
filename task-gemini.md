@@ -6,7 +6,7 @@ Create a complete Crossplane configuration to deploy a Fortio load testing servi
 ## Context
 you have a number of environment variables sourced in the terminal and used thoughout the codebase
 - **Target Cluster**: `mgmt` cluster (hub cluster running Crossplane, GKE). Ignore `infra-setup` folder completely, it is used to set the environment and is not relevant for this task
-- **Crossplane Provider**: `upbound/provider-family-gcp-beta/v0.5.1` already installed and configured on mgmt cluster
+- **Crossplane Provider**: `crossplane-contrib/provider-upjet-gcp` version 1.14.0. already installed and configured on mgmt cluster
 - **Project**: Deployed by GitOps to ${PROJECT_ID} project
 - **Network**: Use existing subnet `projects/${PROJECT_ID}/regions/australia-southeast1/subnetworks/subnet-cloud-run-main`
 - **GitOps**: We have ArgoCD configured in this project. Do NOT worry about wiring your work to Argo. However you need to decide if your payload will be synced as ArgoCD Helm or directory.recurse payload. Avoid using kustomize.
@@ -32,12 +32,12 @@ Since there are no existing Cloud Run compositions, create from scratch:
 #### B. Composition
 - Use `crossplane-contrib/provider-upjet-gcp` resources
 - CloudRun related code and CRDs are found locally on these paths:
-/Users/olga/repos/org-crossplane/provider-upjet-gcp/cmd/provider/cloudrun
-/Users/olga/repos/org-crossplane/provider-upjet-gcp/apis/cloudrun
-/Users/olga/repos/org-crossplane/provider-upjet-gcp/config/cloudrun
-/Users/olga/repos/org-crossplane/provider-upjet-gcp/internal/controller/cloudrun
-/Users/olga/repos/org-crossplane/provider-upjet-gcp/examples/cloudrun
-/Users/olga/repos/org-crossplane/provider-upjet-gcp/examples-generated/cloudrun
+${HOME}/repos/org-crossplane/provider-upjet-gcp/cmd/provider/cloudrun
+${HOME}/repos/org-crossplane/provider-upjet-gcp/apis/cloudrun
+${HOME}/repos/org-crossplane/provider-upjet-gcp/config/cloudrun
+${HOME}/repos/org-crossplane/provider-upjet-gcp/internal/controller/cloudrun
+${HOME}/repos/org-crossplane/provider-upjet-gcp/examples/cloudrun
+${HOME}/repos/org-crossplane/provider-upjet-gcp/examples-generated/cloudrun
 - Create the following GCP resources:
   - Cloud Run service with specified configuration
   - IAM service account for the Cloud Run service
@@ -63,9 +63,7 @@ Since there are no existing Cloud Run compositions, create from scratch:
 ## Expected Deliverables
 1. Complete Crossplane XRD for Cloud Run services
 2. Composition using GCP provider resources
-3. Claim for the Fortio service instance
-4. Documentation with deployment and usage instructions
-5. Any helper scripts or commands for easier management
+3. Crossplane Claim instantiating the above composition
 6. Do not create detailed README files at this stage, will do it when project is more stable
 
 ## Additional Notes
