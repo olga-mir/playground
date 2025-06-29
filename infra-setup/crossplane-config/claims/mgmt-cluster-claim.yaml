@@ -1,0 +1,34 @@
+apiVersion: platform.tornado-demo.io/v1alpha1
+kind: GKECluster
+metadata:
+  name: mgmt
+  namespace: gke
+spec:
+  parameters:
+    clusterName: "${GKE_MGMT_CLUSTER}"
+    clusterType: mgmt
+    projectId: "${PROJECT_ID}"
+    region: "${REGION}"
+    zone: "${ZONE}"
+    vpcName: "${GKE_VPC}"
+    subnetName: "${MGMT_SUBNET_NAME}"
+    machineType: "e2-standard-4"
+    minNodes: 2
+    maxNodes: 5
+
+    # ArgoCD configuration
+    argocd:
+      enabled: true
+      version: "v3.1.0-rc1"
+      chartVersion: "8.1.2"
+      repoUrl: "https://github.com/${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}.git"
+      repoToken: "${GITHUB_DEMO_REPO_PAT}"
+      repoOwner: "${GITHUB_DEMO_REPO_OWNER}"
+
+    # Crossplane configuration
+    # no "v": https://charts.crossplane.io/preview/
+    crossplane:
+      enabled: true
+      version: "2.0.0-preview.1"
+
+  compositeDeletePolicy: Foreground
