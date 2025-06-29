@@ -1,0 +1,54 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: crossplane-config
+  namespace: flux-system
+spec:
+  interval: 1m
+  ref:
+    branch: base-refactor
+  url: https://github.com/olga-t/playground
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-base
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./infra-setup/flux-crossplane/base"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-secrets
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-secrets
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./infra-setup/flux-crossplane/secrets"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-claims
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./infra-setup/flux-crossplane/claims"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-base

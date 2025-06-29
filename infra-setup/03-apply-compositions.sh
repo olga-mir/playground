@@ -36,25 +36,6 @@ fi
 
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 
-echo "Applying resources..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/namespaces/"
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/rbac/"
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/functions/"
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/providers/"
-
-echo "Waiting for providers and functions to be ready..."
-sleep 45
-
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers --all --timeout=300s
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy function --all --timeout=300s
-
-echo "Applying Crossplane XRD and Composition..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/crossplane-config/compositions/"
-sleep 15
-
-echo "Waiting for XRD to be established..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=60s
-
 echo "Creating GCP credentials secret..."
 if [ -z "${CROSSPLANE_GSA_KEY_FILE:-}" ]; then
     echo "Error: CROSSPLANE_GSA_KEY_FILE environment variable is not set."
@@ -67,18 +48,25 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic gcp-creds \
     --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
 echo "Creating GCP ProviderConfig..."
-envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/provider-configs/gcp-provider-config.yaml.tpl" | \
+envsubst < "${REPO_ROOT}/infra-setup/flux-crossplane/secrets/gcp-provider-config.yaml.tpl" | \
     kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
-echo "Creating GKE clusters using compositions..."
+echo "Applying Flux Crossplane source..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/manifests/flux-root/crossplane-source.yaml"
 
-echo "Creating management cluster..."
-envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/claims/mgmt-cluster-claim.yaml" | \
-  kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+echo "Waiting for Flux to sync Crossplane resources..."
+echo "This includes providers, compositions, and cluster claims"
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-base -n flux-system --timeout=600s
 
-echo "Creating apps cluster..."
-envsubst < "${REPO_ROOT}/infra-setup/crossplane-config/claims/apps-cluster-claim.yaml" | \
-  kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+echo "Waiting for providers and functions to be ready..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers --all --timeout=300s
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy function --all --timeout=300s
+
+echo "Waiting for XRD to be established..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=60s
+
+echo "Applying cluster claims via Flux..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-claims -n flux-system --timeout=300s
 
 echo "Clusters creation initiated via Crossplane compositions!"
 

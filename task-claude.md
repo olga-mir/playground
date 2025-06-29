@@ -1,9 +1,7 @@
-The work is scoped mostly in infra-setup folder, maybe also Taskfiles
-Install FluxCD on local kind cluster
-Use latests and greatest version https://github.com/fluxcd/flux2/releases/tag/v2.6.3
-Use personal token for bootstrap required variables available in
-GITHUB_DEMO_REPO_OWNER
-GITHUB_DEMO_REPO_NAME
-GITHUB_FLUX_PLAYGROUND_PAT - PAT specifically for Flux due to its "elevated" perms
-
-Your first task is to install and configure Flux and try to sync one manifest to validate that it works. Don't change everything right now.
+We continue working in `infra-setup` folder to migrate local kind installation from bash to GitOpss powered by Flux.
+We have a working installation of FluxCD on `kind` cluster.
+Now we need to migrate "kubectl apply" from scripts found in this folder to Flux.
+Note that there are some manifests that have sensitive or semi-sensitive information, make sure these are not committed to repo
+Use Flux mechanisms to pass these values around without committing to repo.
+Don't aim for a full solution, it is ok if we still have a lot of bash code to setup config and credentials
+You can experiment with current kind cluster, but make sure that all changes need to be captured in manifests and scripts. This must be a reproducible setup
