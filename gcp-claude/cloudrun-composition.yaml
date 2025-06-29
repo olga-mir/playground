@@ -1,0 +1,216 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: cloudrun-service
+  labels:
+    provider: gcp
+    service: cloudrun
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.com/v1alpha1
+    kind: XCloudRunService
+  
+  mode: Pipeline
+  pipeline:
+  - step: resources
+    functionRef:
+      name: crossplane-contrib-function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      
+      # Service Account for Cloud Run
+      - name: service-account
+        base:
+          apiVersion: cloudplatform.gcp.upbound.io/v1beta1
+          kind: ServiceAccount
+          spec:
+            forProvider:
+              displayName: "Cloud Run Service Account"
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: metadata.name
+          transforms:
+          - type: string
+            string:
+              fmt: "%s-sa-glxc"
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: spec.forProvider.displayName
+          transforms:
+          - type: string
+            string:
+              fmt: "Cloud Run Service Account for %s"
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.email
+          toFieldPath: status.serviceAccount
+      
+      # Cloud Run Service
+      - name: cloudrun-service
+        base:
+          apiVersion: cloudrun.gcp.upbound.io/v1beta2
+          kind: Service
+          spec:
+            forProvider:
+              template:
+                metadata:
+                  annotations:
+                    run.googleapis.com/execution-environment: gen2
+                    run.googleapis.com/vpc-access-egress: private-ranges-only
+                spec:
+                  containers:
+                  - ports:
+                    - containerPort: 8080
+                  serviceAccountName: ""
+                  scaling:
+                    maxInstanceCount: 10
+              traffic:
+              - latestRevision: true
+                percent: 100
+        patches:
+        # Basic service configuration
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: metadata.name
+          transforms:
+          - type: string
+            string:
+              fmt: "%s-glxc"
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.location
+        
+        # Container image
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.image
+          toFieldPath: spec.forProvider.template.spec.containers[0].image
+        
+        # Container port
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.containerConfig.port
+          toFieldPath: spec.forProvider.template.spec.containers[0].ports[0].containerPort
+        
+        # Resource limits
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.containerConfig.resources.limits.cpu
+          toFieldPath: spec.forProvider.template.spec.containers[0].resources.limits.cpu
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.containerConfig.resources.limits.memory
+          toFieldPath: spec.forProvider.template.spec.containers[0].resources.limits.memory
+        
+        # Environment variables
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.containerConfig.env
+          toFieldPath: spec.forProvider.template.spec.containers[0].env
+        
+        # VPC connector configuration
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.subnetName
+          toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/vpc-access-connector"]
+          transforms:
+          - type: string
+            string:
+              fmt: "projects/${PROJECT_ID}/locations/%s/connectors/%s-connector"
+              type: Format
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/vpc-access-connector"]
+          policy:
+            fromFieldPath: Required
+        
+        # Service account reference
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: spec.forProvider.template.spec.serviceAccountName
+          transforms:
+          - type: string
+            string:
+              fmt: "%s-sa-glxc@${PROJECT_ID}.iam.gserviceaccount.com"
+        
+        # Traffic configuration
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.traffic.latestRevision
+          toFieldPath: spec.forProvider.traffic[0].latestRevision
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.traffic.percent
+          toFieldPath: spec.forProvider.traffic[0].percent
+        
+        # Output service URL
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.uri
+          toFieldPath: status.serviceUrl
+        
+        # Ready status
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.conditions[?(@.type=='Ready')].status
+          toFieldPath: status.ready
+          transforms:
+          - type: map
+            map:
+              "True": true
+              "False": false
+      
+      # IAM Policy Binding for allUsers invoker role
+      - name: invoker-policy
+        base:
+          apiVersion: cloudrun.gcp.upbound.io/v1beta1
+          kind: ServiceIAMMember
+          spec:
+            forProvider:
+              member: "allUsers"
+              role: "roles/run.invoker"
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: metadata.name
+          transforms:
+          - type: string
+            string:
+              fmt: "%s-invoker-glxc"
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.location
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: spec.forProvider.service
+          transforms:
+          - type: string
+            string:
+              fmt: "%s-glxc"
+        
+        # Conditional creation based on allowUnauthenticated
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.allowUnauthenticated
+          toFieldPath: metadata.annotations["crossplane.io/external-create-pending"]
+          transforms:
+          - type: map
+            map:
+              true: "false"
+              false: "true"
+      
+      # Additional IAM binding for service account (if needed for other GCP services)
+      - name: service-account-user-binding
+        base:
+          apiVersion: cloudplatform.gcp.upbound.io/v1beta1
+          kind: ServiceAccountIAMMember
+          spec:
+            forProvider:
+              member: "serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com"
+              role: "roles/iam.serviceAccountUser"
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: metadata.name
+          transforms:
+          - type: string
+            string:
+              fmt: "%s-sa-user-glxc"
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: spec.forProvider.serviceAccount
+          transforms:
+          - type: string
+            string:
+              fmt: "%s-sa-glxc"
