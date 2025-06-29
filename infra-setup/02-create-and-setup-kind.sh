@@ -4,6 +4,9 @@ set -eoux pipefail
 
 KIND_TEST_CLUSTER_NAME=kind-test-cluster
 REPO_ROOT=$(git rev-parse --show-toplevel)
+CROSSPLANE_VERSION="v2.0.0-preview.1"
+FLUX_VERSION="v2.6.3"
+
 
 if ! kind get clusters | grep -q $KIND_TEST_CLUSTER_NAME; then
   echo "Cluster $KIND_TEST_CLUSTER_NAME does not exist. Creating..."
@@ -13,15 +16,7 @@ else
 fi
 
 
-### Setup Crossplane ###
-
 # https://docs.crossplane.io/v2.0-preview/get-started/install/
-
-# helm repo add crossplane-preview https://charts.crossplane.io/preview
-# helm repo update
-# helm install --dry-run --debug
-
-CROSSPLANE_VERSION="v2.0.0-preview.1"
 
 helm install crossplane \
 --namespace crossplane-system \
@@ -38,16 +33,67 @@ done
 
 # gke-provider is not templated, but rendered folder is .gitignor'ed
 # so it is an exception that can be applied directly
-sleep 10
 kubectl apply -f ${REPO_ROOT}/infra-setup/manifests/templates/gke-provider.yaml
 
 # Wait for CRDs to be established
 sleep 10
 
 for crd in clusters.container.gcp-beta.upbound.io \
-           nodepools.container.gcp-beta.upbound.io; do
+          nodepools.container.gcp-beta.upbound.io; do
   until kubectl get crd $crd &>/dev/null; do
     echo "Waiting for CRD $crd to be created..."
     sleep 5
   done
 done
+
+
+
+echo "Setting up FluxCD ${FLUX_VERSION} on ${KIND_TEST_CLUSTER_NAME}"
+kubectl config use-context kind-${KIND_TEST_CLUSTER_NAME} #TODO - explicit param to all commands
+
+# Upgrade FluxCD CLI using brew if installed via brew
+if command -v flux &> /dev/null; then
+    echo "FluxCD CLI found, checking version..."
+    if ! flux version --client 2>/dev/null | grep -q "${FLUX_VERSION}"; then
+        echo "Upgrading FluxCD CLI to ${FLUX_VERSION}..."
+        brew upgrade fluxcd/tap/flux
+    else
+        echo "FluxCD CLI ${FLUX_VERSION} already installed"
+    fi
+else
+    echo "FluxCD CLI not found. Please install flux CLI first."
+    exit 1
+fi
+
+# Verify FluxCD CLI installation
+flux version --client
+
+# TODO - at centralised place
+if [[ -z "${GITHUB_DEMO_REPO_OWNER:-}" ]] || [[ -z "${GITHUB_DEMO_REPO_NAME:-}" ]] || [[ -z "${GITHUB_DEMO_REPO_PAT:-}" ]]; then
+    echo "Error: Required environment variables are not set:"
+    echo "  GITHUB_DEMO_REPO_OWNER"
+    echo "  GITHUB_DEMO_REPO_NAME"
+    echo "  GITHUB_DEMO_REPO_PAT"
+    exit 1
+fi
+
+# Bootstrap FluxCD
+echo "Bootstrapping FluxCD..."
+GITHUB_TOKEN=${GITHUB_DEMO_REPO_PAT} flux bootstrap github \
+  --owner=${GITHUB_DEMO_REPO_OWNER} \
+  --repository=${GITHUB_DEMO_REPO_NAME} \
+  --branch=base-refactor \
+  --path=./clusters/kind-test-cluster \
+  --personal
+
+echo "FluxCD bootstrap completed successfully!"
+
+# Wait for FluxCD to be ready
+echo "Waiting for FluxCD to be ready..."
+kubectl wait --for=condition=ready pod -l app=source-controller -n flux-system --timeout=300s
+kubectl wait --for=condition=ready pod -l app=kustomize-controller -n flux-system --timeout=300s
+kubectl wait --for=condition=ready pod -l app=helm-controller -n flux-system --timeout=300s
+kubectl wait --for=condition=ready pod -l app=notification-controller -n flux-system --timeout=300s
+
+echo "FluxCD is ready!"
+flux get all
