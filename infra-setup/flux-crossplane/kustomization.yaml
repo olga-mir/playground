@@ -7,5 +7,6 @@ resources:
   - base/functions
   - base/providers
   - base/compositions
+  - base/provider-configs
   - secrets
   - claims

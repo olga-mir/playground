@@ -47,9 +47,18 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic gcp-creds \
     --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
     --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
-echo "Creating GCP ProviderConfig..."
-envsubst < "${REPO_ROOT}/infra-setup/flux-crossplane/secrets/gcp-provider-config.yaml.tpl" | \
-    kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+echo "Creating Crossplane variables ConfigMap for Flux substituteFrom..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars \
+    --namespace flux-system \
+    --from-literal=PROJECT_ID="${PROJECT_ID}" \
+    --from-literal=REGION="${REGION}" \
+    --from-literal=ZONE="${ZONE}" \
+    --from-literal=GKE_MGMT_CLUSTER="${GKE_MGMT_CLUSTER}" \
+    --from-literal=GKE_APPS_DEV_CLUSTER="${GKE_APPS_DEV_CLUSTER}" \
+    --from-literal=GKE_VPC="${GKE_VPC}" \
+    --from-literal=MGMT_SUBNET_NAME="${MGMT_SUBNET_NAME}" \
+    --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
+    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
 echo "Applying Flux Crossplane source..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/manifests/flux-root/crossplane-source.yaml"

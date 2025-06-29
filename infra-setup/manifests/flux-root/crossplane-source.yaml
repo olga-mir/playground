@@ -22,8 +22,10 @@ spec:
   sourceRef:
     kind: GitRepository
     name: crossplane-config
-  dependsOn:
-    - name: crossplane-secrets
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: crossplane-vars
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -37,6 +39,12 @@ spec:
   sourceRef:
     kind: GitRepository
     name: crossplane-config
+  dependsOn:
+    - name: crossplane-claims
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: crossplane-vars
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -52,3 +60,7 @@ spec:
     name: crossplane-config
   dependsOn:
     - name: crossplane-base
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: crossplane-vars
