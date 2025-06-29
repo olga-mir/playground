@@ -69,22 +69,22 @@ fi
 flux version --client
 
 # TODO - at centralised place
-if [[ -z "${GITHUB_DEMO_REPO_OWNER:-}" ]] || [[ -z "${GITHUB_DEMO_REPO_NAME:-}" ]] || [[ -z "${GITHUB_DEMO_REPO_PAT:-}" ]]; then
+set +x
+if [[ -z "${GITHUB_DEMO_REPO_OWNER:-}" ]] || [[ -z "${GITHUB_DEMO_REPO_NAME:-}" ]] || [[ -z "${GITHUB_FLUX_PLAYGROUND_PAT:-}" ]]; then
     echo "Error: Required environment variables are not set:"
     echo "  GITHUB_DEMO_REPO_OWNER"
     echo "  GITHUB_DEMO_REPO_NAME"
     echo "  GITHUB_DEMO_REPO_PAT"
     exit 1
 fi
-
-# Bootstrap FluxCD
 echo "Bootstrapping FluxCD..."
-GITHUB_TOKEN=${GITHUB_DEMO_REPO_PAT} flux bootstrap github \
+GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
   --owner=${GITHUB_DEMO_REPO_OWNER} \
   --repository=${GITHUB_DEMO_REPO_NAME} \
   --branch=base-refactor \
   --path=./clusters/kind-test-cluster \
   --personal
+set -x
 
 echo "FluxCD bootstrap completed successfully!"
 
