@@ -1,7 +1,7 @@
 version: "3"
 
 tasks:
-  auto-deploy:
+  deploy:
     desc: "Run full infrastructure setup using Crossplane compositions"
     cmds:
       - "{{.TASKFILE_DIR}}/infra-setup/02-create-and-setup-kind.sh"
@@ -10,7 +10,7 @@ tasks:
       - sleep 100
       - "{{.TASKFILE_DIR}}/infra-setup/98-argocd-gateway-api.sh"
 
-  full-cleanup:
+  cleanup:
     desc: "Cleanup infrastructure (forcefull)"
     cmds:
       - "{{.TASKFILE_DIR}}/infra-setup/00-cleanup.sh"
