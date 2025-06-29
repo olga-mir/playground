@@ -1,0 +1,18 @@
+apiVersion: gcp.upbound.io/v1alpha1
+kind: CloudRunServiceClaim
+metadata:
+  name: fortio-cloudrun-service
+  namespace: default
+spec:
+  compositionRef:
+    name: cloudrunservice.gcp.upbound.io
+  parameters:
+    image: fortio/fortio:latest
+    region: australia-southeast1
+    subnet: projects/${PROJECT_ID}/regions/australia-southeast1/subnetworks/subnet-cloud-run-main
+    serviceAccountName: fortio-cloudrun-sa
+    traffic:
+    - percent: 50
+      latestRevision: true
+    - percent: 50
+      latestRevision: false
