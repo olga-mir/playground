@@ -8,7 +8,7 @@ spec:
   interval: 1m
   ref:
     branch: base-refactor
-  url: https://github.com/olga-t/playground
+  url: https://github.com/olga-mir/playground
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
