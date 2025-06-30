@@ -27,46 +27,52 @@ spec:
 
   - name: cloudrun-service
     base:
-      apiVersion: cloudrun.gcp.upbound.io/v1beta1
-      kind: Service
+      apiVersion: cloudrun.gcp.upbound.io/v2service
       metadata:
         labels:
           gcp.upbound.io/cloudrun-service: "true"
       spec:
         forProvider:
           template:
-          - spec:
-              containers: 
-              - image: ""
-              serviceAccountNameSelector:
+            containers:
+            - image: ""
+            serviceAccountNameSelector:
+              matchControllerRef: true
+            vpcAccess:
+              egress: ""
+              connectorSelector:
                 matchControllerRef: true
-            networkSettings:
-            - egress: "AllTraffic"
-              vpcAccess:
-                networkInterfaces:
-                - subnetworkSelector:
-                    matchControllerRef: true
           traffic: []
     patches:
     - fromFieldPath: "spec.image"
-      toFieldPath: "spec.forProvider.template[0].spec.containers[0].image"
+      toFieldPath: "spec.forProvider.template.containers[0].image"
     - fromFieldPath: "spec.region"
       toFieldPath: "spec.forProvider.location"
     - fromFieldPath: "metadata.name"
       toFieldPath: "metadata.name"
     - fromFieldPath: "spec.traffic"
       toFieldPath: "spec.forProvider.traffic"
-    - fromFieldPath: "spec.subnet"
-      toFieldPath: "spec.forProvider.template[0].spec.networkSettings[0].vpcAccess.networkInterfaces[0].subnetwork"
+    - fromFieldPath: "spec.vpcAccess.egress"
+      toFieldPath: "spec.forProvider.template.vpcAccess.egress"
+    - fromFieldPath: "spec.vpcAccess.connector"
+      toFieldPath: "spec.forProvider.template.vpcAccess.connector"
 
   - name: cloudrun-invoker-binding
     base:
-      apiVersion: cloudrun.gcp.upbound.io/v1beta1
-      kind: IamMember
+      apiVersion: cloudrun.gcp.upbound.io/v2serviceiampolicy
       spec:
         forProvider:
-          member: "allUsers"
-          role: "roles/run.invoker"
+          policyData: |
+            {
+              "bindings": [
+                {
+                  "role": "roles/run.invoker",
+                  "members": [
+                    "allUsers"
+                  ]
+                }
+              ]
+            }
           serviceSelector:
             matchControllerRef: true
     patches:

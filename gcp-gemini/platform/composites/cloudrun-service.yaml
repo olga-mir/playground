@@ -27,12 +27,22 @@ spec:
               region:
                 type: string
                 description: "The GCP region to deploy the service in."
-              subnet:
-                type: string
-                description: "The VPC subnet to use for Direct VPC Egress."
               serviceAccountName:
                 type: string
                 description: "The name of the service account to create and use."
+              vpcAccess:
+                type: object
+                properties:
+                  connector:
+                    type: string
+                  egress:
+                    type: string
+                    enum:
+                    - "all-traffic"
+                    - "private-ranges-only"
+                required:
+                - connector
+                - egress
               traffic:
                 type: array
                 items:
@@ -40,10 +50,11 @@ spec:
                   properties:
                     percent:
                       type: integer
+                    type:
+                      type: string
                     revision:
                       type: string
             required:
             - image
             - region
-            - subnet
             - serviceAccountName

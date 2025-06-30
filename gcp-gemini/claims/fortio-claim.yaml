@@ -9,10 +9,13 @@ spec:
   parameters:
     image: fortio/fortio:latest
     region: australia-southeast1
-    subnet: projects/${PROJECT_ID}/regions/australia-southeast1/subnetworks/subnet-cloud-run-main
     serviceAccountName: fortio-cloudrun-sa
+    vpcAccess:
+      connector: projects/${PROJECT_ID}/locations/australia-southeast1/connectors/cloudrun-vpc-connector
+      egress: all-traffic
     traffic:
     - percent: 50
-      latestRevision: true
+      type: "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     - percent: 50
-      latestRevision: false
+      type: "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION"
+      revision: "fortio-cloudrun-service-66cbf9b79f"
