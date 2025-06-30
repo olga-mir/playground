@@ -1,0 +1,20 @@
+# Secret to be created on the hub cluster
+---
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: gcp-creds-secret-on-gke-mgmt
+  namespace: crossplane-system
+spec:
+  providerConfigRef:
+    name: gke-mgmt-cluster-k8s-config # TODO - envsubst
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: gcp-creds
+        namespace: crossplane-system
+      type: Opaque
+      data:
+        credentials.json: ${BASE64_ENCODED_GCP_CREDS}

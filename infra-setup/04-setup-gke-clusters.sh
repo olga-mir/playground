@@ -22,9 +22,11 @@ set +x
 required_vars=(
     PROJECT_ID
     REGION
+    ZONE
     GKE_MGMT_CLUSTER
     GKE_APPS_DEV_CLUSTER
     CROSSPLANE_GSA_KEY_FILE
+    KIND_CROSSPLANE_CONTEXT
     GITHUB_DEMO_REPO_OWNER
     GITHUB_DEMO_REPO_NAME
     GITHUB_DEST_ORG_NAME
@@ -47,73 +49,14 @@ if [ "$all_set" = false ]; then
     exit 1
 fi
 
-#export MGMT_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${REGION}_${GKE_MGMT_CLUSTER}"
-#export APPS_DEV_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${REGION}_${GKE_APPS_DEV_CLUSTER}"
 export MGMT_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_MGMT_CLUSTER}"
 export APPS_DEV_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_APPS_DEV_CLUSTER}"
-export CROSSPLANE_VERSION="v2.0.0-preview.1"
-export ARGOCD_VERSION="v2.14.10"
-export ARGOCD_CHART_VERSION="7.8.26"
 export ARGOCD_NAMESPACE="argocd"
 export CROSSPLANE_GITHUB_ORG_LEVEL_SECRET_NAME="github-provider-credentials-org"
 export CROSSPLANE_GITHUB_REPO_LEVEL_SECRET_NAME="github-provider-credentials-repo"
 export CROSSPLANE_GITHUB_SECRET_NAMESPACE="crossplane-system"
 
 export REPO_ROOT=$(git rev-parse --show-toplevel)
-
-
-# Function to configure Argo CD to connect to another cluster
-install_and_configure_argocd_cluster() {
-  local target_cluster_name="$1"
-  local target_context="$2"
-
-  # Get the kubeconfig for the target cluster
-  kubectl --context="${target_context}" config view --raw --minify > "${target_cluster_name}.kubeconfig"
-
-  # Extract the server address and certificate authority data from the kubeconfig
-  SERVER=$(yq e '.clusters[0].cluster.server' "${target_cluster_name}.kubeconfig")
-  CERTIFICATE_AUTHORITY_DATA=$(yq e '.clusters[0].cluster.certificate-authority-data' "${target_cluster_name}.kubeconfig")
-  TOKEN=$(yq e '.users[0].user.token' "${target_cluster_name}.kubeconfig" || echo "")
-  if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
-      # Get token from current context
-      TOKEN=$(kubectl --context="${target_context}" create token default)
-  fi
-
-  # https://github.com/argoproj/argo-helm/blob/main/charts/argo-cd/values.yaml
-  # ApplicationSet controller = https://github.com/argoproj/argo-helm/blob/b02220a33f94e2d09af50c85a4f4a13284a29aa7/charts/argo-cd/values.yaml#L2828
-  if ! helm status argocd --kube-context="${MGMT_CLUSTER_CONTEXT}" --namespace argocd &>/dev/null; then
-
-    VALUES_TEMPLATE="${REPO_ROOT}/infra-setup/manifests/templates/argocd-values.yaml.tpl"
-    VALUES_RENDERED="${REPO_ROOT}/infra-setup/manifests/rendered/argocd-values.yaml"
-
-    envsubst < "${VALUES_TEMPLATE}" > "${VALUES_RENDERED}"
-
-    helm install argocd argo/argo-cd \
-      --kube-context="${MGMT_CLUSTER_CONTEXT}" \
-      --namespace argocd \
-      --create-namespace \
-      --version "${ARGOCD_CHART_VERSION}" \
-      -f "${VALUES_RENDERED}"
-
-  else
-    echo "ArgoCD is already installed in the management cluster. Skipping installation."
-  fi
-
-  # Create a secret for the cluster credentials
-  kubectl --context="${MGMT_CLUSTER_CONTEXT}" -n "${ARGOCD_NAMESPACE}" create secret generic "${target_cluster_name}-cluster-secret" \
-    --from-literal=server="${SERVER}" \
-    --from-literal=token="${TOKEN}" \
-    --from-literal=certificateAuthorityData="${CERTIFICATE_AUTHORITY_DATA}" \
-    --dry-run=client -o yaml | kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f - || { echo "Error creating cluster secret for Argo in Mangement cluster"; exit 1; }
-
-  rm "${target_cluster_name}.kubeconfig"
-
-  # bloody argo CMP mess!
-  # check infra-setup/README.md how it should look like
-  kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/rendered/argo-env-plugin-configmap.yaml
-
-  echo "Argo CD on management cluster configured to connect to ${target_cluster_name}"
-}
 
 # Function to wait for ArgoCD repo server pods to be ready
 wait_for_argocd_ready() {
@@ -165,64 +108,18 @@ add_repo_to_argocd() {
   echo "Repository ${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME} added to Argo CD successfully."
 }
 
-# Install Argo "spoke" on apps-dev
-install_argo_agent_on_target_cluster() {
-  echo "Starting ArgoCD installation..."
+echo "Waiting for ArgoCD to be ready (installed by Composition)..."
+wait_for_argocd_ready
 
-  if ! helm status argocd-agent --kube-context "${APPS_DEV_CLUSTER_CONTEXT}" --namespace argocd &>/dev/null; then
-      helm install argocd-agent argo/argo-cd \
-          --kube-context="${APPS_DEV_CLUSTER_CONTEXT}" \
-          --namespace argocd \
-          --create-namespace \
-          --version "${ARGOCD_CHART_VERSION}" \
-          --set global.image.tag=$ARGOCD_VERSION \
-          --set controller.enable=false \
-          --set dex.enabled=false \
-          --set server.enable=false \
-          --set applicationSet.enabled=false \
-          --set notifications.enabled=false \
-          --set repoServer.replicas=1 \
-          --set redis.enabled=false \
-          --set configs.params."controller\\.k8s\\.clusterAdminAccess"=true || { echo "Error installing ArgoCD agent"; exit 1; }
-  else
-      echo "ArgoCD agent is already installed in the ${GKE_APPS_DEV_CLUSTER} cluster. Skipping installation."
-  fi
-}
+echo "ArgoCD multi-cluster setup now handled by Crossplane Helm compositions..."
 
-echo "Starting setup..."
+echo "Adding repository to ArgoCD..."
+add_repo_to_argocd
 
-# Install ArgoCD only if not skipped
-if [ "$SKIP_ARGO" = false ]; then
-    install_and_configure_argocd_cluster "apps-dev-cluster" "${APPS_DEV_CLUSTER_CONTEXT}"
-    add_repo_to_argocd
-    wait_for_argocd_ready
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/argo-projects.yaml
-    sleep 3
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations
-    install_argo_agent_on_target_cluster
-else
-    echo "Skipping ArgoCD installation and configuration..."
-fi
-
-echo "Installing Crossplane on management cluster..."
-
-if ! helm status crossplane --kube-context "${MGMT_CLUSTER_CONTEXT}" --namespace crossplane-system &>/dev/null; then
-    helm install crossplane crossplane-preview/crossplane \
-        --kube-context="${MGMT_CLUSTER_CONTEXT}" \
-        --namespace crossplane-system \
-        --create-namespace \
-        --version "${CROSSPLANE_VERSION}" || { echo "Error installing crossplane"; exit 1; }
-    sleep 10
-else
-    echo "Crossplane is already installed in the management cluster. Skipping installation."
-fi
-
-# Create secret for GCP provider
-if ! kubectl --context="${MGMT_CLUSTER_CONTEXT}" get secret gcp-creds -n crossplane-system >/dev/null 2>&1; then
-    kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic gcp-creds \
-        --namespace crossplane-system \
-        --from-file=credentials.json="${CROSSPLANE_GSA_KEY_FILE}" || { echo "Error creating gcp-creds secret"; exit 1; }
-fi
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/rendered/argo-env-plugin-configmap.yaml
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/argo-projects.yaml
+sleep 3
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations
 
 # Create secret for apps-dev cluster kubeconfig
 echo "Creating secret for apps-dev cluster kubeconfig..."
@@ -289,11 +186,16 @@ fi
 
 kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic kagent-anthropic \
   --from-literal=ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY} \
-  -n kagent-system
+  -n kagent-system \
+  --dry-run=client -o yaml | kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f -
 
 kubectl --context="${MGMT_CLUSTER_CONTEXT}" create secret generic kagent-openai \
   --from-literal=OPENAI_API_KEY=${OPENAI_API_KEY} \
-  -n kagent-system
+  -n kagent-system \
+  --dry-run=client -o yaml | kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f -
 
 # Not sure why some CRDs are not installed, despite Gateway API enabled
 kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
+
+echo "Setup completed! Clusters are now managed by Crossplane compositions."
+echo "ArgoCD and Crossplane installations are handled declaratively."
