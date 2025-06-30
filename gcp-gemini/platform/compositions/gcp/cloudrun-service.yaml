@@ -27,7 +27,8 @@ spec:
 
   - name: cloudrun-service
     base:
-      apiVersion: cloudrun.gcp.upbound.io/v2service
+      apiVersion: cloudrun.gcp.upbound.io/v1beta1
+      kind: V2Service
       metadata:
         labels:
           gcp.upbound.io/cloudrun-service: "true"
@@ -39,9 +40,9 @@ spec:
             serviceAccountNameSelector:
               matchControllerRef: true
             vpcAccess:
+              networkInterfaces:
+              - subnetwork: ""
               egress: ""
-              connectorSelector:
-                matchControllerRef: true
           traffic: []
     patches:
     - fromFieldPath: "spec.image"
@@ -54,12 +55,13 @@ spec:
       toFieldPath: "spec.forProvider.traffic"
     - fromFieldPath: "spec.vpcAccess.egress"
       toFieldPath: "spec.forProvider.template.vpcAccess.egress"
-    - fromFieldPath: "spec.vpcAccess.connector"
-      toFieldPath: "spec.forProvider.template.vpcAccess.connector"
+    - fromFieldPath: "spec.vpcAccess.networkInterfaces[0].subnetwork"
+      toFieldPath: "spec.forProvider.template.vpcAccess.networkInterfaces[0].subnetwork"
 
   - name: cloudrun-invoker-binding
     base:
-      apiVersion: cloudrun.gcp.upbound.io/v2serviceiampolicy
+      apiVersion: cloudrun.gcp.upbound.io/v1beta1
+      kind: V2ServiceIamPolicy
       spec:
         forProvider:
           policyData: |

@@ -33,15 +33,19 @@ spec:
               vpcAccess:
                 type: object
                 properties:
-                  connector:
-                    type: string
+                  networkInterfaces:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subnetwork:
+                          type: string
                   egress:
                     type: string
                     enum:
                     - "all-traffic"
                     - "private-ranges-only"
                 required:
-                - connector
                 - egress
               traffic:
                 type: array

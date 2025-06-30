@@ -11,7 +11,8 @@ spec:
     region: australia-southeast1
     serviceAccountName: fortio-cloudrun-sa
     vpcAccess:
-      connector: projects/${PROJECT_ID}/locations/australia-southeast1/connectors/cloudrun-vpc-connector
+      networkInterfaces:
+      - subnetwork: projects/${PROJECT_ID}/regions/australia-southeast1/subnetworks/subnet-cloud-run-main
       egress: all-traffic
     traffic:
     - percent: 50
