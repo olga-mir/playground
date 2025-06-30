@@ -1,23 +1,24 @@
 # Task: Create Fortio Cloud Run Service with Crossplane
 
 ## Objective
-Create a complete Crossplane configuration to deploy a Fortio load testing service to Google Cloud Run with proper IAM, networking, and blue-green deployment capabilities.
+Update existing Crossplane Cloud Run deployment found in `${REPO_ROOT}/gcp-gemini` folder.
+Make sure you fix Direct VPC egress settings (read local documentation or websites if needed)
+Make sure to use latests versions of Crossplane CRDs, use v2service for Cloud Run.
 
 ## Context
 you have a number of environment variables sourced in the terminal and used thoughout the codebase
-- **Target Cluster**: `mgmt` cluster (hub cluster running Crossplane, GKE). Ignore `infra-setup` folder completely, it is used to set the environment and is not relevant for this task
+- **Target Cluster**: `mgmt` cluster (hub cluster running Crossplane, GKE). Ignore `infra-setup` folder completely, it is used to set the environment and is not relevant for this task. Resources you work with will be deployed to `mgmt` cluster.
 - **Crossplane Provider**: `crossplane-contrib/provider-upjet-gcp` version 1.14.0. already installed and configured on mgmt cluster
 - **Project**: Deployed by GitOps to ${PROJECT_ID} project
 - **Network**: Use existing subnet `projects/${PROJECT_ID}/regions/australia-southeast1/subnetworks/subnet-cloud-run-main`
-- **GitOps**: We have ArgoCD configured in this project. Do NOT worry about wiring your work to Argo. However you need to decide if your payload will be synced as ArgoCD Helm or directory.recurse payload. Avoid using kustomize.
-- **Working Folder**: Place all your payload inside `${REPO_ROOT}/gcp-gemini` folder. You can chose any way how to structure payload inside.
+- **GitOps**: This folder is connected to GitOps and will be deployed automatically, you don't need to add anything.
 
 ## Requirements
 
 ### 1. Cloud Run Service Configuration
+- **Networking**: Deploy with Direct VPC Egress using the specified subnet. This is very important
 - **Image**: `fortio/fortio:latest`
 - **Authentication**: Enable auth with invoker check, grant `allUsers` invoker role
-- **Networking**: Deploy with Direct VPC Egress using the specified subnet
 - **Blue-Green**: Enable traffic splitting capabilities (50/50) for future deployments
 - **Service Account**: Create dedicated service account for the Cloud Run service
 
@@ -31,15 +32,14 @@ Since there are no existing Cloud Run compositions, create from scratch:
 
 #### B. Composition
 - Use `crossplane-contrib/provider-upjet-gcp` resources
-- CloudRun related code and CRDs are found locally on these paths:
-${HOME}/repos/org-crossplane/provider-upjet-gcp/cmd/provider/cloudrun
-${HOME}/repos/org-crossplane/provider-upjet-gcp/apis/cloudrun
-${HOME}/repos/org-crossplane/provider-upjet-gcp/config/cloudrun
-${HOME}/repos/org-crossplane/provider-upjet-gcp/internal/controller/cloudrun
-${HOME}/repos/org-crossplane/provider-upjet-gcp/examples/cloudrun
-${HOME}/repos/org-crossplane/provider-upjet-gcp/examples-generated/cloudrun
+- gcp-provider source code is available locally at this path: ${HOME}/repos/org-crossplane/provider-upjet-gcp
+You don't need all of this, the most important files are the CRDs, you can find relevant files using this command:
+```
+ls ${HOME}/repos/org-crossplane/provider-upjet-gcp/package/crds | grep cloudrun
+```
+
 - Create the following GCP resources:
-  - Cloud Run service with specified configuration
+  - Cloud Run service, remember - v2service, Direct VPC Egress
   - IAM service account for the Cloud Run service
   - IAM policy binding for Cloud Run Invoker role (allUsers)
   - Any additional IAM bindings needed for the service account
