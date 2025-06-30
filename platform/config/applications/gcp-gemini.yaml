@@ -1,0 +1,6 @@
+project: platform
+syncWave: "2"
+
+name: gcp-gemini
+path: gcp-gemini
+namespace: gcp-gemini
