@@ -1,4 +1,4 @@
-apiVersion: platform.example.com/v1alpha1
+apiVersion: platform.tornado-demo.io/v1alpha1
 kind: CloudRunServiceClaim
 metadata:
   name: fortio-cloudrun-service
