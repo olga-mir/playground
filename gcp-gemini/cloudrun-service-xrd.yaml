@@ -7,9 +7,6 @@ spec:
   names:
     kind: CloudRunService
     plural: cloudrunservices
-  claimNames:
-    kind: CloudRunServiceClaim
-    plural: cloudrunserviceclaims
   versions:
   - name: v1alpha1
     served: true

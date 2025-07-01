@@ -1,13 +1,13 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: cloudrunservice.gcp.upbound.io
+  name: cloudrunservices.gcp.upbound.io
   labels:
     provider: gcp
     gcp.upbound.io/cloudrun-service: "true"
 spec:
   compositeTypeRef:
-    apiVersion: gcp.upbound.io/v1alpha1
+    apiVersion: platform.tornado-demo.io/v1alpha1
     kind: CloudRunService
   patchSets:
   - name: common-metadata
