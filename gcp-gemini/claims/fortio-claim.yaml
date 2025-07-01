@@ -1,11 +1,11 @@
-apiVersion: gcp.upbound.io/v1alpha1
+apiVersion: platform.example.com/v1alpha1
 kind: CloudRunServiceClaim
 metadata:
   name: fortio-cloudrun-service
   namespace: default
 spec:
   compositionRef:
-    name: cloudrunservice.gcp.upbound.io
+    name: platform.tornado-demo.io
   parameters:
     image: fortio/fortio:latest
     region: australia-southeast1

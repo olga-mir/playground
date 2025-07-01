@@ -1,9 +1,9 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: cloudrunservices.gcp.upbound.io
+  name: cloudrunservices.platform.tornado-demo.io
 spec:
-  group: gcp.upbound.io
+  group: platform.tornado-demo.io
   names:
     kind: CloudRunService
     plural: cloudrunservices
