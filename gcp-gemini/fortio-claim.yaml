@@ -1,11 +1,9 @@
 apiVersion: platform.tornado-demo.io/v1alpha1
-kind: CloudRunServiceClaim
+kind: CloudRunService
 metadata:
   name: fortio-cloudrun-service
-  namespace: default
+  namespace: tenant-gcp-gemini
 spec:
-  compositionRef:
-    name: platform.tornado-demo.io
   parameters:
     image: fortio/fortio:latest
     region: australia-southeast1
