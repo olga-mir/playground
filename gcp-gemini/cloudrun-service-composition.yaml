@@ -78,7 +78,7 @@ spec:
       - name: cloudrun-invoker-binding
         base:
           apiVersion: cloudrun.gcp.upbound.io/v1beta1
-          kind: ServiceIamMember
+          kind: ServiceIAMMember
           spec:
             forProvider:
               role: "roles/run.invoker"
