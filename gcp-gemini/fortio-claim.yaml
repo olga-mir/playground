@@ -4,17 +4,16 @@ metadata:
   name: fortio-cloudrun-service
   namespace: tenant-gcp-gemini
 spec:
-  parameters:
-    image: fortio/fortio:latest
-    region: australia-southeast1
-    serviceAccountName: fortio-cloudrun-sa
-    vpcAccess:
-      networkInterfaces:
-      - subnetwork: projects/${PROJECT_ID}/regions/australia-southeast1/subnetworks/subnet-cloud-run-main
-      egress: all-traffic
-    traffic:
-    - percent: 50
-      type: "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-    - percent: 50
-      type: "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION"
-      revision: "fortio-cloudrun-service-66cbf9b79f"
+  image: fortio/fortio:latest
+  region: australia-southeast1
+  serviceAccountName: fortio-cloudrun-sa
+  vpcAccess:
+    networkInterfaces:
+    - subnetwork: projects/${PROJECT_ID}/regions/australia-southeast1/subnetworks/subnet-cloud-run-main
+    egress: all-traffic
+  traffic:
+  - percent: 50
+    type: "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+  - percent: 50
+    type: "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION"
+    revision: "fortio-cloudrun-service-66cbf9b79f"
