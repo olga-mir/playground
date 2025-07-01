@@ -9,74 +9,95 @@ spec:
   compositeTypeRef:
     apiVersion: platform.tornado-demo.io/v1alpha1
     kind: CloudRunService
-  patchSets:
-  - name: common-metadata
-    patches:
-    - fromFieldPath: metadata.labels
-  resources:
-  - name: cloudrun-service-sa
-    base:
-      apiVersion: iam.gcp.upbound.io/v1beta1
-      kind: ServiceAccount
-      metadata:
-        labels:
-          gcp.upbound.io/cloudrun-service: "true"
-    patches:
-    - fromFieldPath: "spec.serviceAccountName"
-      toFieldPath: "metadata.name"
+  mode: Pipeline
+  pipeline:
+  - step: patch-and-transform
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - name: cloudrun-service-sa
+        base:
+          apiVersion: iam.gcp.upbound.io/v1beta1
+          kind: ServiceAccount
+          metadata:
+            labels:
+              gcp.upbound.io/cloudrun-service: "true"
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.serviceAccountName"
+          toFieldPath: "metadata.name"
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.labels
+          toFieldPath: metadata.labels
 
-  - name: cloudrun-service
-    base:
-      apiVersion: cloudrun.gcp.upbound.io/v1beta1
-      kind: V2Service
-      metadata:
-        labels:
-          gcp.upbound.io/cloudrun-service: "true"
-      spec:
-        forProvider:
-          template:
-            containers:
-            - image: ""
-            serviceAccountNameSelector:
-              matchControllerRef: true
-            vpcAccess:
-              networkInterfaces:
-              - subnetwork: ""
-              egress: ""
-          traffic: []
-    patches:
-    - fromFieldPath: "spec.image"
-      toFieldPath: "spec.forProvider.template.containers[0].image"
-    - fromFieldPath: "spec.region"
-      toFieldPath: "spec.forProvider.location"
-    - fromFieldPath: "metadata.name"
-      toFieldPath: "metadata.name"
-    - fromFieldPath: "spec.traffic"
-      toFieldPath: "spec.forProvider.traffic"
-    - fromFieldPath: "spec.vpcAccess.egress"
-      toFieldPath: "spec.forProvider.template.vpcAccess.egress"
-    - fromFieldPath: "spec.vpcAccess.networkInterfaces[0].subnetwork"
-      toFieldPath: "spec.forProvider.template.vpcAccess.networkInterfaces[0].subnetwork"
+      - name: cloudrun-service
+        base:
+          apiVersion: cloudrun.gcp.upbound.io/v1beta1
+          kind: V2Service
+          metadata:
+            labels:
+              gcp.upbound.io/cloudrun-service: "true"
+          spec:
+            forProvider:
+              template:
+                containers:
+                - image: ""
+                serviceAccountNameSelector:
+                  matchControllerRef: true
+                vpcAccess:
+                  networkInterfaces:
+                  - subnetwork: ""
+                  egress: ""
+              traffic: []
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.image"
+          toFieldPath: "spec.forProvider.template.containers[0].image"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.region"
+          toFieldPath: "spec.forProvider.location"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "metadata.name"
+          toFieldPath: "metadata.name"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.traffic"
+          toFieldPath: "spec.forProvider.traffic"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.vpcAccess.egress"
+          toFieldPath: "spec.forProvider.template.vpcAccess.egress"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.vpcAccess.networkInterfaces[0].subnetwork"
+          toFieldPath: "spec.forProvider.template.vpcAccess.networkInterfaces[0].subnetwork"
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.labels
+          toFieldPath: metadata.labels
 
-  - name: cloudrun-invoker-binding
-    base:
-      apiVersion: cloudrun.gcp.upbound.io/v1beta1
-      kind: V2ServiceIamPolicy
-      spec:
-        forProvider:
-          policyData: |
-            {
-              "bindings": [
+      - name: cloudrun-invoker-binding
+        base:
+          apiVersion: cloudrun.gcp.upbound.io/v1beta1
+          kind: V2ServiceIamPolicy
+          spec:
+            forProvider:
+              policyData: |
                 {
-                  "role": "roles/run.invoker",
-                  "members": [
-                    "allUsers"
+                  "bindings": [
+                    {
+                      "role": "roles/run.invoker",
+                      "members": [
+                        "allUsers"
+                      ]
+                    }
                   ]
                 }
-              ]
-            }
-          serviceSelector:
-            matchControllerRef: true
-    patches:
-    - fromFieldPath: "spec.region"
-      toFieldPath: "spec.forProvider.location"
+              serviceSelector:
+                matchControllerRef: true
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.region"
+          toFieldPath: "spec.forProvider.location"
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.labels
+          toFieldPath: metadata.labels
