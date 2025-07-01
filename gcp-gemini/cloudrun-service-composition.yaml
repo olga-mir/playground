@@ -78,12 +78,11 @@ spec:
       - name: cloudrun-invoker-binding
         base:
           apiVersion: cloudrun.gcp.upbound.io/v1beta1
-          kind: V2ServiceIamBinding
+          kind: ServiceIamMember
           spec:
             forProvider:
               role: "roles/run.invoker"
-              members:
-              - "allUsers"
+              member: "allUsers"
               serviceSelector:
                 matchControllerRef: true
         patches:
