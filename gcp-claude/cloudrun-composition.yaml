@@ -9,7 +9,7 @@ spec:
   compositeTypeRef:
     apiVersion: platform.example.com/v1alpha1
     kind: XCloudRunService
-  
+
   mode: Pipeline
   pipeline:
   - step: resources
@@ -19,7 +19,7 @@ spec:
       apiVersion: pt.fn.crossplane.io/v1beta1
       kind: Resources
       resources:
-      
+
       # Service Account for Cloud Run
       - name: service-account
         base:
@@ -46,7 +46,7 @@ spec:
         - type: ToCompositeFieldPath
           fromFieldPath: status.atProvider.email
           toFieldPath: status.serviceAccount
-      
+
       # Cloud Run Service
       - name: cloudrun-service
         base:
@@ -58,7 +58,11 @@ spec:
                 metadata:
                   annotations:
                     run.googleapis.com/execution-environment: gen2
-                    run.googleapis.com/vpc-access-egress: private-ranges-only
+                    # https://cloud.google.com/sdk/gcloud/reference/run/deploy#--vpc-egress
+                    run.googleapis.com/vpc-access-egress: all-traffic
+                    # no page anchor, search for "Direct VPC egress setting flags group"
+                    run.googleapis.com/network: cloud-run
+                    run.googleapis.com/subnet: subnet-cloud-run-main
                 spec:
                   containers:
                   - ports:
@@ -81,17 +85,17 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.region
           toFieldPath: spec.forProvider.location
-        
+
         # Container image
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.image
           toFieldPath: spec.forProvider.template.spec.containers[0].image
-        
+
         # Container port
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.port
           toFieldPath: spec.forProvider.template.spec.containers[0].ports[0].containerPort
-        
+
         # Resource limits
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.resources.limits.cpu
@@ -99,12 +103,12 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.resources.limits.memory
           toFieldPath: spec.forProvider.template.spec.containers[0].resources.limits.memory
-        
+
         # Environment variables
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.env
           toFieldPath: spec.forProvider.template.spec.containers[0].env
-        
+
         # VPC connector configuration
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.subnetName
@@ -119,7 +123,7 @@ spec:
           toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/vpc-access-connector"]
           policy:
             fromFieldPath: Required
-        
+
         # Service account reference
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.name
@@ -128,7 +132,7 @@ spec:
           - type: string
             string:
               fmt: "%s-sa-glxc@${PROJECT_ID}.iam.gserviceaccount.com"
-        
+
         # Traffic configuration
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.traffic.latestRevision
@@ -136,12 +140,12 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.traffic.percent
           toFieldPath: spec.forProvider.traffic[0].percent
-        
+
         # Output service URL
         - type: ToCompositeFieldPath
           fromFieldPath: status.atProvider.uri
           toFieldPath: status.serviceUrl
-        
+
         # Ready status
         - type: ToCompositeFieldPath
           fromFieldPath: status.conditions[?(@.type=='Ready')].status
@@ -151,7 +155,7 @@ spec:
             map:
               "True": true
               "False": false
-      
+
       # IAM Policy Binding for allUsers invoker role
       - name: invoker-policy
         base:
@@ -179,7 +183,7 @@ spec:
           - type: string
             string:
               fmt: "%s-glxc"
-        
+
         # Conditional creation based on allowUnauthenticated
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.allowUnauthenticated
@@ -189,7 +193,7 @@ spec:
             map:
               true: "false"
               false: "true"
-      
+
       # Additional IAM binding for service account (if needed for other GCP services)
       - name: service-account-user-binding
         base:
