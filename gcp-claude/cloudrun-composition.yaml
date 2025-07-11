@@ -25,7 +25,7 @@ spec:
       # Service Account for Cloud Run
       - name: service-account
         base:
-          apiVersion: cloudplatform.gcp.upbound.io/v1beta1
+          apiVersion: iam.gcp.upbound.io/v1beta1
           kind: ServiceAccount
           spec:
             forProvider:
@@ -38,6 +38,7 @@ spec:
           - type: string
             string:
               fmt: "%s-sa-glxc"
+              type: Format
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.name
           toFieldPath: spec.forProvider.displayName
@@ -45,6 +46,7 @@ spec:
           - type: string
             string:
               fmt: "Cloud Run Service Account for %s"
+              type: Format
         - type: ToCompositeFieldPath
           fromFieldPath: status.atProvider.email
           toFieldPath: status.serviceAccount
@@ -63,8 +65,8 @@ spec:
                     # https://cloud.google.com/sdk/gcloud/reference/run/deploy#--vpc-egress
                     run.googleapis.com/vpc-access-egress: all-traffic
                     # no page anchor, search for "Direct VPC egress setting flags group"
-                    run.googleapis.com/network: cloud-run
-                    run.googleapis.com/subnet: subnet-cloud-run-main
+                    run.googleapis.com/network: ""
+                    run.googleapis.com/subnet: ""
                 spec:
                   containers:
                   - ports:
@@ -84,6 +86,7 @@ spec:
           - type: string
             string:
               fmt: "%s-glxc"
+              type: Format
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.region
           toFieldPath: spec.forProvider.location
@@ -111,20 +114,13 @@ spec:
           fromFieldPath: spec.parameters.containerConfig.env
           toFieldPath: spec.forProvider.template.spec.containers[0].env
 
-        # VPC connector configuration
+        # Direct VPC Egress configuration
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.network
+          toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/network"]
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.subnetName
-          toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/vpc-access-connector"]
-          transforms:
-          - type: string
-            string:
-              fmt: "projects/${PROJECT_ID}/locations/%s/connectors/%s-connector"
-              type: Format
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.region
-          toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/vpc-access-connector"]
-          policy:
-            fromFieldPath: Required
+          toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/subnet"]
 
         # Service account reference
         - type: FromCompositeFieldPath
@@ -134,6 +130,7 @@ spec:
           - type: string
             string:
               fmt: "%s-sa-glxc@${PROJECT_ID}.iam.gserviceaccount.com"
+              type: Format
 
         # Traffic configuration
         - type: FromCompositeFieldPath
@@ -175,6 +172,7 @@ spec:
           - type: string
             string:
               fmt: "%s-invoker-glxc"
+              type: Format
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.region
           toFieldPath: spec.forProvider.location
@@ -185,6 +183,7 @@ spec:
           - type: string
             string:
               fmt: "%s-glxc"
+              type: Format
 
         # Conditional creation based on allowUnauthenticated
         - type: FromCompositeFieldPath
@@ -199,7 +198,7 @@ spec:
       # Additional IAM binding for service account (if needed for other GCP services)
       - name: service-account-user-binding
         base:
-          apiVersion: cloudplatform.gcp.upbound.io/v1beta1
+          apiVersion: iam.gcp.upbound.io/v1beta1
           kind: ServiceAccountIAMMember
           spec:
             forProvider:
@@ -213,10 +212,12 @@ spec:
           - type: string
             string:
               fmt: "%s-sa-user-glxc"
+              type: Format
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.name
-          toFieldPath: spec.forProvider.serviceAccount
+          toFieldPath: spec.forProvider.serviceAccountId
           transforms:
           - type: string
             string:
               fmt: "%s-sa-glxc"
+              type: Format

@@ -17,6 +17,7 @@ spec:
 
     # Networking configuration for Direct VPC Egress
     subnetName: subnet-cloud-run-main
+    network: cloud-run
 
     # Allow unauthenticated access for load testing
     allowUnauthenticated: true
