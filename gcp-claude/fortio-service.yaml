@@ -43,7 +43,6 @@ spec:
     # Create dedicated service account
     serviceAccount:
       create: true
-      name: fortio-loadtest-sa
 
   compositionRef:
     name: cloudrun-service
