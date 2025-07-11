@@ -1,6 +1,8 @@
 apiVersion: platform.example.com/v1alpha1
 kind: CloudRunService
 metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
   name: fortio-loadtest-glxc
   namespace: tenant-gcp-claude
   labels:
