@@ -119,11 +119,8 @@ spec:
                     properties:
                       create:
                         type: boolean
-                        description: "Create dedicated service account"
+                        description: "If true, a dedicated service account will be created. Its name is derived from the main service `name`."
                         default: true
-                      name:
-                        type: string
-                        description: "Service account name (auto-generated if not provided)"
                     default:
                       create: true
 
@@ -146,6 +143,3 @@ spec:
               ready:
                 type: boolean
                 description: "Service deployment status"
-  claimNames:
-    kind: CloudRunService
-    plural: cloudrunservices
