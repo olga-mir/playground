@@ -9,7 +9,7 @@ metadata:
     service: cloudrun
 spec:
   compositeTypeRef:
-    apiVersion: platform.example.com/v1alpha1
+    apiVersion: platform.tornado-demo.io/v1alpha1
     kind: CloudRunService
 
   mode: Pipeline
