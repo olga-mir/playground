@@ -1,15 +1,15 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xcloudrunservices.platform.example.com
+  name: CloudRunServices.platform.example.com
   labels:
     provider: gcp
     service: cloudrun
 spec:
   group: platform.example.com
   names:
-    kind: XCloudRunService
-    plural: xcloudrunservices
+    kind: CloudRunService
+    plural: CloudRunServices
   versions:
   - name: v1alpha1
     served: true
@@ -36,19 +36,22 @@ spec:
                     type: string
                     description: "GCP region for deployment"
                     default: "australia-southeast1"
-                  
+
                   # Networking configuration
+                  network:
+                    type: string
+                    description: "VPC for Direct VPC Egress"
+
                   subnetName:
                     type: string
                     description: "VPC subnet for Direct VPC Egress"
-                    default: "subnet-cloud-run-main"
-                  
+
                   # Authentication and IAM
                   allowUnauthenticated:
                     type: boolean
                     description: "Allow unauthenticated access"
                     default: true
-                  
+
                   # Traffic configuration for blue-green deployments
                   traffic:
                     type: object
@@ -66,7 +69,7 @@ spec:
                     default:
                       latestRevision: true
                       percent: 100
-                  
+
                   # Container configuration
                   containerConfig:
                     type: object
@@ -109,7 +112,7 @@ spec:
                         limits:
                           cpu: "1000m"
                           memory: "512Mi"
-                  
+
                   # Service Account
                   serviceAccount:
                     type: object
@@ -123,9 +126,11 @@ spec:
                         description: "Service account name (auto-generated if not provided)"
                     default:
                       create: true
-                
+
                 required:
                 - name
+                - network
+                - subnetName
             required:
             - parameters
           status:

@@ -10,7 +10,7 @@ metadata:
 spec:
   compositeTypeRef:
     apiVersion: platform.example.com/v1alpha1
-    kind: XCloudRunService
+    kind: CloudRunService
 
   mode: Pipeline
   pipeline:
