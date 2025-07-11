@@ -10,13 +10,13 @@ spec:
       generators:
       - git:
           repoURL: https://github.com/olga-mir/playground
-          revision: develop
+          revision: develop-cloud-run-claude
           files:
           - path: "platform/config/repository.yaml"
           pathParamPrefix: repo
       - git:
           repoURL: https://github.com/olga-mir/playground
-          revision: develop
+          revision: develop-cloud-run-claude
           files:
           - path: "platform/config/applications/*-cmp.yaml"
           pathParamPrefix: app
