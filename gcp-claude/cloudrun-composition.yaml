@@ -204,32 +204,32 @@ spec:
               "true": "false"
               "false": "true"
 
-      # Additional IAM binding for service account (if needed for other GCP services)
-      - name: service-account-user-binding
-        base:
-          apiVersion: iam.gcp.upbound.io/v1beta1
-          kind: ServiceAccountIAMMember
-          spec:
-            forProvider:
-              member: "serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com"
-              role: "roles/iam.serviceAccountUser"
-        patches:
-        - type: FromCompositeFieldPath
-          fromFieldPath: metadata.annotations
-          toFieldPath: metadata.annotations
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.name
-          toFieldPath: metadata.name
-          transforms:
-          - type: string
-            string:
-              fmt: "%s-sa-user-glxc"
-              type: Format
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.name
-          toFieldPath: spec.forProvider.serviceAccountId
-          transforms:
-          - type: string
-            string:
-              fmt: "%s-sa-glxc"
-              type: Format
+      # # Additional IAM binding for service account (if needed for other GCP services)
+      # - name: service-account-user-binding
+      #   base:
+      #     apiVersion: iam.gcp.upbound.io/v1beta1
+      #     kind: ServiceAccountIAMMember
+      #     spec:
+      #       forProvider:
+      #         member: "serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com"
+      #         role: "roles/iam.serviceAccountUser"
+      #   patches:
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: metadata.annotations
+      #     toFieldPath: metadata.annotations
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.parameters.name
+      #     toFieldPath: metadata.name
+      #     transforms:
+      #     - type: string
+      #       string:
+      #         fmt: "%s-sa-user-glxc"
+      #         type: Format
+      #   - type: FromCompositeFieldPath
+      #     fromFieldPath: spec.parameters.name
+      #     toFieldPath: spec.forProvider.serviceAccountId
+      #     transforms:
+      #     - type: string
+      #       string:
+      #         fmt: "%s-sa-glxc"
+      #         type: Format
