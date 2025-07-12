@@ -22,35 +22,6 @@ spec:
       kind: Resources
       resources:
 
-      # Service Account for Cloud Run
-      - name: service-account
-        base:
-          apiVersion: iam.gcp.upbound.io/v1beta1
-          kind: ServiceAccount
-          spec:
-            forProvider:
-              displayName: "Cloud Run Service Account"
-        patches:
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.name
-          toFieldPath: metadata.name
-          transforms:
-          - type: string
-            string:
-              fmt: "%s-sa-glxc"
-              type: Format
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.name
-          toFieldPath: spec.forProvider.displayName
-          transforms:
-          - type: string
-            string:
-              fmt: "Cloud Run Service Account for %s"
-              type: Format
-        - type: ToCompositeFieldPath
-          fromFieldPath: status.atProvider.email
-          toFieldPath: status.serviceAccount
-
       # Cloud Run Service
       - name: cloudrun-service
         base:
