@@ -105,11 +105,15 @@ spec:
               type: Format
 
         # Provider Config
-        - type: CombineFromComposite
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
           toFieldPath: spec.providerConfigRef.name
+          transforms:
+          - type: string
+            string:
+              type: Format
+              fmt: "gcp-provider-config"
           combine:
-            variables:
-            - fromFieldPath: spec.parameters.name
             strategy: string
             string:
               fmt: "gcp-provider-config"
@@ -178,11 +182,15 @@ spec:
               "false": "true"
 
         # Provider Config
-        - type: CombineFromComposite
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
           toFieldPath: spec.providerConfigRef.name
+          transforms:
+          - type: string
+            string:
+              type: Format
+              fmt: "gcp-provider-config"
           combine:
-            variables:
-            - fromFieldPath: spec.parameters.name
             strategy: string
             string:
               fmt: "gcp-provider-config"
