@@ -78,6 +78,9 @@ spec:
               - latestRevision: true
                 percent: 100
         patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.annotations
+          toFieldPath: metadata.annotations
         # Basic service configuration
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.name
@@ -159,12 +162,15 @@ spec:
       - name: invoker-policy
         base:
           apiVersion: cloudrun.gcp.upbound.io/v1beta1
-          kind: ServiceIAMMember
+          kind: V2ServiceIAMMember
           spec:
             forProvider:
               member: "allUsers"
               role: "roles/run.invoker"
         patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.annotations
+          toFieldPath: metadata.annotations
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.name
           toFieldPath: metadata.name
@@ -178,7 +184,7 @@ spec:
           toFieldPath: spec.forProvider.location
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.name
-          toFieldPath: spec.forProvider.service
+          toFieldPath: spec.forProvider.name
           transforms:
           - type: string
             string:
@@ -208,6 +214,9 @@ spec:
               member: "serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com"
               role: "roles/iam.serviceAccountUser"
         patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.annotations
+          toFieldPath: metadata.annotations
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.name
           toFieldPath: metadata.name
