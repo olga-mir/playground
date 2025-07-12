@@ -190,10 +190,13 @@ spec:
           fromFieldPath: spec.parameters.allowUnauthenticated
           toFieldPath: metadata.annotations["crossplane.io/external-create-pending"]
           transforms:
+          - type: convert
+            convert:
+              toType: string
           - type: map
             map:
-              true: "false"
-              false: "true"
+              "true": "false"
+              "false": "true"
 
       # Additional IAM binding for service account (if needed for other GCP services)
       - name: service-account-user-binding
