@@ -105,13 +105,13 @@ spec:
               type: Format
 
         # Provider Config
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.name
+        - type: CombineFromComposite
           toFieldPath: spec.providerConfigRef.name
-          transforms:
-          - type: string
+          combine:
+            variables:
+            - fromFieldPath: spec.parameters.name
+            strategy: string
             string:
-              type: Format
               fmt: "gcp-provider-config"
         # Traffic configuration
         - type: FromCompositeFieldPath
@@ -178,13 +178,13 @@ spec:
               "false": "true"
 
         # Provider Config
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.name
+        - type: CombineFromComposite
           toFieldPath: spec.providerConfigRef.name
-          transforms:
-          - type: string
+          combine:
+            variables:
+            - fromFieldPath: spec.parameters.name
+            strategy: string
             string:
-              type: Format
               fmt: "gcp-provider-config"
       # # Additional IAM binding for service account (if needed for other GCP services)
       # - name: service-account-user-binding
