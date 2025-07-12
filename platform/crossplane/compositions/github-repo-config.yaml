@@ -392,7 +392,7 @@ spec:
               configuration:
               - contentType: "json"
                 #insecureSsl: false # Ensure this is a string "false" or "true" if uncommented, or a boolean if the CRD expects that.
-                url: "https://example.com/default-webhook-url"
+                url: "https://tornado-demo.io/default-webhook-url"
               active: true
               events: ["push", "pull_request"]
             providerConfigRef:

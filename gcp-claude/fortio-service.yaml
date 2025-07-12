@@ -1,0 +1,48 @@
+apiVersion: platform.tornado-demo.io/v1alpha1
+kind: CloudRunService
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+  name: fortio-loadtest-glxc
+  namespace: tenant-gcp-claude
+  labels:
+    app: fortio
+    environment: dev
+    managed-by: crossplane
+spec:
+  parameters:
+    name: fortio-loadtest
+    image: fortio/fortio:latest
+    region: australia-southeast1
+
+    # Networking configuration for Direct VPC Egress
+    subnetName: subnet-cloud-run-main
+    network: cloud-run
+
+    # Allow unauthenticated access for load testing
+    allowUnauthenticated: true
+
+    # Blue-green deployment configuration (initial 100% to latest)
+    traffic:
+      latestRevision: true
+      percent: 100
+
+    # Container configuration optimized for Fortio
+    containerConfig:
+      port: 8080
+      env:
+      - name: FORTIO_PORT
+        value: "8080"
+      - name: FORTIO_GRPC_PORT
+        value: "8079"
+      resources:
+        limits:
+          cpu: "2000m"
+          memory: "1Gi"
+
+    # Create dedicated service account
+    serviceAccount:
+      create: true
+
+  compositionRef:
+    name: cloudrun-service
