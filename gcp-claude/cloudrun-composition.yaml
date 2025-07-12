@@ -26,7 +26,7 @@ spec:
       - name: cloudrun-service
         base:
           apiVersion: cloudrun.gcp.upbound.io/v1beta2
-          kind: Service
+          kind: V2Service
           spec:
             forProvider:
               template:
@@ -42,10 +42,13 @@ spec:
                   containers:
                   - ports:
                     - containerPort: 8080
-                  serviceAccountName: ""
+                  serviceAccountNameSelector:
+                    matchControllerRef: true
               traffic:
               - latestRevision: true
                 percent: 100
+          providerConfigRef:
+            name: gcp-provider
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: metadata.annotations
@@ -94,29 +97,6 @@ spec:
           fromFieldPath: spec.parameters.subnetName
           toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/subnet"]
 
-        # Service account reference
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.name
-          toFieldPath: spec.forProvider.template.spec.serviceAccountName
-          transforms:
-          - type: string
-            string:
-              fmt: "%s-sa-glxc@${PROJECT_ID}.iam.gserviceaccount.com"
-              type: Format
-
-        # Provider Config
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.name
-          toFieldPath: spec.providerConfigRef.name
-          transforms:
-          - type: string
-            string:
-              type: Format
-              fmt: "gcp-provider-config"
-          combine:
-            strategy: string
-            string:
-              fmt: "gcp-provider-config"
         # Traffic configuration
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.traffic.latestRevision
@@ -180,46 +160,3 @@ spec:
             map:
               "true": "false"
               "false": "true"
-
-        # Provider Config
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.name
-          toFieldPath: spec.providerConfigRef.name
-          transforms:
-          - type: string
-            string:
-              type: Format
-              fmt: "gcp-provider-config"
-          combine:
-            strategy: string
-            string:
-              fmt: "gcp-provider-config"
-      # # Additional IAM binding for service account (if needed for other GCP services)
-      # - name: service-account-user-binding
-      #   base:
-      #     apiVersion: iam.gcp.upbound.io/v1beta1
-      #     kind: ServiceAccountIAMMember
-      #     spec:
-      #       forProvider:
-      #         member: "serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com"
-      #         role: "roles/iam.serviceAccountUser"
-      #   patches:
-      #   - type: FromCompositeFieldPath
-      #     fromFieldPath: metadata.annotations
-      #     toFieldPath: metadata.annotations
-      #   - type: FromCompositeFieldPath
-      #     fromFieldPath: spec.parameters.name
-      #     toFieldPath: metadata.name
-      #     transforms:
-      #     - type: string
-      #       string:
-      #         fmt: "%s-sa-user-glxc"
-      #         type: Format
-      #   - type: FromCompositeFieldPath
-      #     fromFieldPath: spec.parameters.name
-      #     toFieldPath: spec.forProvider.serviceAccountId
-      #     transforms:
-      #     - type: string
-      #       string:
-      #         fmt: "%s-sa-glxc"
-      #         type: Format
