@@ -47,8 +47,8 @@ spec:
               traffic:
               - latestRevision: true
                 percent: 100
-          providerConfigRef:
-            name: gcp-provider
+            providerConfigRef:
+              name: gcp-provider
         patches:
         - type: FromCompositeFieldPath
           fromFieldPath: metadata.annotations
