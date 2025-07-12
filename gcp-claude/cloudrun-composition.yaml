@@ -161,7 +161,7 @@ spec:
       # IAM Policy Binding for allUsers invoker role
       - name: invoker-policy
         base:
-          apiVersion: cloudrun.gcp.upbound.io/v1beta1
+          apiVersion: cloudrun.gcp.upbound.io/v1beta2
           kind: ServiceIAMMember
           spec:
             forProvider:
