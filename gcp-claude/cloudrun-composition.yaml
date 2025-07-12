@@ -43,8 +43,6 @@ spec:
                   - ports:
                     - containerPort: 8080
                   serviceAccountName: ""
-                  scaling:
-                    maxInstanceCount: 10
               traffic:
               - latestRevision: true
                 percent: 100
@@ -106,6 +104,15 @@ spec:
               fmt: "%s-sa-glxc@${PROJECT_ID}.iam.gserviceaccount.com"
               type: Format
 
+        # Provider Config
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: spec.providerConfigRef.name
+          transforms:
+          - type: string
+            string:
+              type: Format
+              fmt: "gcp-provider-config"
         # Traffic configuration
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.traffic.latestRevision
@@ -121,13 +128,8 @@ spec:
 
         # Ready status
         - type: ToCompositeFieldPath
-          fromFieldPath: status.conditions[?(@.type=='Ready')].status
+          fromFieldPath: status.atProvider.conditions[?(@.type=='Ready')].status
           toFieldPath: status.ready
-          transforms:
-          - type: map
-            map:
-              "True": true
-              "False": false
 
       # IAM Policy Binding for allUsers invoker role
       - name: invoker-policy
@@ -155,7 +157,7 @@ spec:
           toFieldPath: spec.forProvider.location
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.name
-          toFieldPath: spec.forProvider.name
+          toFieldPath: spec.forProvider.service
           transforms:
           - type: string
             string:
@@ -175,6 +177,15 @@ spec:
               "true": "false"
               "false": "true"
 
+        # Provider Config
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: spec.providerConfigRef.name
+          transforms:
+          - type: string
+            string:
+              type: Format
+              fmt: "gcp-provider-config"
       # # Additional IAM binding for service account (if needed for other GCP services)
       # - name: service-account-user-binding
       #   base:
