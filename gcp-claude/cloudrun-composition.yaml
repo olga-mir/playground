@@ -42,6 +42,7 @@ spec:
                     containerPort: 8080
               traffic:
               - percent: 100
+                type: TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST
             providerConfigRef:
               name: gcp-provider
         patches:
