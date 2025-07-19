@@ -30,23 +30,20 @@ spec:
           spec:
             forProvider:
               template:
-                metadata:
-                  annotations:
-                    run.googleapis.com/execution-environment: gen2
-                    # https://cloud.google.com/sdk/gcloud/reference/run/deploy#--vpc-egress
-                    run.googleapis.com/vpc-access-egress: all-traffic
-                    # no page anchor, search for "Direct VPC egress setting flags group"
-                    run.googleapis.com/network: ""
-                    run.googleapis.com/subnet: ""
-                spec:
-                  containers:
-                  - ports:
-                    - containerPort: 8080
-                  serviceAccountNameSelector:
-                    matchControllerRef: true
+              - annotations:
+                  run.googleapis.com/execution-environment: gen2
+                  # https://cloud.google.com/sdk/gcloud/reference/run/deploy#--vpc-egress
+                  run.googleapis.com/vpc-access-egress: all-traffic
+                  # no page anchor, search for "Direct VPC egress setting flags group"
+                  run.googleapis.com/network: ""
+                  run.googleapis.com/subnet: ""
+                containers:
+                - ports:
+                  - containerPort: 8080
+                serviceAccountNameSelector:
+                  matchControllerRef: true
               traffic:
-              - latestRevision: true
-                percent: 100
+              - percent: 100
             providerConfigRef:
               name: gcp-provider
         patches:
@@ -69,38 +66,35 @@ spec:
         # Container image
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.image
-          toFieldPath: spec.forProvider.template.spec.containers[0].image
+          toFieldPath: spec.forProvider.template[0].containers[0].image
 
         # Container port
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.port
-          toFieldPath: spec.forProvider.template.spec.containers[0].ports[0].containerPort
+          toFieldPath: spec.forProvider.template[0].containers[0].ports[0].containerPort
 
         # Resource limits
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.resources.limits.cpu
-          toFieldPath: spec.forProvider.template.spec.containers[0].resources.limits.cpu
+          toFieldPath: spec.forProvider.template[0].containers[0].resources.limits.cpu
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.resources.limits.memory
-          toFieldPath: spec.forProvider.template.spec.containers[0].resources.limits.memory
+          toFieldPath: spec.forProvider.template[0].containers[0].resources.limits.memory
 
         # Environment variables
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.env
-          toFieldPath: spec.forProvider.template.spec.containers[0].env
+          toFieldPath: spec.forProvider.template[0].containers[0].env
 
         # Direct VPC Egress configuration
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.network
-          toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/network"]
+          toFieldPath: spec.forProvider.template[0].annotations["run.googleapis.com/network"]
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.subnetName
-          toFieldPath: spec.forProvider.template.metadata.annotations["run.googleapis.com/subnet"]
+          toFieldPath: spec.forProvider.template[0].annotations["run.googleapis.com/subnet"]
 
         # Traffic configuration
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.traffic.latestRevision
-          toFieldPath: spec.forProvider.traffic[0].latestRevision
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.traffic.percent
           toFieldPath: spec.forProvider.traffic[0].percent
