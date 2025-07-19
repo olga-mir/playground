@@ -34,9 +34,8 @@ spec:
                   run.googleapis.com/execution-environment: gen2
                   # https://cloud.google.com/sdk/gcloud/reference/run/deploy#--vpc-egress
                   run.googleapis.com/vpc-access-egress: all-traffic
-                  # no page anchor, search for "Direct VPC egress setting flags group"
-                  run.googleapis.com/network: ""
-                  run.googleapis.com/subnet: ""
+                  # Direct VPC egress using network-interfaces annotation
+                  run.googleapis.com/network-interfaces: '[{"network":"","subnetwork":""}]'
                 containers:
                 - ports:
                     containerPort: 8080
@@ -85,13 +84,16 @@ spec:
           fromFieldPath: spec.parameters.containerConfig.env
           toFieldPath: spec.forProvider.template.containers[0].env
 
-        # Direct VPC Egress configuration
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.network
-          toFieldPath: spec.forProvider.template.annotations["run.googleapis.com/network"]
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.parameters.subnetName
-          toFieldPath: spec.forProvider.template.annotations["run.googleapis.com/subnet"]
+        # Direct VPC Egress configuration using network-interfaces
+        - type: CombineFromComposite
+          combine:
+            variables:
+            - fromFieldPath: spec.parameters.network
+            - fromFieldPath: spec.parameters.subnetName
+            strategy: string
+            string:
+              fmt: '[{"network":"%s","subnetwork":"%s"}]'
+          toFieldPath: spec.forProvider.template.annotations["run.googleapis.com/network-interfaces"]
 
         # Traffic configuration
         - type: FromCompositeFieldPath
