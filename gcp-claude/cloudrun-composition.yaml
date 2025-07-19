@@ -30,7 +30,7 @@ spec:
           spec:
             forProvider:
               template:
-              - annotations:
+                annotations:
                   run.googleapis.com/execution-environment: gen2
                   # https://cloud.google.com/sdk/gcloud/reference/run/deploy#--vpc-egress
                   run.googleapis.com/vpc-access-egress: all-traffic
@@ -66,33 +66,33 @@ spec:
         # Container image
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.image
-          toFieldPath: spec.forProvider.template[0].containers[0].image
+          toFieldPath: spec.forProvider.template.containers[0].image
 
         # Container port
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.port
-          toFieldPath: spec.forProvider.template[0].containers[0].ports[0].containerPort
+          toFieldPath: spec.forProvider.template.containers[0].ports[0].containerPort
 
         # Resource limits
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.resources.limits.cpu
-          toFieldPath: spec.forProvider.template[0].containers[0].resources.limits.cpu
+          toFieldPath: spec.forProvider.template.containers[0].resources.limits.cpu
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.resources.limits.memory
-          toFieldPath: spec.forProvider.template[0].containers[0].resources.limits.memory
+          toFieldPath: spec.forProvider.template.containers[0].resources.limits.memory
 
         # Environment variables
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.containerConfig.env
-          toFieldPath: spec.forProvider.template[0].containers[0].env
+          toFieldPath: spec.forProvider.template.containers[0].env
 
         # Direct VPC Egress configuration
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.network
-          toFieldPath: spec.forProvider.template[0].annotations["run.googleapis.com/network"]
+          toFieldPath: spec.forProvider.template.annotations["run.googleapis.com/network"]
         - type: FromCompositeFieldPath
           fromFieldPath: spec.parameters.subnetName
-          toFieldPath: spec.forProvider.template[0].annotations["run.googleapis.com/subnet"]
+          toFieldPath: spec.forProvider.template.annotations["run.googleapis.com/subnet"]
 
         # Traffic configuration
         - type: FromCompositeFieldPath
