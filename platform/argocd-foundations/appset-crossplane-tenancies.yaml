@@ -9,7 +9,7 @@ spec:
   generators:
   - git:
       repoURL: 'https://github.com/olga-mir/playground'
-      revision: develop-cloud-run-claude
+      revision: develop
       directories:
       - path: 'teams/*'
   template:
@@ -22,7 +22,7 @@ spec:
       project: tenants
       source:
         repoURL: 'https://github.com/olga-mir/playground'
-        targetRevision: develop-cloud-run-claude
+        targetRevision: develop
         path: '{{ path }}'
       destination:
         server: 'https://kubernetes.default.svc'
