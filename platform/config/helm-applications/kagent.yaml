@@ -4,7 +4,7 @@ syncWave: "2"
 name: kagent
 chart: kagent
 repoURL: ghcr.io/kagent-dev/kagent/helm
-targetRevision: 0.3.17
+targetRevision: 0.4.4
 namespace: kagent-system
 helm:
   values:
