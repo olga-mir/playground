@@ -5,7 +5,7 @@ set -eoux pipefail
 KIND_TEST_CLUSTER_NAME=kind-test-cluster
 REPO_ROOT=$(git rev-parse --show-toplevel)
 CROSSPLANE_VERSION="v2.0.0-preview.1"
-FLUX_VERSION="v2.6.3"
+FLUX_VERSION="v2.6.4"
 
 
 if ! kind get clusters | grep -q $KIND_TEST_CLUSTER_NAME; then
