@@ -5,8 +5,6 @@ name: kgateway
 chart: kgateway
 repoURL: cr.kgateway.dev/kgateway-dev/charts
 targetRevision: v2.0.3
-#  --set image.tag=v2.0.0
-# https://kgateway.dev/docs/mcp/
 namespace: kgateway-system
 helm:
   values:

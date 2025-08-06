@@ -1,0 +1,9 @@
+version: 2
+updates:
+  - package-ecosystem: "helm"
+    directory: "/platform/config/helm-applications"
+    schedule:
+      # interval: "weekly"
+      # for testing:
+      interval: "daily"
+      time: "09:00"
