@@ -6,4 +6,5 @@ updates:
       # interval: "weekly"
       # for testing:
       interval: "daily"
-      time: "09:00"
+      time: "08:00"
+      timezone: "Australia/Melbourne"
