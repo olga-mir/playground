@@ -97,7 +97,7 @@ spec:
                         description: "Install Crossplane on this cluster"
                       version:
                         type: string
-                        default: "v2.0.0-preview.1"
+                        default: "v2.0.0-rc.1"
                         description: "Crossplane version"
                 required:
                 - clusterName
