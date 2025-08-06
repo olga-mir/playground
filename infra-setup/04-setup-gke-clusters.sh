@@ -2,6 +2,8 @@
 
 set -eoux pipefail
 
+export KIND_CROSSPLANE_CONTEXT="kind-kind-test-cluster"
+
 # Parse command line arguments
 SKIP_ARGO=false
 while [[ $# -gt 0 ]]; do
@@ -16,38 +18,6 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
-# Environment variables that need to be explicitly set
-set +x
-required_vars=(
-    PROJECT_ID
-    REGION
-    ZONE
-    GKE_MGMT_CLUSTER
-    GKE_APPS_DEV_CLUSTER
-    CROSSPLANE_GSA_KEY_FILE
-    KIND_CROSSPLANE_CONTEXT
-    GITHUB_DEMO_REPO_OWNER
-    GITHUB_DEMO_REPO_NAME
-    GITHUB_DEST_ORG_NAME
-    GITHUB_DEMO_REPO_PAT
-    GITHUB_DEST_ORG_REPO_LVL_PAT # For repo-level operations in the destination org
-    GITHUB_DEST_ORG_ORG_LVL_PAT  # For org-level operations in the destination org
-)
-
-echo "Checking required environment variables..."
-all_set=true
-for var in "${required_vars[@]}"; do
-    if [ -z "${!var:-}" ]; then
-        echo "Error: Environment variable $var is not set."
-        all_set=false
-    fi
-done
-set -x
-
-if [ "$all_set" = false ]; then
-    exit 1
-fi
 
 export MGMT_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_MGMT_CLUSTER}"
 export APPS_DEV_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_APPS_DEV_CLUSTER}"

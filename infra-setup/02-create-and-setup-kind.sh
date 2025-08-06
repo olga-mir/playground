@@ -18,10 +18,14 @@ fi
 
 # https://docs.crossplane.io/v2.0-preview/get-started/install/
 
-helm install crossplane \
---namespace crossplane-system \
---create-namespace crossplane-preview/crossplane \
---version $CROSSPLANE_VERSION
+#helm install crossplane \
+#--namespace crossplane-system \
+#--create-namespace crossplane-preview/crossplane \
+#--version $CROSSPLANE_VERSION
+
+# install release instructions: https://github.com/crossplane/crossplane/releases/tag/v2.0.0-rc.1
+helm repo add crossplane-stable https://charts.crossplane.io/stable --force-update
+helm install crossplane --namespace crossplane-system --create-namespace crossplane-stable/crossplane --devel
 
 
 # Wait for Crossplane CRDs to be established
@@ -67,16 +71,6 @@ fi
 
 # Verify FluxCD CLI installation
 flux version --client
-
-# TODO - at centralised place
-set +x
-if [[ -z "${GITHUB_DEMO_REPO_OWNER:-}" ]] || [[ -z "${GITHUB_DEMO_REPO_NAME:-}" ]] || [[ -z "${GITHUB_FLUX_PLAYGROUND_PAT:-}" ]]; then
-    echo "Error: Required environment variables are not set:"
-    echo "  GITHUB_DEMO_REPO_OWNER"
-    echo "  GITHUB_DEMO_REPO_NAME"
-    echo "  GITHUB_DEMO_REPO_PAT"
-    exit 1
-fi
 echo "Bootstrapping FluxCD..."
 GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
   --owner=${GITHUB_DEMO_REPO_OWNER} \

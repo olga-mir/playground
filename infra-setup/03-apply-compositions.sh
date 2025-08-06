@@ -2,37 +2,7 @@
 
 set -eoux pipefail
 
-# Environment variables that need to be explicitly set
-set +x
-required_vars=(
-    PROJECT_ID
-    REGION
-    ZONE
-    GKE_MGMT_CLUSTER
-    GKE_APPS_DEV_CLUSTER
-    GKE_VPC
-    KIND_CROSSPLANE_CONTEXT
-    MGMT_SUBNET_NAME
-    APPS_DEV_SUBNET_NAME
-    GITHUB_DEMO_REPO_OWNER
-    GITHUB_DEMO_REPO_NAME
-    GITHUB_DEMO_REPO_PAT
-    CROSSPLANE_GSA_KEY_FILE
-)
-
-echo "Checking required environment variables..."
-all_set=true
-for var in "${required_vars[@]}"; do
-    if [ -z "${!var:-}" ]; then
-        echo "Error: Environment variable $var is not set."
-        all_set=false
-    fi
-done
-set -x
-
-if [ "$all_set" = false ]; then
-    exit 1
-fi
+export KIND_CROSSPLANE_CONTEXT="kind-kind-test-cluster"
 
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 

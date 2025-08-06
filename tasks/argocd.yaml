@@ -1,28 +1,5 @@
 version: "3"
 
-env:
-  # These variables must be set in your shell environment before running tasks.
-  # Example:
-  # export ARGOCD_STD_HOSTNAME="argocd.gcp.yourdomain.com"
-  # export ARGOCD_MCP_HOSTNAME="argo-mcp.gcp.yourdomain.com"
-  # The tasks will fail if these are not set.
-  ARGOCD_STD_HOSTNAME:
-    sh: |
-      if [ -z "$ARGOCD_STD_HOSTNAME" ]; then
-        echo "Error: Environment variable ARGOCD_STD_HOSTNAME is not set." >&2
-        echo "Please set it to your ArgoCD standard UI hostname, e.g., export ARGOCD_STD_HOSTNAME=\"argocd.gcp.example.com\"" >&2
-        exit 1
-      fi
-      echo "$ARGOCD_STD_HOSTNAME"
-  ARGOCD_MCP_HOSTNAME:
-    sh: |
-      if [ -z "$ARGOCD_MCP_HOSTNAME" ]; then
-        echo "Error: Environment variable ARGOCD_MCP_HOSTNAME is not set." >&2
-        echo "Please set it to your ArgoCD MCP UI hostname, e.g., export ARGOCD_MCP_HOSTNAME=\"argo-mcp.gcp.example.com\"" >&2
-        exit 1
-      fi
-      echo "$ARGOCD_MCP_HOSTNAME"
-
 tasks:
   get-secret:
     desc: "Get Argo CD initial admin password, in current context"
