@@ -28,6 +28,8 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars 
     --from-literal=GKE_VPC="${GKE_VPC}" \
     --from-literal=MGMT_SUBNET_NAME="${MGMT_SUBNET_NAME}" \
     --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
+    --from-literal=GITHUB_DEMO_REPO_OWNER="${GITHUB_DEMO_REPO_OWNER}" \
+    --from-literal=GITHUB_DEMO_REPO_PAT="${GITHUB_DEMO_REPO_PAT}" \
     --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
 echo "Applying Flux Crossplane source..."
@@ -38,8 +40,8 @@ echo "This includes providers, compositions, and cluster claims"
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-base -n flux-system --timeout=600s
 
 echo "Waiting for providers and functions to be ready..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers --all --timeout=300s
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy function --all --timeout=300s
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=300s
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=300s
 
 echo "Waiting for XRD to be established..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=60s
