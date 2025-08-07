@@ -18,6 +18,7 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic gcp-creds \
     --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
 echo "Creating Crossplane variables ConfigMap for Flux substituteFrom..."
+export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
 set +x
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars \
     --namespace flux-system \
@@ -31,7 +32,9 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars 
     --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
     --from-literal=GITHUB_DEMO_REPO_OWNER="${GITHUB_DEMO_REPO_OWNER}" \
     --from-literal=GITHUB_DEMO_REPO_PAT="${GITHUB_DEMO_REPO_PAT}" \
+    --from-literal=BASE64_ENCODED_GCP_CREDS="${BASE64_ENCODED_GCP_CREDS}" \
     --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+unset BASE64_ENCODED_GCP_CREDS
 set -x
 
 echo "Applying Flux Crossplane source..."
