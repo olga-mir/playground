@@ -8,4 +8,7 @@ resources:
   - base/providers
   - base/compositions
   - secrets
+  - providerconfigs
+  - clusters
+  - values
   - claims

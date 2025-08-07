@@ -1,0 +1,11 @@
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: gke-mgmt-cluster-k8s-config
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: ${GKE_MGMT_CLUSTER}-kubeconfig
+      key: kubeconfig

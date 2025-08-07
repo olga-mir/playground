@@ -40,7 +40,6 @@ spec:
       spot: true
       machineType: ${MGMT_NODE_MACHINE_TYPE}
       diskSizeGb: 50
-      spot: true
     autoscaling:
       minNodeCount: 2
       maxNodeCount: 5
