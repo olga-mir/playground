@@ -86,7 +86,7 @@ echo "ArgoCD multi-cluster setup now handled by Crossplane Helm compositions..."
 echo "Adding repository to ArgoCD..."
 add_repo_to_argocd
 
-kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/rendered/argo-env-plugin-configmap.yaml
+kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/argo-env-plugin-configmap.yaml
 kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/argo-projects.yaml
 sleep 3
 kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations
