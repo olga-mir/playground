@@ -11,3 +11,17 @@ metadata:
   name: provider-kubernetes
 spec:
   package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v0.18.0
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-gcp-iam
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-gcp-iam:v1.12.1
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-gcp-storage
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-gcp-storage:v1.12.1
