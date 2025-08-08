@@ -18,8 +18,8 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic gcp-creds \
     --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
 echo "Creating Crossplane variables ConfigMap for Flux substituteFrom..."
-export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
 set +x
+export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars \
     --namespace flux-system \
     --from-literal=PROJECT_ID="${PROJECT_ID}" \
@@ -38,7 +38,7 @@ unset BASE64_ENCODED_GCP_CREDS
 set -x
 
 echo "Applying Flux Crossplane source..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/manifests/flux-root/crossplane-source.yaml"
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/flux/crossplane-source.yaml"
 
 echo "Waiting for Flux to sync Crossplane resources..."
 echo "This includes providers, compositions, and cluster claims"

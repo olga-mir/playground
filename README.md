@@ -37,12 +37,36 @@ Cluster provisioning with Argo and Crossplane installed on target clusters with 
 
 # Deployment
 
-Source required environment variables (explained in [infra-setup](./infra-setup/) and run task to provision both clusters with all components configured, up and running.
+## Prerequisites
+
+### GitHub Repository Secrets
+
+Configure these secrets in your GitHub repository settings (Settings → Secrets and variables → Actions):
+
+```bash
+# Workload Identity Federation for GitHub Actions
+WIF_PROVIDER=projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+WIF_SERVICE_ACCOUNT=github-actions-sa@PROJECT_ID.iam.gserviceaccount.com
+
+# GitHub token for Flux bootstrap (needs repo:write permissions)
+FLUX_GITHUB_TOKEN=ghp_your_personal_access_token_here
 ```
+
+Fully automated deployment:
+
+```bash
 $ task setup:deploy
 ```
 
-Everything should be running, all manifests applied by Argo, resources provisioned by Crossplane once the above task finishes.
+Everything should be running, all manifests applied by Flux, resources provisioned by Crossplane once the above task finishes.
+
+## How It Works - Flux Bootstrap Flow
+
+1. **Crossplane provisions GKE clusters** via kind cluster running Flux
+2. **Flux notification controller detects cluster readiness** and triggers GitHub webhook
+3. **GitHub Actions workflow authenticates to GCP** using Workload Identity Federation
+4. **Workflow bootstraps Flux on the new GKE cluster** with cluster-specific configuration
+5. **Flux on GKE cluster syncs platform applications** from this repository
 
 Uninstall everything:
 ```

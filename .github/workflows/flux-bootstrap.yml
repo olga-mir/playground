@@ -1,0 +1,112 @@
+name: Flux Bootstrap GKE Clusters
+
+on:
+  repository_dispatch:
+    types: [flux-cluster-ready]
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        type: string
+        description: "GKE Cluster Name"
+        required: true
+      region:
+        type: string
+        description: "GKE Region"
+        required: true
+      project_id:
+        type: string
+        description: "GCP Project ID"
+        required: true
+      cluster_type:
+        type: string
+        description: "Cluster Type (mgmt/apps-dev)"
+        required: true
+
+concurrency:
+  group: flux-bootstrap-${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  bootstrap-flux:
+    name: Bootstrap Flux on GKE Cluster
+    runs-on: ubuntu-latest
+
+    steps:
+    # REQUIRED: actions/checkout MUST come before auth
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Extract cluster info from payload
+      id: cluster-info
+      run: |
+        echo "cluster_name=${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}" >> $GITHUB_OUTPUT
+        echo "region=${{ github.event.inputs.region || github.event.client_payload.region }}" >> $GITHUB_OUTPUT
+        echo "project_id=${{ github.event.inputs.project_id || github.event.client_payload.project_id }}" >> $GITHUB_OUTPUT
+        echo "cluster_type=${{ github.event.inputs.cluster_type || github.event.client_payload.cluster_type }}" >> $GITHUB_OUTPUT
+        echo "Event payload: ${{ toJSON(github.event.client_payload) }}"
+
+    - name: Setup Flux CLI
+      uses: fluxcd/flux2/action@main
+
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        token_format: access_token
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+    # The KUBECONFIG env var is automatically exported and picked up by kubectl
+    - name: Get GKE credentials
+      id: get-credentials
+      uses: google-github-actions/get-gke-credentials@v2
+      with:
+        project_id: ${{ steps.cluster-info.outputs.project_id }}
+        cluster_name: ${{ steps.cluster-info.outputs.cluster_name }}
+        location: ${{ steps.cluster-info.outputs.region }}
+
+    - name: Create cluster config
+      run: |
+        # Create the namespace if it doesn't already exist
+        kubectl get namespace flux-system >/dev/null 2>&1 || kubectl create namespace flux-system
+        # Always create or update the ConfigMap
+        kubectl create configmap cluster-config -n flux-system \
+          --from-literal=PROJECT_ID="${{ steps.cluster-info.outputs.project_id }}" \
+          --from-literal=REGION="${{ steps.cluster-info.outputs.region }}" \
+          --from-literal=CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster_name }}" \
+          --from-literal=CLUSTER_TYPE="${{ steps.cluster-info.outputs.cluster_type }}" \
+          --from-literal=REPO_OWNER="${{ github.repository_owner }}" \
+          --from-literal=REPO_NAME="${{ github.event.repository.name }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Run Flux pre-installation checks
+      run: |
+        flux check --pre
+
+    - name: Bootstrap Flux
+      id: bootstrap
+      env:
+        GITHUB_TOKEN: ${{ secrets.FLUX_GITHUB_TOKEN }}
+      run: |
+        CLUSTER_TYPE="${{ steps.cluster-info.outputs.cluster_type }}"
+
+        flux bootstrap github \
+          --owner="${{ github.repository_owner }}" \
+          --repository="${{ github.event.repository.name }}" \
+          --branch="${{ github.ref_name }}" \
+          --path="./clusters/${CLUSTER_TYPE}" \
+          --token-auth \
+          --network-policy=true \
+          --components-extra=image-reflector-controller,image-automation-controller \
+          --timeout=10m0s
+
+    - name: Run Flux installation checks
+      run: |
+        flux check
+        echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster_name }}"

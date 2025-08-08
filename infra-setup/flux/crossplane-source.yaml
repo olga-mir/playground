@@ -17,11 +17,30 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./infra-setup/flux-crossplane/base"
+  path: "./infra-setup/crossplane/base"
   prune: true
   sourceRef:
     kind: GitRepository
     name: crossplane-config
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: crossplane-vars
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-providerconfigs
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./infra-setup/crossplane/providerconfigs"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-base
   postBuild:
     substituteFrom:
       - kind: ConfigMap
@@ -34,13 +53,13 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./infra-setup/flux-crossplane/secrets"
+  path: "./infra-setup/crossplane/secrets"
   prune: true
   sourceRef:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
-    - name: crossplane-claims
+    - name: crossplane-providerconfigs
   postBuild:
     substituteFrom:
       - kind: ConfigMap
@@ -53,13 +72,13 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./infra-setup/flux-crossplane/claims"
+  path: "./infra-setup/crossplane/claims"
   prune: true
   sourceRef:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
-    - name: crossplane-base
+    - name: crossplane-providerconfigs
   postBuild:
     substituteFrom:
       - kind: ConfigMap

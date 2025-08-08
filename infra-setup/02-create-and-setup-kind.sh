@@ -35,9 +35,8 @@ until kubectl get crd providers.pkg.crossplane.io &>/dev/null; do
   sleep 5
 done
 
-# gke-provider is not templated, but rendered folder is .gitignor'ed
-# so it is an exception that can be applied directly
-kubectl apply -f ${REPO_ROOT}/infra-setup/manifests/templates/gke-provider.yaml
+# Apply providers configuration
+kubectl apply -f ${REPO_ROOT}/infra-setup/crossplane/base/providers/providers.yaml
 
 # Wait for CRDs to be established
 sleep 10
@@ -70,13 +69,14 @@ else
 fi
 
 # Verify FluxCD CLI installation
+set +x
 flux version --client
 echo "Bootstrapping FluxCD..."
 GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
   --owner=${GITHUB_DEMO_REPO_OWNER} \
   --repository=${GITHUB_DEMO_REPO_NAME} \
   --branch=base-refactor \
-  --path=./infra-setup/manifests/flux-root \
+  --path=./infra-setup/flux \
   --personal
 set -x
 

@@ -1,0 +1,40 @@
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: github-webhook
+  namespace: flux-system
+spec:
+  type: github
+  address: https://api.github.com
+  secretRef:
+    name: github-webhook-token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-webhook-token
+  namespace: flux-system
+type: Opaque
+stringData:
+  token: ${GITHUB_DEMO_REPO_PAT}
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: cluster-ready-alert
+  namespace: flux-system
+spec:
+  providerRef:
+    name: github-webhook
+  eventSeverity: info
+  eventSources:
+  - kind: Kustomization
+    name: crossplane-claims
+    namespace: flux-system
+  summary: "GKE Cluster provisioned by Crossplane"
+  eventMetadata:
+    cluster_name: "{{ .Object.metadata.name }}"
+    region: "${REGION}"
+    project_id: "${PROJECT_ID}"
+    cluster_type: "{{ if contains .Object.metadata.name \"mgmt\" }}mgmt{{ else if contains .Object.metadata.name \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"

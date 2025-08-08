@@ -2,19 +2,49 @@
 
 set -eoux pipefail
 
-
 echo THIS SETUP ONLY NEEDED ONCE
 exit 0
 
+# Create Workload Identity Pool
+gcloud iam workload-identity-pools create github-pool \
+    --project=$PROJECT_ID \
+    --location=global \
+    --display-name="GitHub Actions Pool"
+
+# Create Workload Identity Provider
+gcloud iam workload-identity-pools providers create-oidc github-provider \
+    --project=$PROJECT_ID \
+    --location=global \
+    --workload-identity-pool=github-pool \
+    --display-name="GitHub Actions Provider" \
+    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+    --attribute-condition="attribute.repository.startsWith('${GITHUB_DEMO_REPO_OWNER}')" \
+    --issuer-uri="https://token.actions.githubusercontent.com"
+
+# Create service account for GitHub Actions
+gcloud iam service-accounts create github-actions-sa \
+    --project=$PROJECT_ID \
+    --display-name="GitHub Actions Service Account"
+
+# Grant necessary permissions
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com" \
+    --role="roles/container.developer"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com" \
+    --role="roles/container.clusterAdmin"
+
+# Allow GitHub repo to impersonate the service account
+GITHUB_REPO=${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}
+gcloud iam service-accounts add-iam-policy-binding \
+    github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com \
+    --project=$PROJECT_ID \
+    --role="roles/iam.workloadIdentityUser" \
+    --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/attribute.repository/$GITHUB_REPO"
 
 # Validate required environment variables
-required_vars=("GKE_VPC" "GKE_MGMT_CLUSTER" "GKE_APPS_DEV_CLUSTER" "REGION" "PROJECT_ID")
-for var in "${required_vars[@]}"; do
-    if [ -z "${!var:-}" ]; then
-        echo "Error: $var environment variable is not set"
-        exit 1
-    fi
-done
+# TODO - env var validation has been removed. use taskfile to validate setup
 
 gcloud iam service-accounts create crossplane-gke-sa \
     --display-name="Crossplane GKE Service Account"
