@@ -1,27 +1,21 @@
 # Project purpose
 * This is project that covers wide range of technology for learning and exploration for experienced Kubernetes and Platform Engineers
 * This is not production ready project, but we aim for comprehensive prod-like solutions as much as possible
-* The infrastructure in this project is disposable - it is provisioned in the beginning of a learning session and then fully destroyed after use - therefore all out-of-band commands must be captured in yaml manifests, bash scripts or taskfiles.
+* The infrastructure in this project is disposable - it is provisioned in the beginning of a learning session and then fully destroyed. All out-of-band commands must be captured in yaml manifests, bash scripts or taskfiles.
 * The infrastructure is provisioned in a personal GCP account - we need to be aware of costs and security.
 
 # important-instruction-reminders
-* prefer editing an existing file to creating a new one.
 * NEVER proactively create documentation files (.md) or README files. Only create documentation files if explicitly requested by the User.
 * NEVER commit project ID or other semi-sensitve information
-* when moving or creating files remember that they need to be versioned - use 'git mv' over 'mv' and similar commands.
+* be aware if files are versioned, use "git mv" over "mv" commands when working with files.
 
 # architecture-context
 This is a multi-cluster Kubernetes setup using Crossplane for infrastructure provisioning:
 
 ## Cluster Architecture
-- **kind cluster (local)**: Runs Crossplane control plane for orchestrating cloud resources
-- **GKE mgmt cluster (GCP)**: Management cluster with ArgoCD for GitOps and Crossplane for managing platform
-- **GKE apps-dev cluster (GCP)**: Applications cluster with minimal ArgoCD agent
-
-## Key Components
-- Crossplane compositions create GKE clusters, ArgoCD installations, and Crossplane deployments
-- Helm provider deploys charts to remote GKE clusters (requires GCP auth)
-- Claims define desired GKE clusters via custom resources (GKECluster)
+- **kind cluster (local)**: Runs Crossplane and FluxCD. GKE clusters are synced from `infra-setup` folder and provisioned by Crossplane.
+- **GKE mgmt cluster (GCP)**: Control Cluster. But in the currect stage it runs applications too, eventually we need to move them out.
+- **GKE apps-dev cluster (GCP)**: Applications cluster.
 
 ## File Structure
 ```
@@ -30,15 +24,7 @@ This is a multi-cluster Kubernetes setup using Crossplane for infrastructure pro
 ├── local        # supporting experiements that I run locally
 ├── platform     # setup platform components on target GKE clusters, wires up GitOps to deploy payload from other folders
 ├── tasks        # Taskfile supporting tasks
-└── teams        # Platform tenants that consume platform as exposed by the platform team
-```
-
-one level in `platforms`
-```
-platform
-├── argocd-foundations # foundations for ArgoCD on GKE Clusters - ArgoCD projects, ApplicationSets
-├── config             # payload to be read by ArgoCD applicationSets and deployed to GKE clusters
-└── crossplane         # Crossplane payload deployed by Argo to "mgmt" cluster
+└── teams        # Software Engineering tenant teams that deploy to the platform and consume platform abstractions and APIs.
 ```
 
 ### Sub Goals
@@ -58,7 +44,7 @@ platform
 
 ## VARIABLES
 * Some of the variables won't be available to you terminal where you are running.
-* This variables are always sourced in a "working" terminal:
+* These variables are always sourced in a "working" terminal:
 
 ```
 export GKE_VPC
