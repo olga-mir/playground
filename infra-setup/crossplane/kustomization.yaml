@@ -10,5 +10,4 @@ resources:
   - secrets
   - providerconfigs
   - clusters
-  - values
   - claims

@@ -28,68 +28,11 @@ export CROSSPLANE_GITHUB_SECRET_NAMESPACE="crossplane-system"
 
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 
-# Function to wait for ArgoCD repo server pods to be ready
-wait_for_argocd_ready() {
-  echo "Waiting for ArgoCD repo server to be ready..."
+# ArgoCD functions disabled - migrated to FluxCD
+# wait_for_argocd_ready() { ... }
+# add_repo_to_argocd() { ... }
 
-  # Maximum number of retries
-  local max_retries=30
-  local retry_count=0
-  local ready=false
-
-  while [ $retry_count -lt $max_retries ] && [ "$ready" = false ]; do
-    # Check if pod with label app.kubernetes.io/name=argocd-repo-server is ready
-    if kubectl --context="${MGMT_CLUSTER_CONTEXT}" -n "${ARGOCD_NAMESPACE}" wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-repo-server --timeout=10s >/dev/null 2>&1; then
-      echo "ArgoCD repo server is ready!"
-      ready=true
-    else
-      echo "Waiting for ArgoCD repo server to be ready... (${retry_count}/${max_retries})"
-      retry_count=$((retry_count+1))
-      sleep 10
-    fi
-  done
-
-  if [ "$ready" = false ]; then
-    echo "Timed out waiting for ArgoCD repo server to be ready"
-    return 1
-  fi
-
-  return 0
-}
-
-# Function to add a repository to Argo CD
-add_repo_to_argocd() {
-  echo "Adding repository to Argo CD..."
-
-  # Create a secret for the Git repository
-  # This directly configures the repository in ArgoCD without needing separate ConfigMaps or kustomization
-  echo Setting up secret for repo "https://github.com/${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}.git"
-  kubectl --context="${MGMT_CLUSTER_CONTEXT}" -n "${ARGOCD_NAMESPACE}" create secret generic "${GITHUB_DEMO_REPO_NAME}-repo" \
-    --from-literal=type=git \
-    --from-literal=url="https://github.com/${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}.git" \
-    --from-literal=username="${GITHUB_DEMO_REPO_OWNER}" \
-    --from-literal=password="${GITHUB_DEMO_REPO_PAT}" \
-    --dry-run=client -o yaml | kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f - || { echo "Error creating repo secret"; exit 1; }
-
-  # Add a label to the secret so ArgoCD recognizes it as a repository configuration
-  kubectl --context="${MGMT_CLUSTER_CONTEXT}" -n "${ARGOCD_NAMESPACE}" label secret "${GITHUB_DEMO_REPO_NAME}-repo" \
-    argocd.argoproj.io/secret-type=repository --overwrite || { echo "Error labeling repo secret"; exit 1; }
-
-  echo "Repository ${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME} added to Argo CD successfully."
-}
-
-echo "Waiting for ArgoCD to be ready (installed by Composition)..."
-wait_for_argocd_ready
-
-echo "ArgoCD multi-cluster setup now handled by Crossplane Helm compositions..."
-
-echo "Adding repository to ArgoCD..."
-add_repo_to_argocd
-
-kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/infra-setup/manifests/argo-env-plugin-configmap.yaml
-kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations/argo-projects.yaml
-sleep 3
-kubectl --context="${MGMT_CLUSTER_CONTEXT}" apply -f ${REPO_ROOT}/platform/argocd-foundations
+echo "ArgoCD setup skipped - migrated to FluxCD"
 
 # Create secret for apps-dev cluster kubeconfig
 echo "Creating secret for apps-dev cluster kubeconfig..."

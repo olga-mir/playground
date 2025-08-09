@@ -16,15 +16,6 @@ spec:
     minNodes: 2
     maxNodes: 5
 
-    # ArgoCD configuration
-    argocd:
-      enabled: true
-      version: "v3.1.0-rc1"
-      chartVersion: "8.1.2"
-      repoUrl: "https://github.com/${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}.git"
-      repoToken: "${GITHUB_DEMO_REPO_PAT}"
-      repoOwner: "${GITHUB_DEMO_REPO_OWNER}"
-
     # Crossplane configuration
     # no "v": https://charts.crossplane.io/preview/
     crossplane:

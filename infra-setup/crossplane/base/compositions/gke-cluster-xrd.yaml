@@ -61,31 +61,7 @@ spec:
                     default: 5
                     description: "Maximum number of nodes"
 
-                  # ArgoCD configuration (mgmt clusters only)
-                  argocd:
-                    type: object
-                    properties:
-                      enabled:
-                        type: boolean
-                        default: true
-                        description: "Install ArgoCD on this cluster"
-                      version:
-                        type: string
-                        default: "v2.14.10"
-                        description: "ArgoCD version"
-                      chartVersion:
-                        type: string
-                        default: "7.8.26"
-                        description: "ArgoCD Helm chart version"
-                      repoUrl:
-                        type: string
-                        description: "Git repository URL for ArgoCD"
-                      repoToken:
-                        type: string
-                        description: "Git repository token"
-                      repoOwner:
-                        type: string
-                        description: "Git repository owner"
+                  # ArgoCD configuration removed - migrated to FluxCD
 
                   # Crossplane configuration (mgmt clusters only)
                   crossplane:

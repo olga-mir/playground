@@ -48,7 +48,6 @@ spec:
       name: ${GKE_APPS_DEV_CLUSTER}
     maxPodsPerNode: 32
     nodeConfig:
-      spot: true
       machineType: ${APPS_DEV_NODE_MACHINE_TYPE}
       diskSizeGb: 50
       spot: true
