@@ -1,0 +1,21 @@
+apiVersion: platform.tornado-demo.io/v1alpha1
+kind: GKECluster
+metadata:
+  name: control-plane-cluster
+  namespace: gkecluster-control-plane
+spec:
+  compositionRef:
+    name: control-plane-composition
+  parameters:
+    clusterName: "${GKE_CONTROL_PLANE_CLUSTER}"
+    clusterType: control-plane
+    projectId: "${PROJECT_ID}"
+    region: "${REGION}"
+    zone: "${ZONE}"
+    vpcName: "${GKE_VPC}"
+    subnetName: "${CONTROL_PLANE_SUBNET_NAME}"
+    machineType: "e2-standard-4"
+    minNodes: 2
+    maxNodes: 5
+
+    # Crossplane configuration removed - clusters managed by Flux only

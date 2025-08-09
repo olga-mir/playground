@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: gkecluster-mgmt
-  labels:
-    cluster.platform.io/name: mgmt
-    cluster.platform.io/type: management

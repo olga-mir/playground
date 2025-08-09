@@ -13,9 +13,9 @@
 This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure provisioning and FluxCD for GitOps:
 
 ## Cluster Architecture
-- **kind cluster (local)**: Hub cluster running Crossplane v2 and FluxCD. Provisions GKE clusters via Composite Resources.
-- **GKE mgmt cluster (GCP)**: Management cluster with Flux, platform services, and AI stack (kagent).
-- **GKE apps-dev cluster (GCP)**: Applications cluster for tenant workloads.
+- **kind cluster (local)**: Temporary bootstrap cluster running Crossplane v2 and FluxCD. Provisions GKE control plane cluster.
+- **GKE control-plane cluster (GCP)**: Control plane cluster with Crossplane, Flux, and platform services. Provisions workload clusters.
+- **GKE apps-dev cluster (GCP)**: Workload cluster for tenant applications.
 
 ## GitOps Flow
 1. **Crossplane Composite Resources** → provision GKE clusters
@@ -59,13 +59,13 @@ This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure 
 
 ```
 export GKE_VPC
-export GKE_MGMT_CLUSTER
+export GKE_CONTROL_PLANE_CLUSTER
 export GKE_APPS_DEV_CLUSTER
 export REGION
 export ZONE
 export PROJECT_ID
 export PROJECT_NUMBER
-export MGMT_SUBNET_NAME
+export CONTROL_PLANE_SUBNET_NAME
 export APPS_DEV_SUBNET_NAME
 export CROSSPLANE_GSA_KEY_FILE
 export DOMAIN
@@ -84,3 +84,33 @@ export OPENAI_API_KEY
 export CLAUDE_MCP_CONFIG_FILE
 export PINECONE_API_KEY
 ```
+
+## Working with Crossplane Composite Resources (GitOps)
+
+When debugging or fixing Crossplane composite resources in this GitOps setup:
+
+1. **Suspend Flux kustomization** to prevent interference:
+   ```bash
+   kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge
+   ```
+
+2. **Fix issues** by editing the composition or composite resource files locally
+
+3. **Resume kustomization** after fixes:
+   ```bash
+   kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge
+   ```
+
+4. **Commit and push** changes for GitOps to apply them:
+   ```bash
+   git add <changed-files>
+   git commit -m "fix: description of changes"
+   git push
+   ```
+
+5. **Force reconciliation** if needed:
+   ```bash
+   kubectl --context kind-kind-test-cluster annotate kustomization crossplane-base -n flux-system reconcile.fluxcd.io/requestedAt=$(date '+%Y-%m-%dT%H:%M:%S%z') --overwrite
+   ```
+
+**Note**: Always work through GitOps - direct kubectl changes will be overridden by Flux.

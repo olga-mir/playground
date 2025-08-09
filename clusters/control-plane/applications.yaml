@@ -1,4 +1,4 @@
-# Applications to be deployed on mgmt cluster via Flux
+# Applications to be deployed on control-plane cluster via Flux
 apiVersion: v1
 kind: Namespace
 metadata:

@@ -3,4 +3,5 @@ kind: Kustomization
 
 resources:
   - gke-cluster-xrd.yaml
-  - gke-cluster-composition.yaml
+  - control-plane-composition.yaml
+  - workload-composition.yaml

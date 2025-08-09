@@ -25,10 +25,10 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars 
     --from-literal=PROJECT_ID="${PROJECT_ID}" \
     --from-literal=REGION="${REGION}" \
     --from-literal=ZONE="${ZONE}" \
-    --from-literal=GKE_MGMT_CLUSTER="${GKE_MGMT_CLUSTER}" \
+    --from-literal=GKE_CONTROL_PLANE_CLUSTER="${GKE_CONTROL_PLANE_CLUSTER}" \
     --from-literal=GKE_APPS_DEV_CLUSTER="${GKE_APPS_DEV_CLUSTER}" \
     --from-literal=GKE_VPC="${GKE_VPC}" \
-    --from-literal=MGMT_SUBNET_NAME="${MGMT_SUBNET_NAME}" \
+    --from-literal=CONTROL_PLANE_SUBNET_NAME="${CONTROL_PLANE_SUBNET_NAME}" \
     --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
     --from-literal=GITHUB_DEMO_REPO_OWNER="${GITHUB_DEMO_REPO_OWNER}" \
     --from-literal=GITHUB_DEMO_REPO_PAT="${GITHUB_DEMO_REPO_PAT}" \
@@ -81,7 +81,7 @@ wait_for_cluster_ready() {
 }
 
 # Wait for both clusters sequentially to handle Ctrl+C properly
-wait_for_cluster_ready "mgmt-cluster" "gkecluster-mgmt"
+wait_for_cluster_ready "control-plane-cluster" "gkecluster-control-plane"
 wait_for_cluster_ready "apps-dev-cluster" "gkecluster-apps-dev"
 
 echo "✅ All clusters are ready!"
@@ -90,7 +90,7 @@ echo "Monitor detailed progress with: kubectl --context=${KIND_CROSSPLANE_CONTEX
 # Get cluster credentials for local kubectl access
 echo "🔑 Setting up local cluster credentials..."
 gcloud container clusters get-credentials "${GKE_APPS_DEV_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
-gcloud container clusters get-credentials "${GKE_MGMT_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
+gcloud container clusters get-credentials "${GKE_CONTROL_PLANE_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
 
 echo ""
 echo "🎉 Cluster provisioning complete!"

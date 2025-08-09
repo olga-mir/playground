@@ -1,0 +1,165 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: control-plane-composition
+  labels:
+    provider: gcp
+    service: control-plane
+  annotations:
+    crossplane.io/revision: "v1"
+spec:
+  compositeTypeRef:
+    apiVersion: platform.tornado-demo.io/v1alpha1
+    kind: GKECluster
+
+  mode: Pipeline
+  pipeline:
+  - step: cluster-resources
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          ---
+          # GKE Cluster
+          apiVersion: container.gcp-beta.upbound.io/v1beta2
+          kind: Cluster
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+            annotations:
+              crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+          spec:
+            providerConfigRef:
+              name: crossplane-provider-gcp
+            forProvider:
+              network: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/global/networks/{{ .observed.composite.resource.spec.parameters.vpcName }}"
+              subnetwork: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/regions/{{ .observed.composite.resource.spec.parameters.region }}/subnetworks/{{ .observed.composite.resource.spec.parameters.subnetName }}"
+              location: "{{ .observed.composite.resource.spec.parameters.zone }}"
+              workloadIdentityConfig:
+                workloadPool: "{{ .observed.composite.resource.spec.parameters.projectId }}.svc.id.goog"
+              initialNodeCount: 1
+              removeDefaultNodePool: true
+              gatewayApiConfig:
+                channel: CHANNEL_STANDARD
+              enableAutopilot: false
+              releaseChannel:
+                channel: RAPID
+            writeConnectionSecretToRef:
+              namespace: crossplane-system
+              name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
+          ---
+          # GKE Node Pool
+          apiVersion: container.gcp-beta.upbound.io/v1beta2
+          kind: NodePool
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+            annotations:
+              crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+          spec:
+            forProvider:
+              clusterRef:
+                name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+              maxPodsPerNode: 32
+              nodeConfig:
+                spot: true
+                machineType: {{ .observed.composite.resource.spec.parameters.machineType }}
+                diskSizeGb: 50
+              autoscaling:
+                minNodeCount: {{ .observed.composite.resource.spec.parameters.minNodes }}
+                maxNodeCount: {{ .observed.composite.resource.spec.parameters.maxNodes }}
+              management:
+                autoRepair: true
+                autoUpgrade: true
+            providerConfigRef:
+              name: crossplane-provider-gcp
+          {{ if eq .observed.composite.resource.spec.parameters.clusterType "control-plane" }}
+          ---
+          # Kubernetes ProviderConfig for this cluster (no dependencies - can be created in parallel)
+          apiVersion: kubernetes.crossplane.io/v1alpha1
+          kind: ProviderConfig
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+          spec:
+            credentials:
+              source: Secret
+              secretRef:
+                namespace: crossplane-system
+                name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
+                key: kubeconfig
+          {{ end }}
+
+# ArgoCD step removed - migrated to FluxCD
+
+  - step: control-plane-resources
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          ---
+          # Helm ProviderConfig for Crossplane installation
+          apiVersion: helm.crossplane.io/v1beta1
+          kind: ProviderConfig
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-helm-provider
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-helm-provider
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-helm-provider
+          spec:
+            credentials:
+              source: Secret
+              secretRef:
+                namespace: crossplane-system
+                name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
+                key: kubeconfig
+            identity:
+              type: GoogleApplicationCredentials
+              source: Secret
+              secretRef:
+                namespace: crossplane-system
+                name: gcp-creds
+                key: credentials
+          ---
+          # Crossplane Helm Release for control plane
+          apiVersion: helm.crossplane.io/v1beta1
+          kind: Release
+          metadata:
+            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane
+          spec:
+            providerConfigRef:
+              name: {{ .observed.composite.resource.spec.parameters.clusterName }}-helm-provider
+            forProvider:
+              namespace: crossplane-system
+              chart:
+                name: crossplane
+                url: https://charts.crossplane.io/stable
+                version: "1.14.5"
+              values:
+                resourcesCrossplane:
+                  limits:
+                    cpu: 500m
+                    memory: 1Gi
+                  requests:
+                    cpu: 100m
+                    memory: 512Mi
+
+  - step: ready
+    functionRef:
+      name: function-auto-ready
+

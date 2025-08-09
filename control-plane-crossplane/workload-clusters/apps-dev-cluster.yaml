@@ -1,14 +1,11 @@
 apiVersion: platform.tornado-demo.io/v1alpha1
-kind: GKECluster
+kind: WorkloadCluster
 metadata:
   name: apps-dev-cluster
-  namespace: gkecluster-apps-dev
+  namespace: default
 spec:
-  compositionRef:
-    name: workload-composition
   parameters:
     clusterName: "${GKE_APPS_DEV_CLUSTER}"
-    clusterType: workload
     projectId: "${PROJECT_ID}"
     region: "${REGION}"
     zone: "${ZONE}"
@@ -17,5 +14,5 @@ spec:
     machineType: "e2-medium"
     minNodes: 2
     maxNodes: 5
-
-    # No Crossplane on apps clusters - managed by Flux only
+  compositeDeletePolicy: Foreground
+  writeConnectionSecretsToNamespace: default
