@@ -25,13 +25,12 @@ spec:
         namespace: flux-system
       interval: 12h
   targetNamespace: crossplane-system
-  createNamespace: true
   install:
+    createNamespace: true
     remediation:
       retries: 3
   upgrade:
     remediation:
       retries: 3
-  values:
-    args:
-      - --enable-composition-functions
+  #values:
+  # https://github.com/crossplane/crossplane/blob/main/cluster/charts/crossplane/values.yaml

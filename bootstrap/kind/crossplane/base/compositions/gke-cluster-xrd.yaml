@@ -27,7 +27,7 @@ spec:
                     description: "Name of the GKE cluster"
                   clusterType:
                     type: string
-                    enum: ["control-plane", "apps"]
+                    enum: ["control-plane", "workload"]
                     description: "Type of cluster - control-plane (management) or apps (applications)"
                   projectId:
                     type: string

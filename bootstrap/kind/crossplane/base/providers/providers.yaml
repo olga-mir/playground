@@ -24,4 +24,5 @@ kind: Provider
 metadata:
   name: provider-gcp-beta-container
 spec:
-  package: xpkg.crossplane.io/upbound/provider-gcp-beta-container:v0.5.1
+  package: xpkg.upbound.io/upbound/provider-gcp-beta-container:v0.5.1
+
