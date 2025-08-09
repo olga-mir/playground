@@ -3,42 +3,12 @@
 set -eoux pipefail
 
 export KIND_CROSSPLANE_CONTEXT="kind-kind-test-cluster"
-
 export REPO_ROOT=$(git rev-parse --show-toplevel)
-
-echo "Creating GCP credentials secret..."
-if [ -z "${CROSSPLANE_GSA_KEY_FILE:-}" ]; then
-    echo "Error: CROSSPLANE_GSA_KEY_FILE environment variable is not set."
-    exit 1
-fi
-
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic gcp-creds \
-    --namespace crossplane-system \
-    --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
-    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
-
-echo "Creating Crossplane variables ConfigMap for Flux substituteFrom..."
-set +x
-export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars \
-    --namespace flux-system \
-    --from-literal=PROJECT_ID="${PROJECT_ID}" \
-    --from-literal=REGION="${REGION}" \
-    --from-literal=ZONE="${ZONE}" \
-    --from-literal=GKE_CONTROL_PLANE_CLUSTER="${GKE_CONTROL_PLANE_CLUSTER}" \
-    --from-literal=GKE_APPS_DEV_CLUSTER="${GKE_APPS_DEV_CLUSTER}" \
-    --from-literal=GKE_VPC="${GKE_VPC}" \
-    --from-literal=CONTROL_PLANE_SUBNET_NAME="${CONTROL_PLANE_SUBNET_NAME}" \
-    --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
-    --from-literal=GITHUB_DEMO_REPO_OWNER="${GITHUB_DEMO_REPO_OWNER}" \
-    --from-literal=GITHUB_DEMO_REPO_PAT="${GITHUB_DEMO_REPO_PAT}" \
-    --from-literal=BASE64_ENCODED_GCP_CREDS="${BASE64_ENCODED_GCP_CREDS}" \
-    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
-unset BASE64_ENCODED_GCP_CREDS
-set -x
 
 echo "Applying Flux Crossplane source..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/bootstrap/kind/flux/crossplane-source.yaml"
+
+sleep 15
 
 echo "Waiting for Flux to sync Crossplane resources..."
 echo "This includes providers, compositions, and cluster Composite Resources"
