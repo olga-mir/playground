@@ -32,10 +32,7 @@ tasks:
         msg: "DNS_PROJECT is not set"
       - sh: test -n "$DNS_ZONE"
         msg: "DNS_ZONE is not set"
-      - sh: test -n "$ARGOCD_STD_HOSTNAME"
-        msg: "ARGOCD_STD_HOSTNAME is not set"
-      - sh: test -n "$ARGOCD_MCP_HOSTNAME"
-        msg: "ARGOCD_MCP_HOSTNAME is not set"
+# ArgoCD variables removed - migrated to FluxCD
       - sh: test -n "$GITHUB_DEMO_REPO_OWNER"
         msg: "GITHUB_DEMO_REPO_OWNER is not set"
       - sh: test -n "$GITHUB_DEMO_REPO_NAME"
@@ -56,6 +53,7 @@ tasks:
         msg: "CLAUDE_MCP_CONFIG_FILE is not set"
       - sh: test -n "$PINECONE_API_KEY"
         msg: "PINECONE_API_KEY is not set"
+      # Note: WIF_PROVIDER and WIF_SERVICE_ACCOUNT should be set as GitHub repository secrets
     env:
       GKE_VPC: "{{.GKE_VPC}}"
       GKE_MGMT_CLUSTER: "{{.GKE_MGMT_CLUSTER}}"
@@ -71,8 +69,7 @@ tasks:
       CERT_NAME: "{{.CERT_NAME}}"
       DNS_PROJECT: "{{.DNS_PROJECT}}"
       DNS_ZONE: "{{.DNS_ZONE}}"
-      ARGOCD_STD_HOSTNAME: "{{.ARGOCD_STD_HOSTNAME}}"
-      ARGOCD_MCP_HOSTNAME: "{{.ARGOCD_MCP_HOSTNAME}}"
+# ArgoCD environment variables removed - migrated to FluxCD
       GITHUB_DEMO_REPO_OWNER: "{{.GITHUB_DEMO_REPO_OWNER}}"
       GITHUB_DEMO_REPO_NAME: "{{.GITHUB_DEMO_REPO_NAME}}"
       GITHUB_DEMO_REPO_PAT: "{{.GITHUB_DEMO_REPO_PAT}}"
@@ -86,9 +83,8 @@ tasks:
     cmds:
       - "{{.TASKFILE_DIR}}/infra-setup/02-create-and-setup-kind.sh"
       - "{{.TASKFILE_DIR}}/infra-setup/03-apply-compositions.sh"
-      - "{{.TASKFILE_DIR}}/infra-setup/04-setup-gke-clusters.sh"
-      - sleep 100
-      - "{{.TASKFILE_DIR}}/infra-setup/98-argocd-gateway-api.sh"
+      # Clusters are now provisioned via Crossplane and bootstrapped via GitHub Actions
+      # No direct cluster setup needed - Flux handles everything
 
   cleanup:
     desc: "Cleanup infrastructure (forcefull)"

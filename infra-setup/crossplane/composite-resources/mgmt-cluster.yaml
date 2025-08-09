@@ -1,8 +1,8 @@
 apiVersion: platform.tornado-demo.io/v1alpha1
 kind: GKECluster
 metadata:
-  name: mgmt
-  namespace: gke
+  name: mgmt-cluster
+  namespace: gkecluster-mgmt
 spec:
   parameters:
     clusterName: "${GKE_MGMT_CLUSTER}"
@@ -17,9 +17,6 @@ spec:
     maxNodes: 5
 
     # Crossplane configuration
-    # no "v": https://charts.crossplane.io/preview/
     crossplane:
       enabled: true
       version: "2.0.0-preview.1"
-
-  compositeDeletePolicy: Foreground

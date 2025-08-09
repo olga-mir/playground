@@ -30,7 +30,7 @@ spec:
   eventSeverity: info
   eventSources:
   - kind: Kustomization
-    name: crossplane-claims
+    name: crossplane-composite-resources
     namespace: flux-system
   summary: "GKE Cluster provisioned by Crossplane"
   eventMetadata:

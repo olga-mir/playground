@@ -59,7 +59,7 @@ spec:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
-    - name: crossplane-providerconfigs
+    - name: crossplane-composite-resources
   postBuild:
     substituteFrom:
       - kind: ConfigMap
@@ -68,11 +68,11 @@ spec:
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: crossplane-claims
+  name: crossplane-composite-resources
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./infra-setup/crossplane/claims"
+  path: "./infra-setup/crossplane/composite-resources"
   prune: true
   sourceRef:
     kind: GitRepository

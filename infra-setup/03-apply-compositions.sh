@@ -41,56 +41,64 @@ echo "Applying Flux Crossplane source..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/flux/crossplane-source.yaml"
 
 echo "Waiting for Flux to sync Crossplane resources..."
-echo "This includes providers, compositions, and cluster claims"
+echo "This includes providers, compositions, and cluster Composite Resources"
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-base -n flux-system --timeout=600s
-
-echo "Waiting for providers and functions to be ready..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=300s
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=300s
-
-echo "Waiting for XRD to be established..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=60s
-
-echo "Applying cluster claims via Flux..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-claims -n flux-system --timeout=300s
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-composite-resources -n flux-system --timeout=300s
 
 echo "Clusters creation initiated via Crossplane compositions!"
 
 echo "Waiting for clusters to be ready..."
 echo "This may take 10-15 minutes for GKE clusters to provision..."
 
-# Function to wait for a cluster to be ready using the actual cluster resource
+# Function to wait for a cluster to be ready using Composite Resources
 wait_for_cluster_ready() {
-    local cluster_name="$1"
+    local composite_name="$1"
+    local composite_namespace="$2"
     local max_retries=60  # x45 sec
     local retry_count=0
 
     while [ $retry_count -lt $max_retries ]; do
-        if kubectl --context="${KIND_CROSSPLANE_CONTEXT}" get cluster "${cluster_name}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
-            echo "✅ Cluster $cluster_name is ready!"
+        if kubectl --context="${KIND_CROSSPLANE_CONTEXT}" get gkeclusters.platform.tornado-demo.io "${composite_name}" -n "${composite_namespace}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
+            echo "✅ Cluster $composite_name is ready!"
             return 0
         fi
 
-        echo "⏳ Waiting for cluster $cluster_name to be ready... (${retry_count}/${max_retries})"
+        echo "⏳ Waiting for cluster $composite_name to be ready... (${retry_count}/${max_retries})"
         retry_count=$((retry_count+1))
 
         # Handle interruption properly
         if ! sleep 45; then
-            echo "❌ Interrupted waiting for cluster $cluster_name"
+            echo "❌ Interrupted waiting for cluster $composite_name"
             return 1
         fi
     done
 
-    echo "❌ Timeout waiting for cluster $cluster_name to be ready"
+    echo "❌ Timeout waiting for cluster $composite_name to be ready"
     return 1
 }
 
 # Wait for both clusters sequentially to handle Ctrl+C properly
-wait_for_cluster_ready "${GKE_MGMT_CLUSTER}"
-wait_for_cluster_ready "${GKE_APPS_DEV_CLUSTER}"
+wait_for_cluster_ready "mgmt-cluster" "gkecluster-mgmt"
+wait_for_cluster_ready "apps-dev-cluster" "gkecluster-apps-dev"
 
 echo "✅ All clusters are ready!"
 echo "Monitor detailed progress with: kubectl --context=${KIND_CROSSPLANE_CONTEXT} get gkeclusters -w"
 
+# Get cluster credentials for local kubectl access
+echo "🔑 Setting up local cluster credentials..."
 gcloud container clusters get-credentials "${GKE_APPS_DEV_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
 gcloud container clusters get-credentials "${GKE_MGMT_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
+
+echo ""
+echo "🎉 Cluster provisioning complete!"
+echo ""
+echo "Next steps:"
+echo "1. Flux notifications will automatically trigger GitHub Actions"
+echo "2. GitHub Actions will bootstrap Flux on the new GKE clusters"
+echo "3. Flux will deploy applications to the clusters"
+echo ""
+echo "Monitor GitHub Actions: https://github.com/${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}/actions"
+echo "Check cluster status: kubectl --context=${KIND_CROSSPLANE_CONTEXT} get gkeclusters -A"

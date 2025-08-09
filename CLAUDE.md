@@ -10,37 +10,48 @@
 * be aware if files are versioned, use "git mv" over "mv" commands when working with files.
 
 # architecture-context
-This is a multi-cluster Kubernetes setup using Crossplane for infrastructure provisioning:
+This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure provisioning and FluxCD for GitOps:
 
 ## Cluster Architecture
-- **kind cluster (local)**: Runs Crossplane and FluxCD. GKE clusters are synced from `infra-setup` folder and provisioned by Crossplane.
-- **GKE mgmt cluster (GCP)**: Control Cluster. But in the currect stage it runs applications too, eventually we need to move them out.
-- **GKE apps-dev cluster (GCP)**: Applications cluster.
+- **kind cluster (local)**: Hub cluster running Crossplane v2 and FluxCD. Provisions GKE clusters via Composite Resources.
+- **GKE mgmt cluster (GCP)**: Management cluster with Flux, platform services, and AI stack (kagent).
+- **GKE apps-dev cluster (GCP)**: Applications cluster for tenant workloads.
+
+## GitOps Flow
+1. **Crossplane Composite Resources** → provision GKE clusters
+2. **Flux notifications** → detect cluster readiness → trigger GitHub webhook
+3. **GitHub Actions** → bootstrap Flux on new GKE clusters
+4. **Flux on GKE** → deploy platform services and applications
 
 ## File Structure
 ```
-├── ai           # misc AI stacks deployed by ArgoCD ApplicationSets to GKE clusters
-├── infra-setup  # provision local `kind` cluster, configure all required access for provisioning GKE clusters with Crossplane
-├── local        # supporting experiements that I run locally
-├── platform     # setup platform components on target GKE clusters, wires up GitOps to deploy payload from other folders
-├── tasks        # Taskfile supporting tasks
-└── teams        # Software Engineering tenant teams that deploy to the platform and consume platform abstractions and APIs.
+├── .github/workflows/  # GitHub Actions for Flux bootstrap
+├── clusters/           # Flux configurations per cluster (mgmt, apps-dev)
+├── infra-setup/        # Crossplane compositions, providers, and kind cluster setup
+│   ├── crossplane/     # Crossplane v2 configuration
+│   │   ├── composite-resources/  # GKE cluster definitions (namespaced)
+│   │   ├── base/       # Providers, compositions, XRDs
+│   │   └── namespaces/ # gkecluster-* namespaces
+│   └── flux/           # Flux configuration for kind cluster
+├── platform-products/ # Platform services (AI stack, networking)
+├── platform-tenants/  # Tenant application deployments
+├── tasks/              # Taskfile supporting tasks
+└── local/              # Local development experiments
 ```
 
-### Sub Goals
+### Key Features
 
-#### Github Config as Code powered by Crossplane
-* This repo is referred to as "DEMO"
-* Crossplane Github provider configured to provision resources only in "DEST" organisation - there are separate set of credentials to this end.
+#### AI Platform Stack
+* **kagent**: Custom agent for Crossplane composition management
+* **kgateway**: AI-specific networking gateway
+* MCP server integration for agent workflows
+* Platform services deployed via Flux to mgmt cluster
 
-#### AI Networking - kgateway, agentgatway
-* manifests in "${REPO_ROOT}/ai" folder
-
-#### AI discovery
-* writing my own `kagent` agent to help work with compositions
-* combining agents and MCP servers
-* exploring workflows
-* understanding AI specific network requirements
+#### GitOps with Flux
+* Multi-cluster Flux setup with hub-and-spoke pattern
+* Automated cluster bootstrap via GitHub Actions and Workload Identity Federation
+* Cluster-specific configurations in dedicated namespaces (gkecluster-*)
+* Platform-products vs platform-tenants separation
 
 ## VARIABLES
 * Some of the variables won't be available to you terminal where you are running.
@@ -61,8 +72,7 @@ export DOMAIN
 export CERT_NAME
 export DNS_PROJECT
 export DNS_ZONE
-export ARGOCD_STD_HOSTNAME="argocd.gcp.${DOMAIN}"
-export ARGOCD_MCP_HOSTNAME="argo-mcp.gcp.${DOMAIN}"
+# ArgoCD variables removed - migrated to FluxCD
 export GITHUB_DEMO_REPO_OWNER
 export GITHUB_DEMO_REPO_NAME
 export GITHUB_DEMO_REPO_PAT

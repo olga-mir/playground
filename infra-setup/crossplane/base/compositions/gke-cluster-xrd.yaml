@@ -1,12 +1,12 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xgkeclusters.platform.tornado-demo.io
+  name: gkeclusters.platform.tornado-demo.io
 spec:
   group: platform.tornado-demo.io
   names:
-    kind: XGKECluster
-    plural: xgkeclusters
+    kind: GKECluster
+    plural: gkeclusters
   versions:
   - name: v1alpha1
     served: true
@@ -61,8 +61,6 @@ spec:
                     default: 5
                     description: "Maximum number of nodes"
 
-                  # ArgoCD configuration removed - migrated to FluxCD
-
                   # Crossplane configuration (mgmt clusters only)
                   crossplane:
                     type: object
@@ -94,6 +92,3 @@ spec:
               connectionDetails:
                 description: Connection details for the cluster
                 type: object
-  claimNames:
-    kind: GKECluster
-    plural: gkeclusters

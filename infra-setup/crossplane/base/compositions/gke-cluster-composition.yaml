@@ -5,10 +5,12 @@ metadata:
   labels:
     provider: gcp
     service: gke
+  annotations:
+    crossplane.io/revision: "v2"
 spec:
   compositeTypeRef:
     apiVersion: platform.tornado-demo.io/v1alpha1
-    kind: XGKECluster
+    kind: GKECluster
 
   mode: Pipeline
   pipeline:
@@ -134,16 +136,6 @@ spec:
         template: |
           {{ if and (.observed.composite.resource.spec.parameters.crossplane.enabled) (eq .observed.composite.resource.spec.parameters.clusterType "mgmt") }}
           ---
-          # Crossplane Namespace
-          apiVersion: v1
-          kind: Namespace
-          metadata:
-            name: crossplane-system
-            annotations:
-              crossplane.io/external-name: crossplane-system
-              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane-namespace
-              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-crossplane-namespace
-          ---
           # Crossplane Helm Release
           apiVersion: helm.crossplane.io/v1beta1
           kind: Release
@@ -193,6 +185,8 @@ spec:
           spec:
             package: xpkg.upbound.io/crossplane-contrib/provider-helm:v0.21.0
           {{ end }}
+
+# GitHub notification step removed - causing provider issues
 
   - step: ready
     functionRef:

@@ -10,9 +10,6 @@ includes:
   mcp:
     taskfile: ./tasks/mcp.yaml
     dir: .
-  argocd:
-    taskfile: ./tasks/argocd.yaml
-    dir: .
   port-forward:
     taskfile: ./tasks/port-forward.yaml
     dir: .

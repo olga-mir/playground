@@ -1,8 +1,8 @@
 apiVersion: platform.tornado-demo.io/v1alpha1
 kind: GKECluster
 metadata:
-  name: apps-dev
-  namespace: gke
+  name: apps-dev-cluster
+  namespace: gkecluster-apps-dev
 spec:
   parameters:
     clusterName: "${GKE_APPS_DEV_CLUSTER}"
@@ -19,5 +19,3 @@ spec:
     # No Crossplane on apps clusters
     crossplane:
       enabled: false
-
-  compositeDeletePolicy: Foreground

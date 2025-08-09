@@ -1,14 +1,15 @@
 #!/bin/bash
 
-set -x
+set -eoux pipefail
+
+echo ADD SUSPEND KUSTOMIZATIONS BEFORE RUNNING THIS
+exit 0
 
 export MGMT_CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_MGMT_CLUSTER}"
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 
 kind delete clusters kind-test-cluster
 
-# kubectl --context "${MGMT_CLUSTER_CONTEXT}" delete -f ${REPO_ROOT}/teams/team-alpha/landing-zone-claim.yaml
-helm --kube-context "${MGMT_CLUSTER_CONTEXT}" uninstall argocd -n argocd
 
 sleep 20
 

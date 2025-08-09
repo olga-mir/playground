@@ -85,6 +85,22 @@ jobs:
           --from-literal=REPO_NAME="${{ github.event.repository.name }}" \
           --dry-run=client -o yaml | kubectl apply -f -
 
+    # will cross this bridge when we get there, def no API keys in GH secrets
+    # - name: Setup application secrets (mgmt cluster only)
+    #   if: steps.cluster-info.outputs.cluster_type == 'mgmt'
+    #   run: |
+    #     # Create kagent-system namespace
+    #     kubectl get namespace kagent-system >/dev/null 2>&1 || kubectl create namespace kagent-system
+
+    #     # Create AI API secrets
+    #     kubectl create secret generic kagent-anthropic -n kagent-system \
+    #       --from-literal=ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
+    #       --dry-run=client -o yaml | kubectl apply -f -
+
+    #     kubectl create secret generic kagent-openai -n kagent-system \
+    #       --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+    #       --dry-run=client -o yaml | kubectl apply -f -
+
     - name: Run Flux pre-installation checks
       run: |
         flux check --pre

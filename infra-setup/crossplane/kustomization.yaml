@@ -9,5 +9,4 @@ resources:
   - base/compositions
   - secrets
   - providerconfigs
-  - clusters
-  - claims
+  - composite-resources
