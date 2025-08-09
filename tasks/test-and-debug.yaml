@@ -28,15 +28,25 @@ tasks:
     cmds:
       - crossplane beta trace valuestreamlandingzones -f "{{.TASKFILE_DIR}}/teams/team-alpha/landing-zone-claim.yaml" -n team-alpha-tenant
 
-  restart-argo:
-    desc: "Restart Argo CD repo server"
+  gke-cluster-status:
+    desc: "Debug composed resources for a GKE cluster (usage: task debug-cluster CLUSTER=mgmt-cluster)"
+    vars:
+      CLUSTER: '{{default "mgmt-cluster" .CLUSTER}}'
+      CONTEXT: '{{default "kind-kind-test-cluster" .CONTEXT}}'
     cmds:
-      - kubectl -n argocd rollout restart deployment argocd-repo-server
-      - kubectl -n argocd rollout status deployment argocd-repo-server
+      - echo "=== GKE Cluster Status ==="
+      - kubectl --context={{.CONTEXT}} get gkeclusters.platform.tornado-demo.io {{.CLUSTER}} -o wide
+      - echo ""
+      - echo "=== Quick Status Check ==="
+      - kubectl --context={{.CONTEXT}} get clusters.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No clusters found"
+      - kubectl --context={{.CONTEXT}} get nodepools.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No nodepools found"
+      - kubectl --context={{.CONTEXT}} get releases.helm.crossplane.io -o wide 2>/dev/null || echo "No helm releases found"
+      - kubectl --context={{.CONTEXT}} get providerconfigs.helm.crossplane.io -o wide 2>/dev/null || echo "No helm provider configs found"
+      - kubectl --context={{.CONTEXT}} get providerconfigs.kubernetes.crossplane.io -o wide 2>/dev/null || echo "No k8s provider configs found"
+      - kubectl --context={{.CONTEXT}} get providers.pkg.crossplane.io -o wide 2>/dev/null || echo "No providers found"
 
   helper-commands:
     desc: "Collection of troubleshooting commands"
     cmds:
       - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
-      - echo "REPO_POD=$(kubectl -n argocd get pod -l app.kubernetes.io/name=argocd-repo-server -o name | head -1)"
       - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"

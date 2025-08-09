@@ -7,9 +7,15 @@ This directory contained ArgoCD application definitions that have been migrated 
 ### ✅ Migrated to Flux
 
 **AI Platform Services** → `clusters/apps-dev/platform-products-source.yaml`
-- `kagent-config.yaml` → `platform-products/ai/kagent/`
+- `kagent-config.yaml` → `platform-products/ai/kagent/config/`
 - `mcp-gateway-config.yaml` → `platform-products/networking/kgateway-mcp/`  
 - `mcp-tools.yaml` → `platform-products/ai/mcp-tools/`
+
+**AI Platform Helm Charts** → `clusters/apps-dev/platform-products-source.yaml`
+- `../helm-applications/kagent.yaml` → `platform-products/ai/kagent/helm/`
+- `../helm-applications/kagent-crds.yaml` → `platform-products/ai/kagent/helm/`
+- `../helm-applications/kgateway-mcp-app.yaml` → `platform-products/networking/kgateway/helm/`
+- `../helm-applications/kgateway-crds.yaml` → `platform-products/networking/kgateway/helm/`
 
 **Crossplane Platform Services** → `clusters/control-plane/crossplane-platform-source.yaml`
 - `crossplane-infra-providers.yaml` → `platform/crossplane/providers/`

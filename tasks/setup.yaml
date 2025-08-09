@@ -69,7 +69,6 @@ tasks:
       CERT_NAME: "{{.CERT_NAME}}"
       DNS_PROJECT: "{{.DNS_PROJECT}}"
       DNS_ZONE: "{{.DNS_ZONE}}"
-# ArgoCD environment variables removed - migrated to FluxCD
       GITHUB_DEMO_REPO_OWNER: "{{.GITHUB_DEMO_REPO_OWNER}}"
       GITHUB_DEMO_REPO_NAME: "{{.GITHUB_DEMO_REPO_NAME}}"
       GITHUB_DEMO_REPO_PAT: "{{.GITHUB_DEMO_REPO_PAT}}"
@@ -83,30 +82,11 @@ tasks:
     cmds:
       - "{{.TASKFILE_DIR}}/bootstrap/scripts/02-create-and-setup-kind.sh"
       - "{{.TASKFILE_DIR}}/bootstrap/scripts/03-apply-compositions.sh"
-      # Clusters are now provisioned via Crossplane and bootstrapped via GitHub Actions
-      # No direct cluster setup needed - Flux handles everything
 
   cleanup:
     desc: "Cleanup infrastructure (forcefull)"
     cmds:
       - "{{.TASKFILE_DIR}}/bootstrap/scripts/00-cleanup.sh"
-
-  debug-cluster:
-    desc: "Debug composed resources for a GKE cluster (usage: task debug-cluster CLUSTER=mgmt-cluster)"
-    vars:
-      CLUSTER: '{{default "mgmt-cluster" .CLUSTER}}'
-      CONTEXT: '{{default "kind-kind-test-cluster" .CONTEXT}}'
-    cmds:
-      - echo "=== GKE Cluster Status ==="
-      - kubectl --context={{.CONTEXT}} get gkeclusters.platform.tornado-demo.io {{.CLUSTER}} -o wide
-      - echo ""
-      - echo "=== Quick Status Check ==="
-      - kubectl --context={{.CONTEXT}} get clusters.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No clusters found"
-      - kubectl --context={{.CONTEXT}} get nodepools.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No nodepools found"
-      - kubectl --context={{.CONTEXT}} get releases.helm.crossplane.io -o wide 2>/dev/null || echo "No helm releases found"
-      - kubectl --context={{.CONTEXT}} get providerconfigs.helm.crossplane.io -o wide 2>/dev/null || echo "No helm provider configs found"
-      - kubectl --context={{.CONTEXT}} get providerconfigs.kubernetes.crossplane.io -o wide 2>/dev/null || echo "No k8s provider configs found"
-      - kubectl --context={{.CONTEXT}} get providers.pkg.crossplane.io -o wide 2>/dev/null || echo "No providers found"
 
   delete-kind:
     desc: "I never get this right :/"

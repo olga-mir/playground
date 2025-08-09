@@ -1,0 +1,23 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kgateway-crds
+  namespace: kgateway-system
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: kgateway-crds
+      version: "v2.1.0-main"
+      sourceRef:
+        kind: HelmRepository
+        name: kgateway-helm-repo
+        namespace: kgateway-system
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
