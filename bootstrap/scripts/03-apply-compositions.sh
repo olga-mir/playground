@@ -50,14 +50,16 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustom
 
 echo "Clusters creation initiated via Crossplane compositions!"
 
-echo "Waiting for clusters to be ready..."
+echo "Waiting for clusters to be ready (sleep 5 min)..."
 echo "This may take 10-15 minutes for GKE clusters to provision..."
+
+sleep 300
 
 # Function to wait for a cluster to be ready using Composite Resources
 wait_for_cluster_ready() {
     local composite_name="$1"
     local composite_namespace="$2"
-    local max_retries=60  # x45 sec
+    local max_retries=50  # x45 sec
     local retry_count=0
 
     while [ $retry_count -lt $max_retries ]; do

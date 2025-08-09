@@ -27,8 +27,8 @@ spec:
                     description: "Name of the GKE cluster"
                   clusterType:
                     type: string
-                    enum: ["mgmt", "apps"]
-                    description: "Type of cluster - mgmt (management) or apps (applications)"
+                    enum: ["control-plane", "apps"]
+                    description: "Type of cluster - control-plane (management) or apps (applications)"
                   projectId:
                     type: string
                     description: "GCP Project ID"
@@ -61,7 +61,7 @@ spec:
                     default: 5
                     description: "Maximum number of nodes"
 
-                  # Crossplane configuration (mgmt clusters only)
+                  # Crossplane configuration (control-plane clusters only)
                   crossplane:
                     type: object
                     properties:

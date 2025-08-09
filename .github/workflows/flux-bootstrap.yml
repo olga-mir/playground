@@ -19,7 +19,7 @@ on:
         required: true
       cluster_type:
         type: string
-        description: "Cluster Type (mgmt/apps-dev)"
+        description: "Cluster Type (control-plane/apps-dev)"
         required: true
 
 concurrency:
@@ -86,8 +86,8 @@ jobs:
           --dry-run=client -o yaml | kubectl apply -f -
 
     # will cross this bridge when we get there, def no API keys in GH secrets
-    # - name: Setup application secrets (mgmt cluster only)
-    #   if: steps.cluster-info.outputs.cluster_type == 'mgmt'
+    # - name: Setup application secrets (control-plane cluster only)
+    #   if: steps.cluster-info.outputs.cluster_type == 'control-plane'
     #   run: |
     #     # Create kagent-system namespace
     #     kubectl get namespace kagent-system >/dev/null 2>&1 || kubectl create namespace kagent-system

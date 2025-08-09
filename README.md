@@ -55,15 +55,10 @@ WIF_SERVICE_ACCOUNT=github-actions-sa@PROJECT_ID.iam.gserviceaccount.com
 FLUX_GITHUB_TOKEN=ghp_your_personal_access_token_here
 ```
 
-Fully automated deployment:
+### Enviroment Variables
+TODO
 
-```bash
-$ task setup:deploy
-```
-
-Everything should be running, all manifests applied by Flux, resources provisioned by Crossplane once the above task finishes.
-
-## How It Works - Flux Bootstrap Flow
+## Project Structure and Bootstrap
 
 1. **Crossplane provisions GKE clusters** via kind cluster running Flux
 2. **Flux notification controller detects cluster readiness** and triggers GitHub webhook
@@ -71,37 +66,9 @@ Everything should be running, all manifests applied by Flux, resources provision
 4. **Workflow bootstraps Flux on the new GKE cluster** with cluster-specific configuration
 5. **Flux on GKE cluster syncs platform applications** from this repository
 
-Uninstall everything:
-```
-$ task setup:cleanup
-```
-
-List all available tasks
-```
-$ task --list
-```
-
-# Repository Structure
-
 This repository hosts both platform teams and consumer teams configurations with clear separation of concerns.
 
-## Key Directories
-
-```
-├── .github/workflows/     # GitHub Actions for automated Flux bootstrap
-├── clusters/              # Per-cluster Flux configurations
-│   ├── mgmt/              # Management cluster config
-│   └── apps-dev/          # Apps cluster config
-├── infra-setup/           # Crossplane and kind cluster setup
-│   ├── crossplane/        # Crossplane v2 configuration
-│   │   ├── composite-resources/  # GKE cluster definitions (namespaced)
-│   │   ├── base/          # Providers, compositions, XRDs
-│   │   └── namespaces/    # gkecluster-* namespaces
-│   └── flux/              # Flux configuration for kind cluster
-├── platform-products/    # Platform services (AI stack, networking)
-├── platform-tenants/     # Tenant application deployments
-└── tasks/                 # Taskfile automation scripts
-```
+Refer to [./bootstrap/README.md](./bootstrap/README.md) for detailed explanation of repository structure and deployment flow.
 
 ## Platform vs Tenants
 
@@ -117,5 +84,23 @@ This repository hosts both platform teams and consumer teams configurations with
 
 Also https://github.com/olga-mir/playground/wiki/ArgoCD-MCP-%E2%80%90-The-Networking-Aspects
 
-More details to be updated soon
 
+## Tasks
+
+Fully automated deployment:
+
+```bash
+$ task setup:deploy
+```
+
+Everything should be running, all manifests applied by Flux, resources provisioned by Crossplane once the above task finishes.
+
+Uninstall everything:
+```bash
+$ task setup:cleanup
+```
+
+List all available tasks
+```bash
+$ task --list
+```

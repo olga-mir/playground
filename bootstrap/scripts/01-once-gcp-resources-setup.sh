@@ -79,7 +79,7 @@ gcloud compute networks create $GKE_VPC \
 # Using 10.1.0.0/24 for the primary range (plenty for 20 nodes)
 # Using 10.1.1.0/24 for services (can accommodate ~250 services)
 # Using 10.1.4.0/22 for pods (can accommodate ~1000 pods)
-gcloud compute networks subnets create "${MGMT_SUBNET_NAME}" \
+gcloud compute networks subnets create "${CONTROL_PLANE_SUBNET_NAME}" \
   --project=$PROJECT_ID \
   --network=$GKE_VPC \
   --region=$REGION \
@@ -99,7 +99,7 @@ gcloud compute networks subnets create "${APPS_DEV_SUBNET_NAME}" \
 
 echo "Subnet creation complete!"
 echo "VPC: $GKE_VPC"
-echo "Management Subnet: "${MGMT_SUBNET_NAME}" (10.1.0.0/24)"
+echo "Control Plane Subnet: "${CONTROL_PLANE_SUBNET_NAME}" (10.1.0.0/24)"
 echo "  - Services Range: 10.1.1.0/24"
 echo "  - Pods Range: 10.1.4.0/22"
 echo "Apps Dev Subnet: "${APPS_DEV_SUBNET_NAME}" (10.2.0.0/24)"

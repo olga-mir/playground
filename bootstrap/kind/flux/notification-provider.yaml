@@ -37,4 +37,4 @@ spec:
     cluster_name: "{{ .Object.metadata.name }}"
     region: "${REGION}"
     project_id: "${PROJECT_ID}"
-    cluster_type: "{{ if contains .Object.metadata.name \"mgmt\" }}mgmt{{ else if contains .Object.metadata.name \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
+    cluster_type: "{{ if contains .Object.metadata.name \"control-plane\" }}control-plane{{ else if contains .Object.metadata.name \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"

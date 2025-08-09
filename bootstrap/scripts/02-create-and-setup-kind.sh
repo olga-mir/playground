@@ -10,7 +10,7 @@ FLUX_VERSION="v2.6.4"
 
 if ! kind get clusters | grep -q $KIND_TEST_CLUSTER_NAME; then
   echo "Cluster $KIND_TEST_CLUSTER_NAME does not exist. Creating..."
-  kind create cluster --name $KIND_TEST_CLUSTER_NAME --config $REPO_ROOT/infra-setup/kind-config.yaml
+  kind create cluster --name $KIND_TEST_CLUSTER_NAME --config $REPO_ROOT/bootstrap/kind/kind-config.yaml
 else
   echo "Cluster $KIND_TEST_CLUSTER_NAME already exists."
 fi
@@ -36,7 +36,8 @@ until kubectl get crd providers.pkg.crossplane.io &>/dev/null; do
 done
 
 # Apply providers configuration
-kubectl apply -f ${REPO_ROOT}/infra-setup/crossplane/base/providers/providers.yaml
+# TODO - shouldn't this be handled by Flux now?
+# kubectl apply -f ${REPO_ROOT}/infra-setup/crossplane/base/providers/providers.yaml
 
 # Wait for CRDs to be established
 sleep 10
@@ -76,7 +77,7 @@ GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
   --owner=${GITHUB_DEMO_REPO_OWNER} \
   --repository=${GITHUB_DEMO_REPO_NAME} \
   --branch=base-refactor \
-  --path=./infra-setup/flux \
+  --path=./bootstrap/kind/flux \
   --personal
 set -x
 
@@ -86,8 +87,8 @@ echo "FluxCD bootstrap completed successfully!"
 echo "Waiting for FluxCD to be ready..."
 kubectl wait --for=condition=ready pod -l app=source-controller -n flux-system --timeout=300s
 kubectl wait --for=condition=ready pod -l app=kustomize-controller -n flux-system --timeout=300s
-kubectl wait --for=condition=ready pod -l app=helm-controller -n flux-system --timeout=300s
-kubectl wait --for=condition=ready pod -l app=notification-controller -n flux-system --timeout=300s
+kubectl wait --for=condition=ready pod -l app=helm-controller -n flux-system --timeout=100s
+kubectl wait --for=condition=ready pod -l app=notification-controller -n flux-system --timeout=100s
 
 echo "FluxCD is ready!"
 flux get all

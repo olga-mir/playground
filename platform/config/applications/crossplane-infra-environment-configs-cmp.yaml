@@ -1,6 +1,0 @@
-name: crossplane-environment-configs
-path: platform/crossplane/environment-configs
-namespace: crossplane-system
-syncWave: "0"
-project: platform
-plugin: env-substitution-plugin

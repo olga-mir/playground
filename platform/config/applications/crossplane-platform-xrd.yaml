@@ -1,5 +1,0 @@
-name: crossplane-xrd
-path: platform/crossplane/definitions
-namespace: crossplane-system
-syncWave: "0"
-project: platform

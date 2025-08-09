@@ -3,4 +3,4 @@ kind: Kustomization
 
 resources:
   - providers-config.yaml
-  - providerconfig-gke-mgmt.yaml
+  - providerconfig-gke-control-plane.yaml

@@ -1,11 +1,6 @@
 version: "3"
 
 tasks:
-  bucket:
-    desc: "Test bucket and access"
-    cmds:
-      - "{{.TASKFILE_DIR}}/infra-setup/99-pod-write-bucket-test.sh"
-
   kind-create-sandbox:
     desc: "Create a vanilla Kind cluster (latest k8s, 2 nodes, name 'sandbox-cluster')"
     cmds:
@@ -29,9 +24,9 @@ tasks:
       - crossplane beta trace valuestreamlandingzones -f "{{.TASKFILE_DIR}}/teams/team-alpha/landing-zone-claim.yaml" -n team-alpha-tenant
 
   gke-cluster-status:
-    desc: "Debug composed resources for a GKE cluster (usage: task debug-cluster CLUSTER=mgmt-cluster)"
+    desc: "Debug composed resources for a GKE cluster (usage: task debug-cluster CLUSTER=control-plane-cluster)"
     vars:
-      CLUSTER: '{{default "mgmt-cluster" .CLUSTER}}'
+      CLUSTER: '{{default "control-plane-cluster" .CLUSTER}}'
       CONTEXT: '{{default "kind-kind-test-cluster" .CONTEXT}}'
     cmds:
       - echo "=== GKE Cluster Status ==="
