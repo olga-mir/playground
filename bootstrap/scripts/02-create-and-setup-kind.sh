@@ -15,40 +15,8 @@ else
   echo "Cluster $KIND_TEST_CLUSTER_NAME already exists."
 fi
 
-
-# https://docs.crossplane.io/v2.0-preview/get-started/install/
-
-#helm install crossplane \
-#--namespace crossplane-system \
-#--create-namespace crossplane-preview/crossplane \
-#--version $CROSSPLANE_VERSION
-
-# install release instructions: https://github.com/crossplane/crossplane/releases/tag/v2.0.0-rc.1
-helm repo add crossplane-stable https://charts.crossplane.io/stable --force-update
-helm install crossplane --namespace crossplane-system --create-namespace crossplane-stable/crossplane --devel
-
-
-# Wait for Crossplane CRDs to be established
-sleep 10
-until kubectl get crd providers.pkg.crossplane.io &>/dev/null; do
-  echo "Waiting for CRD providers.pkg.crossplane.io to be created..."
-  sleep 5
-done
-
-# Apply providers configuration
-# TODO - shouldn't this be handled by Flux now?
-# kubectl apply -f ${REPO_ROOT}/infra-setup/crossplane/base/providers/providers.yaml
-
-# Wait for CRDs to be established
-sleep 10
-
-for crd in clusters.container.gcp-beta.upbound.io \
-          nodepools.container.gcp-beta.upbound.io; do
-  until kubectl get crd $crd &>/dev/null; do
-    echo "Waiting for CRD $crd to be created..."
-    sleep 5
-  done
-done
+# Crossplane installation and configuration is now handled by Flux
+# The HelmRelease and providers will be deployed automatically via GitOps
 
 
 
