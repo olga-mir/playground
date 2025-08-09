@@ -81,15 +81,15 @@ tasks:
       CLAUDE_MCP_CONFIG_FILE: "{{.CLAUDE_MCP_CONFIG_FILE}}"
       PINECONE_API_KEY: "{{.PINECONE_API_KEY}}"
     cmds:
-      - "{{.TASKFILE_DIR}}/infra-setup/02-create-and-setup-kind.sh"
-      - "{{.TASKFILE_DIR}}/infra-setup/03-apply-compositions.sh"
+      - "{{.TASKFILE_DIR}}/bootstrap/scripts/02-create-and-setup-kind.sh"
+      - "{{.TASKFILE_DIR}}/bootstrap/scripts/03-apply-compositions.sh"
       # Clusters are now provisioned via Crossplane and bootstrapped via GitHub Actions
       # No direct cluster setup needed - Flux handles everything
 
   cleanup:
     desc: "Cleanup infrastructure (forcefull)"
     cmds:
-      - "{{.TASKFILE_DIR}}/infra-setup/00-cleanup.sh"
+      - "{{.TASKFILE_DIR}}/bootstrap/scripts/00-cleanup.sh"
 
   debug-cluster:
     desc: "Debug composed resources for a GKE cluster (usage: task debug-cluster CLUSTER=mgmt-cluster)"

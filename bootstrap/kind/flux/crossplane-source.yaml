@@ -17,7 +17,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./infra-setup/crossplane/base"
+  path: "./bootstrap/kind/crossplane/base"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -34,7 +34,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./infra-setup/crossplane/providerconfigs"
+  path: "./bootstrap/kind/crossplane/providerconfigs"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -53,7 +53,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./infra-setup/crossplane/secrets"
+  path: "./bootstrap/kind/crossplane/secrets"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -72,7 +72,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./infra-setup/crossplane/composite-resources"
+  path: "./bootstrap/kind/crossplane/composite-resources"
   prune: true
   sourceRef:
     kind: GitRepository

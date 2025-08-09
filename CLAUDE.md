@@ -8,6 +8,7 @@
 * NEVER proactively create documentation files (.md) or README files. Only create documentation files if explicitly requested by the User.
 * NEVER commit project ID or other semi-sensitve information
 * be aware if files are versioned, use "git mv" over "mv" commands when working with files.
+* ALWAYS place newline at the end of the file
 
 # architecture-context
 This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure provisioning and FluxCD for GitOps:
@@ -25,18 +26,19 @@ This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure 
 
 ## File Structure
 ```
-├── .github/workflows/  # GitHub Actions for Flux bootstrap
-├── clusters/           # Flux configurations per cluster (mgmt, apps-dev)
-├── infra-setup/        # Crossplane compositions, providers, and kind cluster setup
-│   ├── crossplane/     # Crossplane v2 configuration
-│   │   ├── composite-resources/  # GKE cluster definitions (namespaced)
-│   │   ├── base/       # Providers, compositions, XRDs
-│   │   └── namespaces/ # gkecluster-* namespaces
-│   └── flux/           # Flux configuration for kind cluster
-├── platform-products/ # Platform services (AI stack, networking)
-├── platform-tenants/  # Tenant application deployments
-├── tasks/              # Taskfile supporting tasks
-└── local/              # Local development experiments
+├── .github/workflows/     # GitHub Actions for Flux bootstrap
+├── bootstrap/             # Bootstrap scripts and kind cluster configuration
+│   ├── scripts/           # Bootstrap scripts (setup, cleanup)
+│   └── kind/              # Kind cluster configs (Crossplane for provisioning control-plane)
+├── control-plane-crossplane/  # Crossplane configs for control-plane cluster
+│   ├── providers/         # Providers for control-plane (GCP, Helm, K8s)
+│   ├── compositions/      # WorkloadCluster compositions
+│   └── workload-clusters/ # Workload cluster definitions (apps-dev, etc.)
+├── clusters/              # Flux configurations per cluster (control-plane, apps-dev)
+├── platform-products/    # Platform services (AI stack, networking)
+├── platform-tenants/     # Tenant application deployments
+├── tasks/                 # Taskfile supporting tasks
+└── local/                 # Local development experiments
 ```
 
 ### Key Features

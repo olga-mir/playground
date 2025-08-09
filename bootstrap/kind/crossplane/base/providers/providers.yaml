@@ -3,27 +3,25 @@ kind: Provider
 metadata:
   name: provider-helm
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-helm:v0.21.0
+  package: xpkg.crossplane.io/crossplane-contrib/provider-helm:v0.21.0
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: crossplane-contrib-provider-kubernetes
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v0.18.0
+  package: xpkg.crossplane.io/crossplane-contrib/provider-kubernetes:v0.18.0
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-gcp-iam
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-gcp-iam:v1.12.1
-# GCP Storage provider removed - not needed on kind cluster
+  package: xpkg.crossplane.io/crossplane-contrib/provider-gcp-iam:v1.12.1
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-gcp-beta-container
 spec:
-  package: xpkg.upbound.io/upbound/provider-gcp-beta-container:v0.5.1
-# GitHub provider not needed on kind cluster
+  package: xpkg.crossplane.io/upbound/provider-gcp-beta-container:v0.5.1

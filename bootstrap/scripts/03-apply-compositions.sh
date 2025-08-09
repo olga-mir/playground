@@ -38,7 +38,7 @@ unset BASE64_ENCODED_GCP_CREDS
 set -x
 
 echo "Applying Flux Crossplane source..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/infra-setup/flux/crossplane-source.yaml"
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/bootstrap/kind/flux/crossplane-source.yaml"
 
 echo "Waiting for Flux to sync Crossplane resources..."
 echo "This includes providers, compositions, and cluster Composite Resources"

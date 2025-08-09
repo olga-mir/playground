@@ -4,3 +4,4 @@ resources:
   - gotk-components.yaml
   - gotk-sync.yaml
   - ../platform-products-source.yaml
+  - ../platform-tenants-source.yaml
