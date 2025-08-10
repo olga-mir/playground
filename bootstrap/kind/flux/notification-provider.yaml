@@ -6,7 +6,7 @@ metadata:
   namespace: flux-system
 spec:
   type: githubdispatch
-  address: https://github.com/olga-mir/playground
+  address: https://api.github.com/repos/olga-mir/playground/dispatches
   secretRef:
     name: github-webhook-token
 ---
@@ -17,7 +17,7 @@ metadata:
   namespace: flux-system
 type: Opaque
 stringData:
-  token: ${GITHUB_DEMO_REPO_PAT}
+  token: ${GITHUB_FLUX_PLAYGROUND_PAT}
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert

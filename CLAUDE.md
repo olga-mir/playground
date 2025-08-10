@@ -18,23 +18,32 @@ This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure 
 - **GKE control-plane cluster (GCP)**: Control plane cluster with Crossplane, Flux, and platform services. Provisions workload clusters.
 - **GKE apps-dev cluster (GCP)**: Workload cluster for tenant applications.
 
-## GitOps Flow
-1. **Crossplane Composite Resources** → provision GKE clusters
+## GitOps Flow - "Batteries Included" Cluster Provisioning
+1. **Crossplane Composite Resources** → provision GKE clusters (infrastructure only)
 2. **Flux notifications** → detect cluster readiness → trigger GitHub webhook
-3. **GitHub Actions** → bootstrap Flux on new GKE clusters
-4. **Flux on GKE** → deploy platform services and applications
+3. **GitHub Actions** → bootstrap Flux on new GKE clusters → point to `/clusters/{cluster-type}/`
+4. **Flux on target GKE cluster** → deploy Crossplane, platform services, and applications ("batteries")
+
+### Key Architectural Principles
+- **Compositions create infrastructure only** (GKE cluster, NodePool, connection secrets)
+- **GitOps handles cluster bootstrapping** (Crossplane installation, platform services)
+- **Separation of concerns** avoids circular dependencies and readiness issues
 
 ## File Structure
 ```
 ├── .github/workflows/     # GitHub Actions for Flux bootstrap
 ├── bootstrap/             # Bootstrap scripts and kind cluster configuration
 │   ├── scripts/           # Bootstrap scripts (setup, cleanup)
-│   └── kind/              # Kind cluster configs (Crossplane for provisioning control-plane)
-├── control-plane-crossplane/  # Crossplane configs for control-plane cluster
+│   └── kind/              # Kind cluster configs (Crossplane for provisioning infrastructure)
+│       ├── crossplane/    # Crossplane installation and compositions for kind cluster
+│       └── flux/          # Flux configuration for kind cluster
+├── clusters/              # Target cluster configurations (deployed via GitHub Actions)
+│   ├── control-plane/     # Control plane cluster: Crossplane + platform services
+│   └── apps-dev/          # Workload cluster: applications and tenants
+├── control-plane-crossplane/  # Crossplane configs deployed to control-plane cluster
 │   ├── providers/         # Providers for control-plane (GCP, Helm, K8s)
 │   ├── compositions/      # WorkloadCluster compositions
 │   └── workload-clusters/ # Workload cluster definitions (apps-dev, etc.)
-├── clusters/              # Flux configurations per cluster (control-plane, apps-dev)
 ├── platform-products/    # Platform services (AI stack, networking)
 ├── platform-tenants/     # Tenant application deployments
 ├── tasks/                 # Taskfile supporting tasks

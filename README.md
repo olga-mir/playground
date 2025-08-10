@@ -34,7 +34,11 @@ This project uses a **hub-and-spoke** architecture with automated cluster provis
 2. **GKE mgmt cluster**: Management cluster with Flux, platform services, and AI stack (kagent).
 3. **GKE apps-dev cluster**: Applications cluster for tenant workloads.
 
-**GitOps Flow**: Crossplane provisions clusters → Flux detects readiness → GitHub Actions bootstrap Flux → Applications deploy automatically.
+**"Batteries Included" GitOps Flow**: 
+1. **Crossplane provisions infrastructure** (GKE clusters, NodePools, connection secrets)
+2. **Flux detects cluster readiness** → triggers GitHub webhook  
+3. **GitHub Actions bootstrap Flux** on target cluster → points to `/clusters/{cluster-type}/`
+4. **Target cluster Flux deploys "batteries"** (Crossplane, platform services, applications)
 
 Each cluster is managed in its own namespace (`gkecluster-mgmt`, `gkecluster-apps-dev`) with dedicated Flux configurations.
 
@@ -60,11 +64,21 @@ TODO
 
 ## Project Structure and Bootstrap
 
-1. **Crossplane provisions GKE clusters** via kind cluster running Flux
-2. **Flux notification controller detects cluster readiness** and triggers GitHub webhook
-3. **GitHub Actions workflow authenticates to GCP** using Workload Identity Federation
-4. **Workflow bootstraps Flux on the new GKE cluster** with cluster-specific configuration
-5. **Flux on GKE cluster syncs platform applications** from this repository
+### Architectural Flow
+
+1. **Infrastructure Provisioning** (Kind cluster → GCP):
+   - Crossplane compositions create GKE clusters (infrastructure only)
+   - Connection secrets with kubeconfig are generated
+
+2. **Cluster Bootstrapping** (GitHub Actions → Target cluster):
+   - Flux notification detects cluster readiness → triggers GitHub webhook
+   - GitHub Actions authenticates via Workload Identity Federation
+   - Flux bootstrapped on target cluster pointing to `/clusters/{cluster-type}/`
+
+3. **"Batteries Included" Deployment** (Target cluster GitOps):
+   - Flux on target cluster deploys Crossplane installation
+   - Platform services (kagent, kgateway, networking) deployed
+   - Applications and tenant workloads deployed
 
 This repository hosts both platform teams and consumer teams configurations with clear separation of concerns.
 
