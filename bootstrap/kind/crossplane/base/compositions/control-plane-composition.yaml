@@ -96,6 +96,13 @@ spec:
                 namespace: crossplane-system
                 name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
                 key: kubeconfig
+            identity:
+              type: GoogleApplicationCredentials
+              source: Secret
+              secretRef:
+                namespace: crossplane-system
+                name: gcp-creds
+                key: credentials
           {{ end }}
 
 # ArgoCD step removed - migrated to FluxCD

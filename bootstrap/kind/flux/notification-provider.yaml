@@ -5,9 +5,8 @@ metadata:
   name: github-webhook
   namespace: flux-system
 spec:
-  type: github
-  address: https://api.github.com
-  channel: olga-mir/playground
+  type: githubdispatch
+  address: https://github.com/olga-mir/playground
   secretRef:
     name: github-webhook-token
 ---
@@ -33,9 +32,9 @@ spec:
   - kind: Kustomization
     name: crossplane-composite-resources
     namespace: flux-system
-  summary: "GKE Cluster provisioned by Crossplane"
+  summary: "flux-cluster-ready"
   eventMetadata:
-    cluster_name: "{{ .Object.metadata.name }}"
+    cluster_name: "{{ if contains .Object.metadata.name \"control-plane\" }}control-plane{{ else if contains .Object.metadata.name \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
     region: "${REGION}"
     project_id: "${PROJECT_ID}"
     cluster_type: "{{ if contains .Object.metadata.name \"control-plane\" }}control-plane{{ else if contains .Object.metadata.name \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
