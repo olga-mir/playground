@@ -37,11 +37,12 @@ tasks:
       - kubectl --context={{.CONTEXT}} get nodepools.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No nodepools found"
       - kubectl --context={{.CONTEXT}} get releases.helm.crossplane.io -o wide 2>/dev/null || echo "No helm releases found"
       - kubectl --context={{.CONTEXT}} get providerconfigs.helm.crossplane.io -o wide 2>/dev/null || echo "No helm provider configs found"
-      - kubectl --context={{.CONTEXT}} get providerconfigs.kubernetes.crossplane.io -o wide 2>/dev/null || echo "No k8s provider configs found"
-      - kubectl --context={{.CONTEXT}} get providers.pkg.crossplane.io -o wide 2>/dev/null || echo "No providers found"
+      #- kubectl --context={{.CONTEXT}} get providerconfigs.kubernetes.crossplane.io -o wide 2>/dev/null || echo "No k8s provider configs found"
+      #- kubectl --context={{.CONTEXT}} get providers.pkg.crossplane.io -o wide 2>/dev/null || echo "No providers found"
 
   helper-commands:
     desc: "Collection of troubleshooting commands"
     cmds:
       - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
       - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"
+      - echo "while :; do flux get all -A && sleep 5; done"

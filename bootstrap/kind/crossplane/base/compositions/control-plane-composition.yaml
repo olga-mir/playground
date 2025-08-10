@@ -149,15 +149,7 @@ spec:
               chart:
                 name: crossplane
                 url: https://charts.crossplane.io/stable
-                version: "1.14.5"
-              values:
-                resourcesCrossplane:
-                  limits:
-                    cpu: 500m
-                    memory: 1Gi
-                  requests:
-                    cpu: 100m
-                    memory: 512Mi
+                version: "2.0.0-rc.1"
 
   - step: ready
     functionRef:
