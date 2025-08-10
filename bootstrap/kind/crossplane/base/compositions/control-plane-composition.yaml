@@ -148,10 +148,10 @@ spec:
               namespace: crossplane-system
               chart:
                 name: crossplane
-                url: https://charts.crossplane.io/stable
+                repository: https://charts.crossplane.io/stable
                 version: "2.0.0-rc.1"
+  # TODO - hardcoded crossplane version above
 
   - step: ready
     functionRef:
       name: function-auto-ready
-

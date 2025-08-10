@@ -55,7 +55,7 @@ spec:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
-    - name: crossplane-base
+    - name: crossplane-providers-health
   postBuild:
     substituteFrom:
       - kind: ConfigMap

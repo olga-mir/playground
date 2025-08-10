@@ -31,14 +31,43 @@ tasks:
     cmds:
       - echo "=== GKE Cluster Status ==="
       - kubectl --context={{.CONTEXT}} get gkeclusters.platform.tornado-demo.io {{.CLUSTER}} -o wide
-      - echo ""
-      - echo "=== Quick Status Check ==="
       - kubectl --context={{.CONTEXT}} get clusters.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No clusters found"
+      - kubectl --context={{.CONTEXT}} describe clusters.container.gcp-beta.upbound.io control-plane | tail -5
       - kubectl --context={{.CONTEXT}} get nodepools.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No nodepools found"
       - kubectl --context={{.CONTEXT}} get releases.helm.crossplane.io -o wide 2>/dev/null || echo "No helm releases found"
+
+  crossplane-status:
+    desc: "Debug Crossplane install (TODO - dynamic config)"
+    vars:
+      CLUSTER: '{{default "control-plane-cluster" .CLUSTER}}'
+      CONTEXT: '{{default "kind-kind-test-cluster" .CONTEXT}}'
+    cmds:
+      - kubectl --context={{.CONTEXT}} get providerconfigs.kubernetes.crossplane.io -o wide 2>/dev/null || echo "No k8s provider configs found"
+      - kubectl --context={{.CONTEXT}} get providers.pkg.crossplane.io -o wide 2>/dev/null || echo "No providers found"
       - kubectl --context={{.CONTEXT}} get providerconfigs.helm.crossplane.io -o wide 2>/dev/null || echo "No helm provider configs found"
-      #- kubectl --context={{.CONTEXT}} get providerconfigs.kubernetes.crossplane.io -o wide 2>/dev/null || echo "No k8s provider configs found"
-      #- kubectl --context={{.CONTEXT}} get providers.pkg.crossplane.io -o wide 2>/dev/null || echo "No providers found"
+      - kubectl --context={{.CONTEXT}} get pod -n crossplane-system 2>/dev/null || echo "No providers found"
+
+  get-gke-credentials:
+    desc: "Get credentials for GKE clusters (usage: task debug:get-gke-credentials CLUSTER=control-plane)"
+    vars:
+      CLUSTER: '{{default "control-plane" .CLUSTER}}'
+      PROJECT_ID: '{{default "apps-398909" .PROJECT_ID}}'
+      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    cmds:
+      - gcloud container clusters get-credentials {{.CLUSTER}} --zone={{.ZONE}} --project={{.PROJECT_ID}}
+      - echo "Credentials configured for cluster: {{.CLUSTER}}"
+      - kubectl config current-context
+
+  get-all-gke-credentials:
+    desc: "Get credentials for all GKE clusters"
+    vars:
+      PROJECT_ID: '{{default "apps-398909" .PROJECT_ID}}'
+      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    cmds:
+      - gcloud container clusters get-credentials control-plane --zone={{.ZONE}} --project={{.PROJECT_ID}}
+      - gcloud container clusters get-credentials apps-dev --zone={{.ZONE}} --project={{.PROJECT_ID}}
+      - echo "Credentials configured for all clusters"
+      - kubectl config get-contexts
 
   helper-commands:
     desc: "Collection of troubleshooting commands"
@@ -46,3 +75,5 @@ tasks:
       - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
       - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"
       - echo "while :; do flux get all -A && sleep 5; done"
+      - echo "kubectl --context kind-kind-test-cluster annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=$(date '+%Y-%m-%dT')"
+
