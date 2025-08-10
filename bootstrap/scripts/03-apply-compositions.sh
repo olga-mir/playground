@@ -5,7 +5,7 @@ set -eoux pipefail
 export KIND_CROSSPLANE_CONTEXT="kind-kind-test-cluster"
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 
-# Creating secrets needs namespace to exist, namespace is created in crossplane-base kustomization, which dependends on crossplane-vars
+# Creating secrets needs namespace to exist, namespace is created in crossplane-base kustomization, which dependends on platform-config
 # for now I will just create ns manually and will solve it later (TODO)
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create namespace crossplane-system --dry-run=client -o yaml | kubectl apply -f -
 
@@ -16,10 +16,7 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic gcp-creds \
     --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 
 echo "Creating Crossplane variables ConfigMap for Flux substituteFrom..."
-set +x
-export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
-# TODO - substitutefrom secret for secret values
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars \
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap platform-config \
     --namespace flux-system \
     --from-literal=PROJECT_ID="${PROJECT_ID}" \
     --from-literal=REGION="${REGION}" \
@@ -30,6 +27,13 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars 
     --from-literal=CONTROL_PLANE_SUBNET_NAME="${CONTROL_PLANE_SUBNET_NAME}" \
     --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
     --from-literal=GITHUB_DEMO_REPO_OWNER="${GITHUB_DEMO_REPO_OWNER}" \
+    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+
+echo "Creating platform secrets for Flux substituteFrom..."
+set +x
+export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic platform-secrets \
+    --namespace flux-system \
     --from-literal=GITHUB_DEMO_REPO_PAT="${GITHUB_DEMO_REPO_PAT}" \
     --from-literal=GITHUB_FLUX_PLAYGROUND_PAT="${GITHUB_FLUX_PLAYGROUND_PAT}" \
     --from-literal=BASE64_ENCODED_GCP_CREDS="${BASE64_ENCODED_GCP_CREDS}" \
@@ -40,13 +44,6 @@ set -x
 echo "Applying Flux Crossplane source..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/bootstrap/kind/flux/crossplane-source.yaml"
 
-echo "Waiting for Flux to sync Crossplane resources..."
-echo "This includes providers, compositions, and cluster Composite Resources"
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-base -n flux-system --timeout=600s
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=300s
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=300s
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=60s
-
 echo "Clusters creation initiated via Crossplane compositions!"
 
 echo "Waiting for clusters to be ready (sleep 5 min)..."
@@ -54,20 +51,15 @@ echo "This may take 10-15 minutes for GKE clusters to provision..."
 
 sleep 300
 
+echo "Waiting for Flux to sync Crossplane resources..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-base -n flux-system --timeout=600s
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=300s
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=300s
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=90s
+
 MAX_RETRIES=20 # 20 * 30s = 10 minutes
 RETRY_COUNT=0
 while ! kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-composite-resources -n flux-system --timeout=30s; do
-    RETRY_COUNT=$((RETRY_COUNT+1))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        echo "Timeout waiting for kustomization/crossplane-composite-resources to be Ready."
-        exit 1
-    fi
-    echo "Waiting for kustomization/crossplane-composite-resources to be Ready... (attempt ${RETRY_COUNT}/${MAX_RETRIES})"
-    sleep 5
-done
-MAX_RETRIES=30
-RETRY_COUNT=0
-while ! kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-composite-resources -n flux-system --timeout=20s; do
     RETRY_COUNT=$((RETRY_COUNT+1))
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
         echo "Timeout waiting for kustomization/crossplane-composite-resources to be Ready."

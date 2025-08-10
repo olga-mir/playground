@@ -50,7 +50,9 @@ spec:
   postBuild:
     substituteFrom:
       - kind: ConfigMap
-        name: crossplane-vars
+        name: platform-config
+      - kind: Secret
+        name: platform-secrets
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -69,7 +71,9 @@ spec:
   postBuild:
     substituteFrom:
       - kind: ConfigMap
-        name: crossplane-vars
+        name: platform-config
+      - kind: Secret
+        name: platform-secrets
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -88,4 +92,6 @@ spec:
   postBuild:
     substituteFrom:
       - kind: ConfigMap
-        name: crossplane-vars
+        name: platform-config
+      - kind: Secret
+        name: platform-secrets

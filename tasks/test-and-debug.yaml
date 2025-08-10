@@ -82,3 +82,5 @@ tasks:
       - echo "while :; do flux get all -A && sleep 5; done"
       - echo "while :; do k get gkeclusters.platform.tornado-demo.io && kubectl --context=kind-kind-test-cluster describe gkeclusters.platform.tornado-demo.io control-plane-cluster | tail -2 && sleep 5; done"
       - echo "kubectl --context kind-kind-test-cluster annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=$(date '+%Y-%m-%dT')"
+      # re-trigger Composite Resource sync status
+      - echo "kubectl --context kind-kind-test-cluster annotate composite apps-dev-cluster test-webhook-trigger="$(date)" --overwrite"

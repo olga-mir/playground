@@ -8,16 +8,7 @@ spec:
   type: githubdispatch
   address: https://github.com/olga-mir/playground
   secretRef:
-    name: github-webhook-token
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: github-webhook-token
-  namespace: flux-system
-type: Opaque
-stringData:
-  token: ${GITHUB_FLUX_PLAYGROUND_PAT}
+    name: platform-secrets
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert
