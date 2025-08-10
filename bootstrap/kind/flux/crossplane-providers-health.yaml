@@ -17,12 +17,9 @@ spec:
     - apiVersion: pkg.crossplane.io/v1
       kind: Provider
       name: crossplane-contrib-provider-kubernetes
-      namespace: crossplane-system
     - apiVersion: pkg.crossplane.io/v1
       kind: Provider  
       name: provider-helm
-      namespace: crossplane-system
     - apiVersion: pkg.crossplane.io/v1
       kind: Provider
       name: upbound-provider-family-gcp-beta
-      namespace: crossplane-system
