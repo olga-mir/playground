@@ -49,6 +49,8 @@ spec:
               enableAutopilot: false
               releaseChannel:
                 channel: RAPID
+              securityPostureConfig:
+                mode: DISABLED
             writeConnectionSecretToRef:
               namespace: crossplane-system
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
