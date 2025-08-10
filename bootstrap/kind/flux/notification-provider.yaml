@@ -6,7 +6,7 @@ metadata:
   namespace: flux-system
 spec:
   type: githubdispatch
-  address: https://api.github.com/repos/olga-mir/playground/dispatches
+  address: https://github.com/olga-mir/playground
   secretRef:
     name: github-webhook-token
 ---
