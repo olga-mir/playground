@@ -103,12 +103,7 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
    kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge
    ```
 
-4. **Commit and push** changes for GitOps to apply them:
-   ```bash
-   git add <changed-files>
-   git commit -m "fix: description of changes"
-   git push
-   ```
+4. **Commit and push** let the user review, commit and push
 
 5. **Force reconciliation** if needed:
    ```bash

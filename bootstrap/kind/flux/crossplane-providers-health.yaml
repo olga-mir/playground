@@ -15,9 +15,6 @@ spec:
   prune: false
   healthChecks:
     - apiVersion: pkg.crossplane.io/v1
-      kind: Provider
-      name: crossplane-contrib-provider-kubernetes
-    - apiVersion: pkg.crossplane.io/v1
       kind: Provider  
       name: provider-helm
     - apiVersion: pkg.crossplane.io/v1

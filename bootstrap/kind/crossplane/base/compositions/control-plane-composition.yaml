@@ -79,31 +79,6 @@ spec:
                 autoUpgrade: true
             providerConfigRef:
               name: crossplane-provider-gcp
-          {{ if eq .observed.composite.resource.spec.parameters.clusterType "control-plane" }}
-          ---
-          # Kubernetes ProviderConfig for this cluster (no dependencies - can be created in parallel)
-          apiVersion: kubernetes.crossplane.io/v1alpha1
-          kind: ProviderConfig
-          metadata:
-            name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
-            annotations:
-              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
-              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
-          spec:
-            credentials:
-              source: Secret
-              secretRef:
-                namespace: crossplane-system
-                name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
-                key: kubeconfig
-            identity:
-              type: GoogleApplicationCredentials
-              source: Secret
-              secretRef:
-                namespace: crossplane-system
-                name: gcp-creds
-                key: credentials
-          {{ end }}
 
 # ArgoCD step removed - migrated to FluxCD
 
