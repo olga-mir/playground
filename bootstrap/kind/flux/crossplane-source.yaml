@@ -32,11 +32,21 @@ spec:
   interval: 10m
   path: "./bootstrap/kind/crossplane/base"
   prune: true
+  retryInterval: 2m
   sourceRef:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
     - name: crossplane-install
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: crossplane
+      namespace: crossplane-system
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: crossplane-rbac-manager
+      namespace: crossplane-system
   postBuild:
     substituteFrom:
       - kind: ConfigMap

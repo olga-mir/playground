@@ -19,7 +19,7 @@ echo "Creating Crossplane variables ConfigMap for Flux substituteFrom..."
 set +x
 export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
 # TODO - substitutefrom secret for secret values
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars \
     --namespace flux-system \
     --from-literal=PROJECT_ID="${PROJECT_ID}" \
     --from-literal=REGION="${REGION}" \
