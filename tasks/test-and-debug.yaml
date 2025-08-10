@@ -29,12 +29,17 @@ tasks:
       CLUSTER: '{{default "control-plane-cluster" .CLUSTER}}'
       CONTEXT: '{{default "kind-kind-test-cluster" .CONTEXT}}'
     cmds:
-      - echo "=== GKE Cluster Status ==="
-      - kubectl --context={{.CONTEXT}} get gkeclusters.platform.tornado-demo.io {{.CLUSTER}} -o wide
-      - kubectl --context={{.CONTEXT}} get clusters.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No clusters found"
-      - kubectl --context={{.CONTEXT}} describe clusters.container.gcp-beta.upbound.io control-plane | tail -5
       - kubectl --context={{.CONTEXT}} get nodepools.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No nodepools found"
       - kubectl --context={{.CONTEXT}} get releases.helm.crossplane.io -o wide 2>/dev/null || echo "No helm releases found"
+      - echo
+      - kubectl --context={{.CONTEXT}} get clusters.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No clusters found"
+      - echo
+      - kubectl --context={{.CONTEXT}} describe clusters.container.gcp-beta.upbound.io {{.CLUSTER}} | tail -5
+      - echo
+      - kubectl --context={{.CONTEXT}} get gkeclusters.platform.tornado-demo.io {{.CLUSTER}} -o wide
+      - echo
+      - kubectl --context={{.CONTEXT}} describe gkeclusters.platform.tornado-demo.io {{.CLUSTER}} | tail -5
+      - echo
 
   crossplane-status:
     desc: "Debug Crossplane install (TODO - dynamic config)"

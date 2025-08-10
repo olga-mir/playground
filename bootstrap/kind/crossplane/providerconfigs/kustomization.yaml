@@ -3,4 +3,5 @@ kind: Kustomization
 
 resources:
   - providers-config.yaml
-  - providerconfig-gke-control-plane.yaml
+  # TODO this is kubeconfig secret needed for k8s provider (maybe not even needed - validate later)
+  #- providerconfig-gke-control-plane.yaml

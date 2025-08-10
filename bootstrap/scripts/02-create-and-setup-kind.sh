@@ -59,32 +59,4 @@ kubectl wait --for=condition=ready pod -l app=helm-controller -n flux-system --t
 kubectl wait --for=condition=ready pod -l app=notification-controller -n flux-system --timeout=100s
 
 echo "FluxCD is ready!"
-
-echo "Creating GCP credentials secret..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic gcp-creds \
-    --namespace crossplane-system \
-    --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
-    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
-
-echo "Creating Crossplane variables ConfigMap for Flux substituteFrom..."
-set +x
-export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars \
-    --namespace flux-system \
-    --from-literal=PROJECT_ID="${PROJECT_ID}" \
-    --from-literal=REGION="${REGION}" \
-    --from-literal=ZONE="${ZONE}" \
-    --from-literal=GKE_CONTROL_PLANE_CLUSTER="${GKE_CONTROL_PLANE_CLUSTER}" \
-    --from-literal=GKE_APPS_DEV_CLUSTER="${GKE_APPS_DEV_CLUSTER}" \
-    --from-literal=GKE_VPC="${GKE_VPC}" \
-    --from-literal=CONTROL_PLANE_SUBNET_NAME="${CONTROL_PLANE_SUBNET_NAME}" \
-    --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
-    --from-literal=GITHUB_DEMO_REPO_OWNER="${GITHUB_DEMO_REPO_OWNER}" \
-    --from-literal=GITHUB_DEMO_REPO_PAT="${GITHUB_DEMO_REPO_PAT}" \
-    --from-literal=BASE64_ENCODED_GCP_CREDS="${BASE64_ENCODED_GCP_CREDS}" \
-    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
-unset BASE64_ENCODED_GCP_CREDS
-set -x
-
-sleep 30
 flux get all -A

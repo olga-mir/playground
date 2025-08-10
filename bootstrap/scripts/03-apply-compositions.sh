@@ -5,10 +5,38 @@ set -eoux pipefail
 export KIND_CROSSPLANE_CONTEXT="kind-kind-test-cluster"
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 
+# Creating secrets needs namespace to exist, namespace is created in crossplane-base kustomization, which dependends on crossplane-vars
+# for now I will just create ns manually and will solve it later (TODO)
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create namespace crossplane-system
+
+echo "Creating GCP credentials secret..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic gcp-creds \
+    --namespace crossplane-system \
+    --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
+    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+
+echo "Creating Crossplane variables ConfigMap for Flux substituteFrom..."
+set +x
+export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap crossplane-vars \
+    --namespace flux-system \
+    --from-literal=PROJECT_ID="${PROJECT_ID}" \
+    --from-literal=REGION="${REGION}" \
+    --from-literal=ZONE="${ZONE}" \
+    --from-literal=GKE_CONTROL_PLANE_CLUSTER="${GKE_CONTROL_PLANE_CLUSTER}" \
+    --from-literal=GKE_APPS_DEV_CLUSTER="${GKE_APPS_DEV_CLUSTER}" \
+    --from-literal=GKE_VPC="${GKE_VPC}" \
+    --from-literal=CONTROL_PLANE_SUBNET_NAME="${CONTROL_PLANE_SUBNET_NAME}" \
+    --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
+    --from-literal=GITHUB_DEMO_REPO_OWNER="${GITHUB_DEMO_REPO_OWNER}" \
+    --from-literal=GITHUB_DEMO_REPO_PAT="${GITHUB_DEMO_REPO_PAT}" \
+    --from-literal=BASE64_ENCODED_GCP_CREDS="${BASE64_ENCODED_GCP_CREDS}" \
+    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+unset BASE64_ENCODED_GCP_CREDS
+set -x
+
 echo "Applying Flux Crossplane source..."
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/bootstrap/kind/flux/crossplane-source.yaml"
-
-sleep 15
 
 echo "Waiting for Flux to sync Crossplane resources..."
 echo "This includes providers, compositions, and cluster Composite Resources"
@@ -16,7 +44,6 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustom
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=300s
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=300s
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=60s
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-composite-resources -n flux-system --timeout=300s
 
 echo "Clusters creation initiated via Crossplane compositions!"
 
@@ -24,6 +51,8 @@ echo "Waiting for clusters to be ready (sleep 5 min)..."
 echo "This may take 10-15 minutes for GKE clusters to provision..."
 
 sleep 300
+
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-composite-resources -n flux-system --timeout=600s
 
 # Function to wait for a cluster to be ready using Composite Resources
 wait_for_cluster_ready() {
