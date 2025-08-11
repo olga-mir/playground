@@ -38,6 +38,12 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic platform-se
     --from-literal=GITHUB_FLUX_PLAYGROUND_PAT="${GITHUB_FLUX_PLAYGROUND_PAT}" \
     --from-literal=BASE64_ENCODED_GCP_CREDS="${BASE64_ENCODED_GCP_CREDS}" \
     --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+
+echo "Creating GitHub webhook token secret for notification provider..."
+kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic github-webhook-token \
+    --namespace flux-system \
+    --from-literal=token="${GITHUB_FLUX_PLAYGROUND_PAT}" \
+    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
 unset BASE64_ENCODED_GCP_CREDS
 set -x
 
