@@ -4,3 +4,4 @@ resources:
   - crossplane-source.yaml
   - crossplane-providers-health.yaml
   - notification-provider.yaml
+  - test-webhook-provider.yaml
