@@ -120,3 +120,90 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
    ```
 
 **Note**: Always work through GitOps - direct kubectl changes will be overridden by Flux.
+
+## Flux Notifications & GitHub Workflows Debugging
+
+### Common Issues and Solutions for Flux → GitHub Actions Integration
+
+#### Issue: GitHub workflows not triggering from Flux notifications
+**Root Causes and Fixes:**
+
+1. **Event Type Mismatch** (Most Common)
+   - **Problem**: Flux `githubdispatch` provider sends `event_type` in format: `{Kind}/{Name}.{Namespace}`
+   - **Example**: For `crossplane-composite-resources` Kustomization in `flux-system` namespace → `Kustomization/crossplane-composite-resources.flux-system`
+   - **Solution**: GitHub workflow must match exact format:
+   ```yaml
+   on:
+     repository_dispatch:
+       types: [Kustomization/crossplane-composite-resources.flux-system]
+   ```
+
+2. **Workflow Location** 
+   - **Problem**: GitHub only looks for workflows in the **default branch** (usually `main`)
+   - **Solution**: Ensure `.github/workflows/` files are committed to main branch
+
+3. **Secret Configuration**
+   - **Problem**: `githubdispatch` provider expects `token` key in secret
+   - **Solution**: Create separate secret for GitHub webhook:
+   ```bash
+   kubectl create secret generic github-webhook-token --namespace flux-system --from-literal=token="${GITHUB_TOKEN}"
+   ```
+
+4. **Provider vs PostBuild Secrets**
+   - **Problem**: Mixing notification provider secrets with Flux PostBuild substitution secrets
+   - **Solution**: Keep separate:
+     - `platform-secrets`: For Flux PostBuild `substituteFrom`
+     - `github-webhook-token`: For notification Provider `secretRef`
+
+### Debugging Flux Notifications
+
+1. **Check notification controller logs**:
+   ```bash
+   kubectl logs -n flux-system -l app=notification-controller --tail=20
+   ```
+   - Look for `"dispatching event"` (success) vs `"failed to send notification"` (error)
+
+2. **Force trigger for testing**:
+   ```bash
+   kubectl annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=$(date '+%Y-%m-%dT%H:%M:%S%z') --overwrite
+   ```
+
+3. **Check Provider/Alert status**:
+   ```bash
+   kubectl describe provider github-webhook -n flux-system
+   kubectl describe alert cluster-ready-alert -n flux-system
+   ```
+
+### Working Notification Setup Example
+```yaml
+# Provider
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: github-webhook
+  namespace: flux-system
+spec:
+  type: githubdispatch
+  address: https://github.com/owner/repo
+  secretRef:
+    name: github-webhook-token
+
+# Alert  
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: cluster-ready-alert
+  namespace: flux-system
+spec:
+  providerRef:
+    name: github-webhook
+  eventSeverity: info
+  eventSources:
+  - kind: Kustomization
+    name: crossplane-composite-resources
+    namespace: flux-system
+  eventMetadata:
+    cluster_name: "{{ if contains .Object.metadata.name \"control-plane\" }}control-plane{{ else }}apps-dev{{ end }}"
+    project_id: "${PROJECT_ID}"
+    region: "${REGION}"
+```

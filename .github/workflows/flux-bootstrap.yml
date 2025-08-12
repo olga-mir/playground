@@ -2,33 +2,16 @@ name: Flux Bootstrap GKE Clusters
 
 on:
   repository_dispatch:
-    types: [flux-cluster-ready]
-  workflow_dispatch:
-    inputs:
-      cluster_name:
-        type: string
-        description: "GKE Cluster Name"
-        required: true
-      region:
-        type: string
-        description: "GKE Region"
-        required: true
-      project_id:
-        type: string
-        description: "GCP Project ID"
-        required: true
-      cluster_type:
-        type: string
-        description: "Cluster Type (control-plane/apps-dev)"
-        required: true
+    types: [Kustomization/crossplane-composite-resources.flux-system]
 
-concurrency:
-  group: flux-bootstrap-${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}
-  cancel-in-progress: false
+#concurrency:
+#  group: flux-bootstrap-${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}
+#  cancel-in-progress: false
 
 permissions:
-  id-token: write
-  contents: write
+  contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
   bootstrap-flux:
