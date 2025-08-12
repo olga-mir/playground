@@ -2,7 +2,7 @@ name: Test Webhook Notification
 
 on:
   repository_dispatch:
-    types: [test-flux-notification]
+    types: [Kustomization/crossplane-composite-resources]
 
 jobs:
   test-notification:
