@@ -2,28 +2,25 @@
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
 metadata:
-  name: test-webhook
+  name: github-dispatch-test
   namespace: flux-system
 spec:
-  type: generic
-  address: https://webhook.site/b1c2d3e4-f5g6-h7i8-j9k0-l1m2n3o4p5q6
+  type: githubdispatch
+  address: https://github.com/olga-mir/playground
+  secretRef:
+    name: github-webhook-token
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert
 metadata:
-  name: test-cluster-ready-alert
+  name: github-dispatch-test
   namespace: flux-system
 spec:
+  summary: "test trigger workflow"
   providerRef:
-    name: test-webhook
+    name: github-dispatch-test
   eventSeverity: info
   eventSources:
-  - kind: Kustomization
-    name: crossplane-composite-resources
-    namespace: flux-system
-  eventMetadata:
-    cluster_name: "{{ if contains .Object.metadata.name \"control-plane\" }}control-plane{{ else if contains .Object.metadata.name \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
-    region: "${REGION}"
-    project_id: "${PROJECT_ID}"
-    cluster_type: "{{ if contains .Object.metadata.name \"control-plane\" }}control-plane{{ else if contains .Object.metadata.name \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
-    message: "Flux cluster ready notification test"
+    - kind: Kustomization
+      name: crossplane-composite-resources
+      namespace: flux-system

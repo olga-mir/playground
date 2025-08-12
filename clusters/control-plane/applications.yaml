@@ -5,24 +5,25 @@ metadata:
   name: kagent-system
 ---
 # AI platform API Key secret for kagent
-apiVersion: v1
-kind: Secret
-metadata:
-  name: kagent-anthropic
-  namespace: kagent-system
-type: Opaque
-data:
-  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY_B64}  # Base64 encoded in CI
+#apiVersion: v1
+#kind: Secret
+#metadata:
+#  name: kagent-anthropic
+#  namespace: kagent-system
+#type: Opaque
+#data:
+#  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY_B64}  # Base64 encoded in CI
 ---
-apiVersion: v1
-kind: Secret  
-metadata:
-  name: kagent-openai
-  namespace: kagent-system
-type: Opaque
-data:
-  OPENAI_API_KEY: ${OPENAI_API_KEY_B64}  # Base64 encoded in CI
----
+# TODO - to implement in the next stage
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: kagent-openai
+#   namespace: kagent-system
+# type: Opaque
+# data:
+#   OPENAI_API_KEY: ${OPENAI_API_KEY_B64}  # Base64 encoded in CI
+# ---
 # Gateway API CRDs (if not already installed)
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository

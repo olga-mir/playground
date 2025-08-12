@@ -7,10 +7,8 @@ export CONTROL_PLANE_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_CONTROL_PLANE_CLUS
 
 set +x
 export GITHUB_TOKEN="${GITHUB_FLUX_PLAYGROUND_PAT}"
-set -x
 
 echo "🚀 Bootstrapping Flux on control-plane cluster: ${GKE_CONTROL_PLANE_CLUSTER}"
-
 echo "📦 Installing Flux on control-plane cluster..."
 GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
   --owner=${GITHUB_DEMO_REPO_OWNER} \
@@ -19,6 +17,7 @@ GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
   --path=clusters/control-plane \
   --context="${CONTROL_PLANE_CONTEXT}"
   --personal
+set -x
 
 echo "⏳ Waiting for Flux components to be ready..."
 kubectl --context="${CONTROL_PLANE_CONTEXT}" wait --for=condition=ready pod -l app=source-controller -n flux-system --timeout=300s
