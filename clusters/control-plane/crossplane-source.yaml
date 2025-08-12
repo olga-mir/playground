@@ -23,7 +23,7 @@ spec:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
-    - name: flux-system
+    - name: crossplane-install
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
