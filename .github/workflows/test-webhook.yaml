@@ -1,0 +1,34 @@
+name: Test Webhook Notification
+
+on:
+  repository_dispatch:
+    types: [test-flux-notification]
+
+jobs:
+  test-notification:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Echo notification received
+      run: |
+        echo "🎉 Webhook notification received!"
+        echo "Event type: ${{ github.event.action }}"
+        echo "Repository: ${{ github.repository }}"
+        echo "Sender: ${{ github.event.sender.login }}"
+        
+        # Print client payload if available
+        if [[ "${{ github.event.client_payload }}" != "" ]]; then
+          echo "Client payload:"
+          echo '${{ toJson(github.event.client_payload) }}'
+        fi
+    
+    - name: Send test dispatch
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        event-type: test-received
+        client-payload: |
+          {
+            "message": "Test webhook notification processed successfully",
+            "timestamp": "${{ github.event.head_commit.timestamp }}",
+            "triggered_by": "flux-notification"
+          }
