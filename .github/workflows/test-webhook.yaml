@@ -32,3 +32,4 @@ jobs:
             "timestamp": "${{ github.event.head_commit.timestamp }}",
             "triggered_by": "flux-notification"
           }
+
