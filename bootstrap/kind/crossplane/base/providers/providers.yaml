@@ -8,13 +8,6 @@ spec:
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
-  name: provider-gcp-iam
-spec:
-  package: xpkg.crossplane.io/crossplane-contrib/provider-gcp-iam:v1.12.1
----
-apiVersion: pkg.crossplane.io/v1
-kind: Provider
-metadata:
   name: provider-gcp-beta-container
 spec:
   package: xpkg.upbound.io/upbound/provider-gcp-beta-container:v0.5.1
