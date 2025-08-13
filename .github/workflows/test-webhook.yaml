@@ -4,12 +4,6 @@ on:
   repository_dispatch:
     types: [Kustomization/crossplane-composite-resources.flux-system]
 
-permissions:
-  contents: read
-  issues: write
-  pull-requests: write
-  actions: read
-
 jobs:
   test-notification:
     runs-on: ubuntu-latest
@@ -26,16 +20,3 @@ jobs:
           echo "Client payload:"
           echo '${{ toJson(github.event.client_payload) }}'
         fi
-    
-    - name: Send test dispatch
-      uses: peter-evans/repository-dispatch@v2
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        event-type: test-received
-        client-payload: |
-          {
-            "message": "Test webhook notification processed successfully",
-            "timestamp": "${{ github.event.head_commit.timestamp }}",
-            "triggered_by": "flux-notification"
-          }
-
