@@ -3,17 +3,17 @@
 set -eoux pipefail
 
 # Usage: ./bootstrap-cluster.sh <cluster-type>
-# cluster-type: control-plane or apps-dev (or any workload cluster name)
+# cluster-type: control-plane (or any workload cluster name)
 
 CLUSTER_TYPE=${1:-}
 
 if [[ -z "$CLUSTER_TYPE" ]]; then
     echo "❌ Usage: $0 <cluster-type>"
-    echo "   cluster-type: control-plane, apps-dev, or any workload cluster name"
+    echo "   cluster-type: control-plane (or any workload cluster name)"
     echo ""
     echo "Examples:"
     echo "  $0 control-plane    # Bootstrap control-plane cluster with Flux + Crossplane"
-    echo "  $0 apps-dev         # Bootstrap apps-dev workload cluster with Flux only"
+    echo "  Note: apps-dev cluster is now managed by control-plane cluster via Crossplane"
     exit 1
 fi
 
@@ -38,9 +38,6 @@ echo ""
 case "$CLUSTER_TYPE" in
     "control-plane")
         export CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_CONTROL_PLANE_CLUSTER}"
-        ;;
-    "apps-dev")
-        export CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_APPS_DEV_CLUSTER}"
         ;;
     *)
         export CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${CLUSTER_TYPE}"

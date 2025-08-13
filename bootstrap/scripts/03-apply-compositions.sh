@@ -102,16 +102,14 @@ wait_for_cluster_ready() {
     return 1
 }
 
-# Wait for both clusters sequentially to handle Ctrl+C properly
+# Wait for control-plane cluster
 wait_for_cluster_ready "control-plane-cluster" "gkecluster-control-plane"
-wait_for_cluster_ready "apps-dev-cluster" "gkecluster-apps-dev"
 
-echo "✅ All clusters are ready!"
+echo "✅ Control-plane cluster is ready!"
 echo "Monitor detailed progress with: kubectl --context=${KIND_CROSSPLANE_CONTEXT} get gkeclusters -w"
 
 # Get cluster credentials for local kubectl access
 echo "🔑 Setting up local cluster credentials..."
-gcloud container clusters get-credentials "${GKE_APPS_DEV_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
 gcloud container clusters get-credentials "${GKE_CONTROL_PLANE_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
 
 echo ""

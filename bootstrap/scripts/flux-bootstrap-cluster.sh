@@ -3,13 +3,13 @@
 set -eoux pipefail
 
 # Usage: ./flux-bootstrap-cluster.sh <cluster-type>
-# cluster-type: control-plane or apps-dev (or any workload cluster name)
+# cluster-type: control-plane (or any workload cluster name)
 
 CLUSTER_TYPE=${1:-}
 
 if [[ -z "$CLUSTER_TYPE" ]]; then
     echo "❌ Usage: $0 <cluster-type>"
-    echo "   cluster-type: control-plane, apps-dev, or any workload cluster name"
+    echo "   cluster-type: control-plane (or any workload cluster name)"
     exit 1
 fi
 
@@ -22,12 +22,6 @@ case "$CLUSTER_TYPE" in
         export CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_CONTROL_PLANE_CLUSTER}"
         export FLUX_PATH="clusters/control-plane"
         export IS_CONTROL_PLANE=true
-        ;;
-    "apps-dev")
-        export CLUSTER_NAME="${GKE_APPS_DEV_CLUSTER}"
-        export CLUSTER_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_APPS_DEV_CLUSTER}"
-        export FLUX_PATH="clusters/apps-dev"
-        export IS_CONTROL_PLANE=false
         ;;
     *)
         # Generic workload cluster
