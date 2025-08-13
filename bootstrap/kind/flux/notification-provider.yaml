@@ -2,34 +2,30 @@
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
 metadata:
-  name: github-webhook
+  name: github-dispatch
   namespace: flux-system
 spec:
   type: githubdispatch
   address: https://github.com/olga-mir/playground
-  channel: flux-cluster-ready
   secretRef:
     name: github-webhook-token
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert
 metadata:
-  name: cluster-ready-alert
+  name: github-dispatch-gke-clusters
   namespace: flux-system
 spec:
   providerRef:
-    name: github-webhook
+    name: github-dispatch
   eventSeverity: info
-  inclusionList:
-    - ".*cluster.*Ready.*"
-    - ".*control-plane-cluster.*Ready.*"
   eventSources:
-  - kind: Kustomization
-    name: crossplane-composite-resources
-    namespace: flux-system
-  summary: "flux-cluster-ready"
+    - kind: Kustomization
+      name: crossplane-composite-resources
+      namespace: flux-system
+  # Include structured data in the payload
   eventMetadata:
-    cluster_name: "{{ if contains .Message \"control-plane\" }}control-plane{{ else if contains .Message \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
-    region: "${REGION}"
-    project_id: "${PROJECT_ID}"
-    cluster_type: "{{ if contains .Message \"control-plane\" }}control-plane{{ else if contains .Message \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
+    summary: |
+      GKE Cluster Event: {{ range .InvolvedObject }}{{ .Name }}{{ end }}
+      Status: {{ .Reason }}
+      Details: {{ .Message }}

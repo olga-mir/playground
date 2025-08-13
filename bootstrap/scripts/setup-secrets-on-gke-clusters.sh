@@ -74,10 +74,10 @@ if [[ "$IS_CONTROL_PLANE" == "true" ]]; then
     set -x
 fi
 
-# AI Platform secrets (control-plane only for now, but could be extended to workload clusters)
-if [[ "$IS_CONTROL_PLANE" == "true" ]]; then
+# AI Platform secrets (workload clusters only - kagent/kgateway run on workload clusters)
+if [[ "$IS_CONTROL_PLANE" == "false" ]]; then
     set +x
-    echo "🤖 Creating AI platform API Key secrets for kagent..."
+    echo "🤖 Creating AI platform API Key secrets for kagent on workload cluster..."
 
     if ! kubectl --context="${CLUSTER_CONTEXT}" get namespace kagent-system &>/dev/null; then
        kubectl --context="${CLUSTER_CONTEXT}" create namespace kagent-system
@@ -119,8 +119,9 @@ if [[ "$IS_CONTROL_PLANE" == "false" ]]; then
 
     # Add any workload-cluster specific secret creation here
     # For example, application database credentials, service account keys, etc.
+    # AI platform secrets are already created above
 
-    echo "ℹ️  No additional workload cluster secrets configured yet"
+    echo "ℹ️  No additional workload cluster secrets configured"
 fi
 
 echo "✅ Secret setup for ${CLUSTER_TYPE} cluster completed successfully!"
@@ -129,9 +130,10 @@ echo "🔍 Secrets summary for cluster: ${CLUSTER_NAME}"
 if [[ "$IS_CONTROL_PLANE" == "true" ]]; then
     echo "   Crossplane secrets in crossplane-system namespace:"
     kubectl --context="${CLUSTER_CONTEXT}" get secrets -n crossplane-system | grep -E "(github-provider|gcp-creds)" || echo "   No Crossplane secrets found"
+    echo "   ℹ️  AI platform secrets are deployed to workload clusters only"
+else
     echo "   AI platform secrets in kagent-system namespace:"
     kubectl --context="${CLUSTER_CONTEXT}" get secrets -n kagent-system | grep -E "(kagent-)" || echo "   No AI platform secrets found"
-else
-    echo "   Workload cluster secrets:"
-    echo "   No cluster-specific secrets configured yet"
+    echo "   Other workload cluster secrets:"
+    echo "   No additional cluster-specific secrets configured"
 fi

@@ -3,7 +3,7 @@ kind: Provider
 metadata:
   name: provider-upjet-github
 spec:
-  package: xpkg.crossplane.io/crossplane-contrib/provider-upjet-github:v0.18.0
+  package: xpkg.crossplane.io/crossplane-contrib/provider-upjet-github:v0.18.4
   runtimeConfigRef:
     apiVersion: pkg.crossplane.io/v1beta1
     kind: DeploymentRuntimeConfig

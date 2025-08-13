@@ -23,6 +23,9 @@ spec:
           spec:
             type: object
             properties:
+              writeConnectionSecretsToNamespace:
+                type: string
+                description: The namespace where connection secrets will be written
               parameters:
                 type: object
                 properties:

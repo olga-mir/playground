@@ -138,7 +138,7 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
        types: [Kustomization/crossplane-composite-resources.flux-system]
    ```
 
-2. **Workflow Location** 
+2. **Workflow Location**
    - **Problem**: GitHub only looks for workflows in the **default branch** (usually `main`)
    - **Solution**: Ensure `.github/workflows/` files are committed to main branch
 
@@ -174,36 +174,35 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
    kubectl describe alert cluster-ready-alert -n flux-system
    ```
 
-### Working Notification Setup Example
-```yaml
-# Provider
-apiVersion: notification.toolkit.fluxcd.io/v1beta3
-kind: Provider
-metadata:
-  name: github-webhook
-  namespace: flux-system
-spec:
-  type: githubdispatch
-  address: https://github.com/owner/repo
-  secretRef:
-    name: github-webhook-token
+### Flux Notification Configuration Best Practices
 
-# Alert  
-apiVersion: notification.toolkit.fluxcd.io/v1beta3
-kind: Alert
-metadata:
-  name: cluster-ready-alert
-  namespace: flux-system
-spec:
-  providerRef:
-    name: github-webhook
-  eventSeverity: info
-  eventSources:
-  - kind: Kustomization
-    name: crossplane-composite-resources
-    namespace: flux-system
-  eventMetadata:
-    cluster_name: "{{ if contains .Object.metadata.name \"control-plane\" }}control-plane{{ else }}apps-dev{{ end }}"
-    project_id: "${PROJECT_ID}"
-    region: "${REGION}"
-```
+**Avoid Over-Filtering in Alerts**:
+- Complex inclusion/exclusion regex filters in Alert specs can be unreliable and hard to debug
+- **Better approach**: Remove filters from alerts and implement logic in GitHub Actions workflows
+- This makes the system more transparent and easier to troubleshoot
+
+**Use Modern API Fields**:
+- **Deprecated**: `spec.summary` field in Alert resources
+- **Current**: `spec.eventMetadata.summary` field
+- Mixing both causes conflicts and can prevent alerts from firing properly
+
+**Alert Configuration Issues**:
+1. **Configuration Conflicts**: Having both deprecated `summary` and new `eventMetadata` fields
+2. **Filter Complexity**: Inclusion filters like `.*GKECluster.*created.*` may not match as expected
+3. **Event Processing**: Alerts process events differently than expected - test with actual payloads
+
+**Debugging Event Payloads**:
+- Capture webhook payloads from GitHub Actions logs to understand actual event structure
+- Event messages may not match expected patterns due to formatting differences
+- Use simple test alerts without filters to verify basic webhook functionality
+
+**Workflow Design**:
+- GitHub workflows only read from the default branch (usually `main`)
+- Both workflows listening to same `repository_dispatch` type will both trigger
+- Implement cluster readiness checks in workflows rather than relying on alert filters
+- Add conditional execution to skip irrelevant events (non-cluster events)
+
+**Provider vs Alert Separation**:
+- Multiple alerts can share the same provider (webhook endpoint)
+- Each alert processes events independently based on its configuration
+- Provider issues affect all alerts using that provider

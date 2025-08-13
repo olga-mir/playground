@@ -16,7 +16,8 @@ metadata:
   name: github-dispatch-test
   namespace: flux-system
 spec:
-  summary: "test trigger workflow"
+  eventMetadata:
+    summary: "test trigger workflow"
   providerRef:
     name: github-dispatch-test
   eventSeverity: info

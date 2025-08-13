@@ -3,5 +3,9 @@ kind: Kustomization
 
 resources:
   - providers.yaml
-  - provider-configs.yaml
   - functions.yaml
+  - aux-rbac-for-provider-gcp.yaml
+  - aux-rbac-for-provider-github.yaml
+  - gcp-provider-iam.yaml
+  - github-provider.yaml
+  - github-runtime-config.yaml

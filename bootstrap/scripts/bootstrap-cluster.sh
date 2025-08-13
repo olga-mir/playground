@@ -28,7 +28,7 @@ echo "📦 Step 1: Bootstrapping Flux..."
 
 echo ""
 echo "🔐 Step 2: Setting up secrets..."
-"${REPO_ROOT}/bootstrap/scripts/setup-cluster-secrets.sh" "$CLUSTER_TYPE"
+"${REPO_ROOT}/bootstrap/scripts/setup-secrets-on-gke-clusters.sh" "$CLUSTER_TYPE"
 
 echo ""
 echo "✅ Complete bootstrap for ${CLUSTER_TYPE} cluster finished successfully!"

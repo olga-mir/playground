@@ -28,23 +28,43 @@ jobs:
     - name: Extract cluster info from payload
       id: cluster-info
       run: |
-        echo "cluster_name=${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}" >> $GITHUB_OUTPUT
-        echo "region=${{ github.event.inputs.region || github.event.client_payload.region }}" >> $GITHUB_OUTPUT
-        echo "cluster_type=${{ github.event.inputs.cluster_type || github.event.client_payload.cluster_type }}" >> $GITHUB_OUTPUT
+        # Parse cluster info from the message field
+        MESSAGE="${{ github.event.client_payload.message }}"
+        REASON="${{ github.event.client_payload.reason }}"
+        echo "Message: $MESSAGE"
+        echo "Reason: $REASON"
 
-        # Extract project_id but don't echo it to avoid logs
-        PROJECT_ID="${{ github.event.inputs.project_id || github.event.client_payload.project_id }}"
-        echo "project_id=${PROJECT_ID}" >> $GITHUB_OUTPUT
+        # Check if this is a cluster-related event we should process
+        if [[ "$MESSAGE" == *"GKECluster"* ]]; then
+          # Extract cluster name and type from message like "GKECluster/control-plane-cluster created"
+          if [[ "$MESSAGE" == *"control-plane"* ]]; then
+            echo "cluster_name=gke-control-plane-cluster" >> $GITHUB_OUTPUT
+            echo "cluster_type=control-plane" >> $GITHUB_OUTPUT
+          elif [[ "$MESSAGE" == *"apps-dev"* ]]; then
+            echo "cluster_name=gke-apps-dev-cluster" >> $GITHUB_OUTPUT
+            echo "cluster_type=apps-dev" >> $GITHUB_OUTPUT
+          else
+            echo "cluster_name=unknown" >> $GITHUB_OUTPUT
+            echo "cluster_type=unknown" >> $GITHUB_OUTPUT
+          fi
+          echo "should_proceed=true" >> $GITHUB_OUTPUT
+        else
+          echo "Not a GKE cluster event, skipping bootstrap"
+          echo "should_proceed=false" >> $GITHUB_OUTPUT
+          echo "cluster_name=unknown" >> $GITHUB_OUTPUT
+          echo "cluster_type=unknown" >> $GITHUB_OUTPUT
+        fi
 
-        # Print payload but redact sensitive info
-        echo "Event received for cluster: ${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}"
-        echo "Region: ${{ github.event.inputs.region || github.event.client_payload.region }}"
-        echo "Cluster type: ${{ github.event.inputs.cluster_type || github.event.client_payload.cluster_type }}"
+        echo "region=australia-southeast1" >> $GITHUB_OUTPUT
+
+        # Project ID will be available from WIF auth context
 
     - name: Setup Flux CLI
+      if: steps.cluster-info.outputs.should_proceed == 'true'
       uses: fluxcd/flux2/action@main
 
     - name: Authenticate to Google Cloud
+      if: steps.cluster-info.outputs.should_proceed == 'true'
       id: auth
       uses: google-github-actions/auth@v2
       with:
@@ -54,22 +74,57 @@ jobs:
 
     # The KUBECONFIG env var is automatically exported and picked up by kubectl
     - name: Get GKE credentials
+      if: steps.cluster-info.outputs.should_proceed == 'true'
       id: get-credentials
       uses: google-github-actions/get-gke-credentials@v2
-      env:
-        # Set project via environment to avoid logging in action parameters
-        CLOUDSDK_CORE_PROJECT: ${{ steps.cluster-info.outputs.project_id }}
       with:
         cluster_name: ${{ steps.cluster-info.outputs.cluster_name }}
         location: ${{ steps.cluster-info.outputs.region }}
 
+    - name: Wait for cluster to be ready
+      if: steps.cluster-info.outputs.should_proceed == 'true'
+      id: cluster-ready
+      run: |
+        echo "Checking if cluster is ready..."
+        
+        # Wait for cluster to be accessible (max 10 minutes)
+        timeout_seconds=600
+        elapsed=0
+        
+        while [ $elapsed -lt $timeout_seconds ]; do
+          if kubectl cluster-info >/dev/null 2>&1; then
+            echo "Cluster is accessible via kubectl"
+            
+            # Wait for essential system pods to be ready
+            echo "Waiting for kube-system pods to be ready..."
+            if kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s; then
+              echo "Cluster is ready for Flux bootstrap"
+              echo "cluster_ready=true" >> $GITHUB_OUTPUT
+              break
+            else
+              echo "Some kube-system pods are not ready yet"
+            fi
+          else
+            echo "Cluster not yet accessible, waiting..."
+          fi
+          
+          sleep 30
+          elapsed=$((elapsed + 30))
+        done
+        
+        if [ $elapsed -ge $timeout_seconds ]; then
+          echo "Timeout waiting for cluster to be ready"
+          echo "cluster_ready=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
     - name: Create cluster config
+      if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       run: |
         # Create the namespace if it doesn't already exist
         kubectl get namespace flux-system >/dev/null 2>&1 || kubectl create namespace flux-system
         # Always create or update the ConfigMap
         kubectl create configmap cluster-config -n flux-system \
-          --from-literal=PROJECT_ID="${{ steps.cluster-info.outputs.project_id }}" \
           --from-literal=REGION="${{ steps.cluster-info.outputs.region }}" \
           --from-literal=CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster_name }}" \
           --from-literal=CLUSTER_TYPE="${{ steps.cluster-info.outputs.cluster_type }}" \
@@ -94,10 +149,12 @@ jobs:
     #       --dry-run=client -o yaml | kubectl apply -f -
 
     - name: Run Flux pre-installation checks
+      if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       run: |
         flux check --pre
 
     - name: Bootstrap Flux
+      if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       id: bootstrap
       env:
         GITHUB_TOKEN: ${{ secrets.FLUX_GITHUB_TOKEN }}
@@ -115,6 +172,7 @@ jobs:
           --timeout=10m0s
 
     - name: Run Flux installation checks
+      if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       run: |
         flux check
         echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster_name }}"

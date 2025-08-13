@@ -4,5 +4,3 @@ resources:
   - crossplane-install.yaml
   - crossplane-source.yaml
   - crossplane-platform-source.yaml
-  - platform-source.yaml
-  - applications.yaml

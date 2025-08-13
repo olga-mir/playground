@@ -24,6 +24,28 @@ spec:
     name: crossplane-config
   dependsOn:
     - name: crossplane-install
+  healthChecks:
+    - apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: providers.pkg.crossplane.io
+    - apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: configurations.pkg.crossplane.io
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-provider-configs
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./control-plane-crossplane/provider-configs"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-providers
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -38,7 +60,7 @@ spec:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
-    - name: crossplane-providers
+    - name: crossplane-provider-configs
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -54,6 +76,74 @@ spec:
     name: crossplane-config
   dependsOn:
     - name: crossplane-compositions
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-functions
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./control-plane-crossplane/functions"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-providers
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-environment-configs
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./control-plane-crossplane/environment-configs"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-functions
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-platform-services
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./control-plane-crossplane/platform-services"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-environment-configs
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-workload-clusters
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./control-plane-crossplane/workload-clusters"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-platform-services
   postBuild:
     substituteFrom:
       - kind: ConfigMap

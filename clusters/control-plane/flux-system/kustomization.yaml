@@ -5,4 +5,3 @@ resources:
   - gotk-sync.yaml
   - ../crossplane-source.yaml
   - ../crossplane-platform-source.yaml
-  - ../platform-source.yaml
