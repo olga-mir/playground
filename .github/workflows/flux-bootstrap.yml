@@ -30,9 +30,16 @@ jobs:
       run: |
         echo "cluster_name=${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}" >> $GITHUB_OUTPUT
         echo "region=${{ github.event.inputs.region || github.event.client_payload.region }}" >> $GITHUB_OUTPUT
-        echo "project_id=${{ github.event.inputs.project_id || github.event.client_payload.project_id }}" >> $GITHUB_OUTPUT
         echo "cluster_type=${{ github.event.inputs.cluster_type || github.event.client_payload.cluster_type }}" >> $GITHUB_OUTPUT
-        echo "Event payload: ${{ toJSON(github.event.client_payload) }}"
+
+        # Extract project_id but don't echo it to avoid logs
+        PROJECT_ID="${{ github.event.inputs.project_id || github.event.client_payload.project_id }}"
+        echo "project_id=${PROJECT_ID}" >> $GITHUB_OUTPUT
+
+        # Print payload but redact sensitive info
+        echo "Event received for cluster: ${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}"
+        echo "Region: ${{ github.event.inputs.region || github.event.client_payload.region }}"
+        echo "Cluster type: ${{ github.event.inputs.cluster_type || github.event.client_payload.cluster_type }}"
 
     - name: Setup Flux CLI
       uses: fluxcd/flux2/action@main
@@ -49,8 +56,10 @@ jobs:
     - name: Get GKE credentials
       id: get-credentials
       uses: google-github-actions/get-gke-credentials@v2
+      env:
+        # Set project via environment to avoid logging in action parameters
+        CLOUDSDK_CORE_PROJECT: ${{ steps.cluster-info.outputs.project_id }}
       with:
-        project_id: ${{ steps.cluster-info.outputs.project_id }}
         cluster_name: ${{ steps.cluster-info.outputs.cluster_name }}
         location: ${{ steps.cluster-info.outputs.region }}
 

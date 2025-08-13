@@ -20,13 +20,16 @@ spec:
   providerRef:
     name: github-webhook
   eventSeverity: info
+  inclusionList:
+    - ".*cluster.*Ready.*"
+    - ".*control-plane-cluster.*Ready.*"
   eventSources:
   - kind: Kustomization
     name: crossplane-composite-resources
     namespace: flux-system
   summary: "flux-cluster-ready"
   eventMetadata:
-    cluster_name: "{{ if contains .Object.metadata.name \"control-plane\" }}control-plane{{ else if contains .Object.metadata.name \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
+    cluster_name: "{{ if contains .Message \"control-plane\" }}control-plane{{ else if contains .Message \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
     region: "${REGION}"
     project_id: "${PROJECT_ID}"
-    cluster_type: "{{ if contains .Object.metadata.name \"control-plane\" }}control-plane{{ else if contains .Object.metadata.name \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
+    cluster_type: "{{ if contains .Message \"control-plane\" }}control-plane{{ else if contains .Message \"apps-dev\" }}apps-dev{{ else }}unknown{{ end }}"
