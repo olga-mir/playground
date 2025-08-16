@@ -1,15 +1,16 @@
 version: "3"
 
 tasks:
-  validate-all:
+  all:
     desc: "Validate all clusters meet acceptance criteria"
     cmds:
-      - task: validate-bootstrap
-      - task: validate-control-plane
-      - task: validate-workload-clusters
+      - task: bootstrap
+      - task: control-plane
+      - task: workload-clusters
+      - task: architecture
       - echo "✅ All clusters validation passed"
 
-  validate-bootstrap:
+  bootstrap:
     desc: "Validate bootstrap cluster (kind)"
     vars:
       CONTEXT: kind-kind-test-cluster
@@ -31,7 +32,7 @@ tasks:
         echo -e "\n🚫 Workload cluster composites (should be empty):"
         kubectl --context={{.CONTEXT}} get composite --no-headers | grep -v control-plane || echo "None (correct)"
 
-  validate-control-plane:
+  control-plane:
     desc: "Validate control-plane cluster"
     vars:
       CONTEXT: gke_{{.PROJECT_ID}}_{{.ZONE}}_control-plane
@@ -59,7 +60,7 @@ tasks:
         echo -e "\n🚫 Platform tenants (should be minimal):"
         kubectl --context={{.CONTEXT}} get namespaces | grep -E "(tenant|app)" || echo "None (correct)"
 
-  validate-workload-clusters:
+  workload-clusters:
     desc: "Validate workload clusters (apps-dev)"
     vars:
       CONTEXT: gke_{{.PROJECT_ID}}_{{.ZONE}}_apps-dev
@@ -70,17 +71,27 @@ tasks:
       - |
         # Check if cluster is accessible
         if ! kubectl --context={{.CONTEXT}} get nodes --timeout=10s >/dev/null 2>&1; then
-          echo "⚠️  Cluster {{.CONTEXT}} not accessible - skipping validation"
-          exit 0
+          echo "❌ FAIL: Cluster {{.CONTEXT}} not accessible or not provisioned"
+          exit 1
         fi
         
         # Verify Crossplane is NOT installed
         echo "🚫 Crossplane (should not exist):"
-        kubectl --context={{.CONTEXT}} get namespaces | grep crossplane && echo "❌ FAIL: Crossplane found in workload cluster" || echo "✅ None (correct)"
+        if kubectl --context={{.CONTEXT}} get namespaces | grep crossplane >/dev/null 2>&1; then
+          echo "❌ FAIL: Crossplane found in workload cluster"
+          exit 1
+        else
+          echo "✅ None (correct)"
+        fi
         
         # Verify no composite resources
         echo -e "\n🚫 Composite Resources (should not exist):"
-        kubectl --context={{.CONTEXT}} get composite 2>/dev/null && echo "❌ FAIL: Composites found in workload cluster" || echo "✅ None (correct)"
+        if kubectl --context={{.CONTEXT}} get composite >/dev/null 2>&1; then
+          echo "❌ FAIL: Composites found in workload cluster"
+          exit 1
+        else
+          echo "✅ None (correct)"
+        fi
         
         # Check Flux is ready (for app deployments)
         echo -e "\n📦 Flux Components:"
@@ -92,10 +103,9 @@ tasks:
         kubectl --context={{.CONTEXT}} get deployments,statefulsets -A --no-headers | \
         awk '{printf "%-15s %-30s %-10s %s\n", $1, $2"."$3, $4, $5}' | head -10
 
-  validate-architecture:
+  architecture:
     desc: "Validate architectural constraints"
     vars:
-      PROJECT_ID: '{{default "apps-398909" .PROJECT_ID}}'
       ZONE: '{{default "australia-southeast1-a" .ZONE}}'
     cmds:
       - echo "🏛️  Validating architectural constraints..."
@@ -108,9 +118,15 @@ tasks:
         
         echo -e "\n3. Workload clusters have no infrastructure management:"
         if kubectl --context=gke_{{.PROJECT_ID}}_{{.ZONE}}_apps-dev get nodes --timeout=10s >/dev/null 2>&1; then
-          kubectl --context=gke_{{.PROJECT_ID}}_{{.ZONE}}_apps-dev get namespaces | grep crossplane && echo "❌ FAIL" || echo "✅ PASS"
+          if kubectl --context=gke_{{.PROJECT_ID}}_{{.ZONE}}_apps-dev get namespaces | grep crossplane >/dev/null 2>&1; then
+            echo "❌ FAIL: Crossplane found in workload cluster"
+            exit 1
+          else
+            echo "✅ PASS: No Crossplane in workload cluster"
+          fi
         else
-          echo "⚠️  Apps-dev cluster not accessible - cannot verify (assumed PASS)"
+          echo "❌ FAIL: Apps-dev cluster not accessible or not provisioned"
+          exit 1
         fi
         
         echo -e "\n4. All composites are in Ready state:"
@@ -121,6 +137,7 @@ tasks:
           echo "✅ PASS: All composites ready"
         else
           echo "❌ FAIL: $TOTAL_FAILED composites not ready"
+          exit 1
         fi
 
   pr-acceptance-criteria:
@@ -145,15 +162,15 @@ tasks:
         ### Validation Commands
         ```bash
         # Run full validation
-        task validate-all
+        task validate:all
         
         # Check specific clusters
-        task validate-bootstrap
-        task validate-control-plane
-        task validate-workload-clusters
+        task validate:bootstrap
+        task validate:control-plane
+        task validate:workload-clusters
         
         # Verify architectural constraints
-        task validate-architecture
+        task validate:architecture
         ```
         
         ### Expected Success Criteria
