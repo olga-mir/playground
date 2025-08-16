@@ -1,11 +1,12 @@
-name: Bootstrap Flux on GKE Cluster
-
-# Custom run name for better identification in GitHub UI
-run-name: "Flux Bootstrap: ${{ github.event.client_payload.involvedObject.name || 'Unknown Cluster' }} 🚀"
+name: Flux Bootstrap GKE Clusters
 
 on:
   repository_dispatch:
-    types: [gke-cluster-ready]  # Updated to match the new event type
+    types: [Kustomization/crossplane-composite-resources.flux-system]
+
+#concurrency:
+#  group: flux-bootstrap-${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}
+#  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -14,10 +15,11 @@ permissions:
 
 jobs:
   bootstrap-flux:
-    name: Bootstrap Flux - ${{ github.event.client_payload.involvedObject.name }}
+    name: Bootstrap Flux on GKE Cluster
     runs-on: ubuntu-latest
 
     steps:
+    # REQUIRED: actions/checkout MUST come before auth
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
@@ -26,40 +28,43 @@ jobs:
     - name: Extract cluster info from payload
       id: cluster-info
       run: |
-        # Get the involved object details from Flux event
-        INVOLVED_OBJECT="${{ github.event.client_payload.involvedObject.name }}"
-        NAMESPACE="${{ github.event.client_payload.involvedObject.namespace }}"
+        # Parse cluster info from the message field
         MESSAGE="${{ github.event.client_payload.message }}"
-
-        echo "Involved Object: $INVOLVED_OBJECT"
-        echo "Namespace: $NAMESPACE"
+        REASON="${{ github.event.client_payload.reason }}"
         echo "Message: $MESSAGE"
+        echo "Reason: $REASON"
 
-        # Extract cluster info from the resource name or message
-        # Assuming your GKECluster resources are named descriptively
-        if [[ "$INVOLVED_OBJECT" == *"control-plane"* ]] || [[ "$MESSAGE" == *"control-plane"* ]]; then
-          CLUSTER_TYPE="control-plane"
-          CLUSTER_NAME="gke-control-plane-cluster"
-        elif [[ "$INVOLVED_OBJECT" == *"apps-dev"* ]] || [[ "$MESSAGE" == *"apps-dev"* ]]; then
-          CLUSTER_TYPE="apps-dev"
-          CLUSTER_NAME="gke-apps-dev-cluster"
+        # Check if this is a cluster-related event we should process
+        if [[ "$MESSAGE" == *"GKECluster"* ]]; then
+          # Extract cluster name and type from message like "GKECluster/control-plane-cluster created"
+          if [[ "$MESSAGE" == *"control-plane"* ]]; then
+            echo "cluster_name=gke-control-plane-cluster" >> $GITHUB_OUTPUT
+            echo "cluster_type=control-plane" >> $GITHUB_OUTPUT
+          elif [[ "$MESSAGE" == *"apps-dev"* ]]; then
+            echo "cluster_name=gke-apps-dev-cluster" >> $GITHUB_OUTPUT
+            echo "cluster_type=apps-dev" >> $GITHUB_OUTPUT
+          else
+            echo "cluster_name=unknown" >> $GITHUB_OUTPUT
+            echo "cluster_type=unknown" >> $GITHUB_OUTPUT
+          fi
+          echo "should_proceed=true" >> $GITHUB_OUTPUT
         else
-          echo "Could not determine cluster type from: $INVOLVED_OBJECT or $MESSAGE"
-          exit 1
+          echo "Not a GKE cluster event, skipping bootstrap"
+          echo "should_proceed=false" >> $GITHUB_OUTPUT
+          echo "cluster_name=unknown" >> $GITHUB_OUTPUT
+          echo "cluster_type=unknown" >> $GITHUB_OUTPUT
         fi
 
-        # Set outputs
-        echo "cluster_name=$CLUSTER_NAME" >> $GITHUB_OUTPUT
-        echo "cluster_type=$CLUSTER_TYPE" >> $GITHUB_OUTPUT
         echo "region=australia-southeast1" >> $GITHUB_OUTPUT
 
-        # For better logging
-        echo "Detected cluster: $CLUSTER_NAME (type: $CLUSTER_TYPE)"
+        # Project ID will be available from WIF auth context
 
     - name: Setup Flux CLI
+      if: steps.cluster-info.outputs.should_proceed == 'true'
       uses: fluxcd/flux2/action@main
 
     - name: Authenticate to Google Cloud
+      if: steps.cluster-info.outputs.should_proceed == 'true'
       id: auth
       uses: google-github-actions/auth@v2
       with:
@@ -67,42 +72,89 @@ jobs:
         workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
-    - name: Get project info from auth context
-      id: project-info
-      run: |
-        # Extract project ID from the auth context
-        PROJECT_ID=$(gcloud config get-value project)
-        echo "project_id=$PROJECT_ID" >> $GITHUB_OUTPUT
-        echo "Detected project: $PROJECT_ID"
-
+    # The KUBECONFIG env var is automatically exported and picked up by kubectl
     - name: Get GKE credentials
+      if: steps.cluster-info.outputs.should_proceed == 'true'
       id: get-credentials
       uses: google-github-actions/get-gke-credentials@v2
       with:
         cluster_name: ${{ steps.cluster-info.outputs.cluster_name }}
         location: ${{ steps.cluster-info.outputs.region }}
-        project_id: ${{ steps.project-info.outputs.project_id }}
+
+    - name: Wait for cluster to be ready
+      if: steps.cluster-info.outputs.should_proceed == 'true'
+      id: cluster-ready
+      run: |
+        echo "Checking if cluster is ready..."
+
+        # Wait for cluster to be accessible (max 10 minutes)
+        timeout_seconds=600
+        elapsed=0
+
+        while [ $elapsed -lt $timeout_seconds ]; do
+          if kubectl cluster-info >/dev/null 2>&1; then
+            echo "Cluster is accessible via kubectl"
+
+            # Wait for essential system pods to be ready
+            echo "Waiting for kube-system pods to be ready..."
+            if kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s; then
+              echo "Cluster is ready for Flux bootstrap"
+              echo "cluster_ready=true" >> $GITHUB_OUTPUT
+              break
+            else
+              echo "Some kube-system pods are not ready yet"
+            fi
+          else
+            echo "Cluster not yet accessible, waiting..."
+          fi
+
+          sleep 30
+          elapsed=$((elapsed + 30))
+        done
+
+        if [ $elapsed -ge $timeout_seconds ]; then
+          echo "Timeout waiting for cluster to be ready"
+          echo "cluster_ready=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
 
     - name: Create cluster config
+      if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       run: |
         # Create the namespace if it doesn't already exist
         kubectl get namespace flux-system >/dev/null 2>&1 || kubectl create namespace flux-system
-
         # Always create or update the ConfigMap
         kubectl create configmap cluster-config -n flux-system \
           --from-literal=REGION="${{ steps.cluster-info.outputs.region }}" \
           --from-literal=CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster_name }}" \
           --from-literal=CLUSTER_TYPE="${{ steps.cluster-info.outputs.cluster_type }}" \
-          --from-literal=PROJECT_ID="${{ steps.project-info.outputs.project_id }}" \
           --from-literal=REPO_OWNER="${{ github.repository_owner }}" \
           --from-literal=REPO_NAME="${{ github.event.repository.name }}" \
           --dry-run=client -o yaml | kubectl apply -f -
 
+    # will cross this bridge when we get there, def no API keys in GH secrets
+    # - name: Setup application secrets (control-plane cluster only)
+    #   if: steps.cluster-info.outputs.cluster_type == 'control-plane'
+    #   run: |
+    #     # Create kagent-system namespace
+    #     kubectl get namespace kagent-system >/dev/null 2>&1 || kubectl create namespace kagent-system
+
+    #     # Create AI API secrets
+    #     kubectl create secret generic kagent-anthropic -n kagent-system \
+    #       --from-literal=ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
+    #       --dry-run=client -o yaml | kubectl apply -f -
+
+    #     kubectl create secret generic kagent-openai -n kagent-system \
+    #       --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+    #       --dry-run=client -o yaml | kubectl apply -f -
+
     - name: Run Flux pre-installation checks
+      if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       run: |
         flux check --pre
 
     - name: Bootstrap Flux
+      if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       id: bootstrap
       env:
         GITHUB_TOKEN: ${{ secrets.FLUX_GITHUB_TOKEN }}
@@ -120,8 +172,7 @@ jobs:
           --timeout=10m0s
 
     - name: Run Flux installation checks
+      if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       run: |
         flux check
         echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster_name }}"
-        echo "Project: ${{ steps.project-info.outputs.project_id }}"
-        echo "Region: ${{ steps.cluster-info.outputs.region }}"
