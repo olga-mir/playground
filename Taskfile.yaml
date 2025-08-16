@@ -7,6 +7,9 @@ includes:
   debug:
     taskfile: ./tasks/test-and-debug.yaml
     dir: .
+  validate:
+    taskfile: ./tasks/validate-clusters.yaml
+    dir: .
   mcp:
     taskfile: ./tasks/mcp.yaml
     dir: .

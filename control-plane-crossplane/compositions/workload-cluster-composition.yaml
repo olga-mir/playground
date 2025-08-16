@@ -29,7 +29,7 @@ spec:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
-              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
           spec:
             forProvider:
               network: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/global/networks/{{ .observed.composite.resource.spec.parameters.vpcName }}"
@@ -55,7 +55,7 @@ spec:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
-              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
           spec:
             forProvider:
               clusterRef:
@@ -88,7 +88,7 @@ spec:
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
             annotations:
-              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-k8s-provider
           spec:
             credentials:
               source: Secret
@@ -103,7 +103,7 @@ spec:
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-helm-provider
             annotations:
-              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-helm-provider
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-helm-provider
           spec:
             credentials:
               source: Secret
@@ -118,7 +118,7 @@ spec:
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-flux
             annotations:
-              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-flux
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-flux
           spec:
             providerConfigRef:
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-helm-provider
