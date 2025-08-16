@@ -1,5 +1,7 @@
 name: Flux Bootstrap GKE Clusters
 
+run-name: "Flux Bootstrap: ${{ github.event.client_payload.involvedObject.name || 'Unknown Cluster' }} 🚀"
+
 on:
   repository_dispatch:
     types: [Kustomization/crossplane-composite-resources.flux-system]
