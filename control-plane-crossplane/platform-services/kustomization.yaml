@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # XRDs (Composite Resource Definitions)
+  - vs-landing-zone-xrd.yaml
+  - github-org-config.yaml
+  - github-repo-config.yaml
+  - github-team-config.yaml
+  
+  # Compositions
+  - vs-landing-zone.yaml

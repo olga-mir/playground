@@ -3,4 +3,3 @@ kind: Kustomization
 resources:
   - crossplane-install.yaml
   - crossplane-source.yaml
-  - crossplane-platform-source.yaml
