@@ -20,8 +20,8 @@ This AI Assisted project, leveraging Claude Sonnet, Github Copilot, and Gemini C
 | <img src="https://raw.githubusercontent.com/agentgateway/agentgateway/refs/heads/main/ui/public/favicon.svg" width="30"> | Agent Gateway| Gateway Dataplane for AI workloads (MCP, A2A) |
 | <img src="https://raw.githubusercontent.com/cncf/artwork/refs/heads/main/projects/crossplane/icon/color/crossplane-icon-color.svg" width="30"> | Crossplane | An open source Kubernetes add-on that transforms your cluster into a universal control plane, enabling platform teams to build infrastructure abstractions. |
 | <img src="https://raw.githubusercontent.com/kagent-dev/kagent/33a48ede61be68c84f6adcfddde09db41aeb1ea7/img/icon-dark.svg" width="30"> | kagent | Kubernetes-native AI agent framework that enables the deployment and management of AI agents within Kubernetes clusters. |
-| <img src="https://fluxcd.io/img/logos/flux-horizontal-color.png" width="30"> | FluxCD | GitOps toolkit for Kubernetes that keeps clusters in sync with configuration sources and automates deployments. |
-| <img src="https://argo-cd.readthedocs.io/en/stable/assets/logo.png" width="30"> | ArgoCD | :kill-with-fire: This project was using ArgoCD until release TBC |
+| <img src="https://raw.githubusercontent.com/cncf/artwork/88fa3f88ea2e4bf3e4941be8dc797b6d860c9ade/projects/flux/icon/color/flux-icon-color.svg" width="30"> | FluxCD | GitOps toolkit for Kubernetes that keeps clusters in sync with configuration sources and automates deployments. |
+| <img src="https://argo-cd.readthedocs.io/en/stable/assets/logo.png" width="10"> | ~~ArgoCD~~ | :kill-with-fire: This project was using ArgoCD until release TBC |
 
 # Demos
 
@@ -82,7 +82,8 @@ FLUX_GITHUB_TOKEN=ghp_your_personal_access_token_here
 ```
 
 ### Enviroment Variables
-TODO
+
+All required env variables are validated in preconditions of `deploy` task, defined [here](./tasks/setup.yaml).
 
 ## Project Structure and Bootstrap
 
@@ -136,14 +137,11 @@ task validate:all
 ```
 
 **Clean up everything**:
-
-Hierarchical deletion (kind → control-plane → workload clusters)
 ```bash
 task setup:cleanup
 ```
 
 **Available commands**:
+```bash
 task --list
 ```
-
-Everything should be running with all manifests applied by Flux and resources provisioned by Crossplane once deployment finishes.
