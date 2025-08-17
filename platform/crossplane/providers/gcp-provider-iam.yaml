@@ -1,7 +1,0 @@
-# https://github.com/orgs/crossplane-contrib/packages?repo_name=provider-upjet-gcp
-apiVersion: pkg.crossplane.io/v1
-kind: Provider
-metadata:
-  name: provider-gcp-iam
-spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-gcp-iam:v1.12.1

@@ -1,6 +1,0 @@
-project: ai
-syncWave: "2"
-
-name: kagent-config
-path: ai/kagent/config
-namespace: kagent

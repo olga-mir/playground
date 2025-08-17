@@ -1,0 +1,34 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kgateway
+  namespace: kgateway-system
+spec:
+  interval: 5m
+  dependsOn:
+    - name: kgateway-crds
+      namespace: kgateway-system
+  chart:
+    spec:
+      chart: kgateway
+      version: "v2.1.0-main"
+      sourceRef:
+        kind: HelmRepository
+        name: kgateway-helm-repo
+        namespace: kgateway-system
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    agentGateway:
+      enabled: true
+    image:
+      registry: ghcr.io/kgateway-dev
+    discoveryNamespaceSelectors:
+      - matchLabels:
+          kubernetes.io/metadata.name: kgateway-system

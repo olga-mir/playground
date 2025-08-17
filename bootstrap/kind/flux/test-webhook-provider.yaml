@@ -1,0 +1,27 @@
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: github-dispatch-test
+  namespace: flux-system
+spec:
+  type: githubdispatch
+  address: https://github.com/olga-mir/playground
+  secretRef:
+    name: github-webhook-token
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: github-dispatch-test
+  namespace: flux-system
+spec:
+  eventMetadata:
+    summary: "test trigger workflow"
+  providerRef:
+    name: github-dispatch-test
+  eventSeverity: info
+  eventSources:
+    - kind: Kustomization
+      name: crossplane-composite-resources
+      namespace: flux-system

@@ -1,0 +1,94 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: gkeclusters.platform.tornado-demo.io
+spec:
+  group: platform.tornado-demo.io
+  names:
+    kind: GKECluster
+    plural: gkeclusters
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              parameters:
+                type: object
+                properties:
+                  # Required parameters
+                  clusterName:
+                    type: string
+                    description: "Name of the GKE cluster"
+                  clusterType:
+                    type: string
+                    enum: ["control-plane", "workload"]
+                    description: "Type of cluster - control-plane (management) or apps (applications)"
+                  projectId:
+                    type: string
+                    description: "GCP Project ID"
+                  region:
+                    type: string
+                    description: "GCP Region"
+                  zone:
+                    type: string
+                    description: "GCP Zone"
+
+                  # Networking
+                  vpcName:
+                    type: string
+                    description: "VPC network name"
+                  subnetName:
+                    type: string
+                    description: "Subnet name"
+
+                  # Node configuration
+                  machineType:
+                    type: string
+                    default: "e2-standard-4"
+                    description: "Machine type for nodes"
+                  minNodes:
+                    type: integer
+                    default: 2
+                    description: "Minimum number of nodes"
+                  maxNodes:
+                    type: integer
+                    default: 5
+                    description: "Maximum number of nodes"
+
+                  # Crossplane configuration (control-plane clusters only)
+                  crossplane:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                        default: false
+                        description: "Install Crossplane on this cluster"
+                      version:
+                        type: string
+                        default: "v2.0.0-rc.1"
+                        description: "Crossplane version"
+                required:
+                - clusterName
+                - clusterType
+                - projectId
+                - region
+                - zone
+                - vpcName
+                - subnetName
+            required:
+            - parameters
+          status:
+            type: object
+            properties:
+              clusterEndpoint:
+                description: GKE cluster endpoint
+                type: string
+              connectionDetails:
+                description: Connection details for the cluster
+                type: object

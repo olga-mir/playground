@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gkecluster-control-plane
+  labels:
+    cluster.platform.io/name: control-plane
+    cluster.platform.io/type: control-plane

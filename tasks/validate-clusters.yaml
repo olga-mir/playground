@@ -1,0 +1,182 @@
+version: "3"
+
+tasks:
+  all:
+    desc: "Validate all clusters meet acceptance criteria"
+    cmds:
+      - task: bootstrap
+      - task: control-plane
+      - task: workload-clusters
+      - task: architecture
+      - echo "✅ All clusters validation passed"
+
+  bootstrap:
+    desc: "Validate bootstrap cluster (kind)"
+    vars:
+      CONTEXT: kind-kind-test-cluster
+    silent: true
+    cmds:
+      - echo "🔍 Validating bootstrap cluster ({{.CONTEXT}})..."
+      - |
+        # Check Flux is ready
+        echo "📦 Flux Components:"
+        kubectl --context={{.CONTEXT}} get kustomizations,gitrepositories,helmreleases -A --no-headers | \
+        awk '{printf "%-15s %-30s %-15s %s\n", $1, $2"."$3, $4, $5}' | sort
+        
+        # Check composite resources exist and are ready
+        echo -e "\n🏗️  Composite Resources:"
+        kubectl --context={{.CONTEXT}} get composite --no-headers | \
+        awk '{printf "%-30s %-15s %s\n", $1, $2, $3}'
+        
+        # Verify workload clusters are NOT managed from bootstrap
+        echo -e "\n🚫 Workload cluster composites (should be empty):"
+        kubectl --context={{.CONTEXT}} get composite --no-headers | grep -v control-plane || echo "None (correct)"
+
+  control-plane:
+    desc: "Validate control-plane cluster"
+    vars:
+      CONTEXT: gke_{{.PROJECT_ID}}_{{.ZONE}}_control-plane
+      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    silent: true
+    cmds:
+      - echo "🔍 Validating control-plane cluster ({{.CONTEXT}})..."
+      - |
+        # Check Crossplane is installed and providers are ready
+        echo "⚙️  Crossplane Providers:"
+        kubectl --context={{.CONTEXT}} get providers.pkg.crossplane.io --no-headers | \
+        awk '{printf "%-30s %-15s %-10s %s\n", $1, $2, $3, $4}'
+        
+        # Check Flux is ready
+        echo -e "\n📦 Flux Components:"
+        kubectl --context={{.CONTEXT}} get kustomizations,gitrepositories -A --no-headers | \
+        awk '{printf "%-15s %-30s %-15s %s\n", $1, $2"."$3, $4, $5}' | sort
+        
+        # Check workload cluster composites are managed from here
+        echo -e "\n🏗️  Workload Cluster Composites:"
+        kubectl --context={{.CONTEXT}} get composite --no-headers | \
+        awk '{printf "%-30s %-15s %s\n", $1, $2, $3}'
+        
+        # Verify control-plane does NOT have workload apps
+        echo -e "\n🚫 Platform tenants (should be minimal):"
+        kubectl --context={{.CONTEXT}} get namespaces | grep -E "(tenant|app)" || echo "None (correct)"
+
+  workload-clusters:
+    desc: "Validate workload clusters (apps-dev)"
+    vars:
+      CONTEXT: gke_{{.PROJECT_ID}}_{{.ZONE}}_apps-dev
+      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    silent: true
+    cmds:
+      - echo "🔍 Validating workload cluster apps-dev ({{.CONTEXT}})..."
+      - |
+        # Check if cluster is accessible
+        if ! kubectl --context={{.CONTEXT}} get nodes --timeout=10s >/dev/null 2>&1; then
+          echo "❌ FAIL: Cluster {{.CONTEXT}} not accessible or not provisioned"
+          exit 1
+        fi
+        
+        # Verify Crossplane is NOT installed
+        echo "🚫 Crossplane (should not exist):"
+        if kubectl --context={{.CONTEXT}} get namespaces | grep crossplane >/dev/null 2>&1; then
+          echo "❌ FAIL: Crossplane found in workload cluster"
+          exit 1
+        else
+          echo "✅ None (correct)"
+        fi
+        
+        # Verify no composite resources
+        echo -e "\n🚫 Composite Resources (should not exist):"
+        if kubectl --context={{.CONTEXT}} get composite >/dev/null 2>&1; then
+          echo "❌ FAIL: Composites found in workload cluster"
+          exit 1
+        else
+          echo "✅ None (correct)"
+        fi
+        
+        # Check Flux is ready (for app deployments)
+        echo -e "\n📦 Flux Components:"
+        kubectl --context={{.CONTEXT}} get kustomizations,gitrepositories -A --no-headers | \
+        awk '{printf "%-15s %-30s %-15s %s\n", $1, $2"."$3, $4, $5}' | sort
+        
+        # Show tenant applications
+        echo -e "\n🚀 Applications/Tenants:"
+        kubectl --context={{.CONTEXT}} get deployments,statefulsets -A --no-headers | \
+        awk '{printf "%-15s %-30s %-10s %s\n", $1, $2"."$3, $4, $5}' | head -10
+
+  architecture:
+    desc: "Validate architectural constraints"
+    vars:
+      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    cmds:
+      - echo "🏛️  Validating architectural constraints..."
+      - |
+        echo "1. Bootstrap cluster manages control-plane provisioning:"
+        kubectl --context=kind-kind-test-cluster get composite | grep control-plane && echo "✅ PASS" || echo "❌ FAIL"
+        
+        echo -e "\n2. Control-plane manages workload cluster provisioning:"
+        kubectl --context=gke_{{.PROJECT_ID}}_{{.ZONE}}_control-plane get composite | grep -E "(apps-dev|workload)" && echo "✅ PASS" || echo "❌ FAIL"
+        
+        echo -e "\n3. Workload clusters have no infrastructure management:"
+        if kubectl --context=gke_{{.PROJECT_ID}}_{{.ZONE}}_apps-dev get nodes --timeout=10s >/dev/null 2>&1; then
+          if kubectl --context=gke_{{.PROJECT_ID}}_{{.ZONE}}_apps-dev get namespaces | grep crossplane >/dev/null 2>&1; then
+            echo "❌ FAIL: Crossplane found in workload cluster"
+            exit 1
+          else
+            echo "✅ PASS: No Crossplane in workload cluster"
+          fi
+        else
+          echo "❌ FAIL: Apps-dev cluster not accessible or not provisioned"
+          exit 1
+        fi
+        
+        echo -e "\n4. All composites are in Ready state:"
+        BOOTSTRAP_FAILED=$(kubectl --context=kind-kind-test-cluster get composite --no-headers | grep -v "True" | wc -l | tr -d ' ')
+        CONTROL_FAILED=$(kubectl --context=gke_{{.PROJECT_ID}}_{{.ZONE}}_control-plane get composite --no-headers 2>/dev/null | grep -v "True" | wc -l | tr -d ' ')
+        TOTAL_FAILED=$((BOOTSTRAP_FAILED + CONTROL_FAILED))
+        if [ "$TOTAL_FAILED" -eq 0 ]; then
+          echo "✅ PASS: All composites ready"
+        else
+          echo "❌ FAIL: $TOTAL_FAILED composites not ready"
+          exit 1
+        fi
+
+  pr-acceptance-criteria:
+    desc: "Display PR acceptance criteria"
+    cmds:
+      - |
+        cat << 'EOF'
+        ## PR Acceptance Criteria
+        
+        ### Infrastructure Validation
+        - [ ] Bootstrap cluster (kind) manages control-plane cluster provisioning only
+        - [ ] Control-plane cluster manages workload cluster provisioning
+        - [ ] All Crossplane composite resources are in Ready state
+        - [ ] All Flux components are reconciled successfully
+        
+        ### Architecture Constraints
+        - [ ] Workload clusters do NOT have Crossplane installed
+        - [ ] Workload clusters do NOT manage infrastructure composites
+        - [ ] Control-plane cluster does NOT run tenant applications
+        - [ ] Bootstrap cluster does NOT manage workload clusters directly
+        
+        ### Validation Commands
+        ```bash
+        # Run full validation
+        task validate:all
+        
+        # Check specific clusters
+        task validate:bootstrap
+        task validate:control-plane
+        task validate:workload-clusters
+        
+        # Verify architectural constraints
+        task validate:architecture
+        ```
+        
+        ### Expected Success Criteria
+        - All tasks complete without errors
+        - All composite resources show "True" in Ready column
+        - All Flux kustomizations show "Applied" status
+        - No Crossplane components in workload clusters
+        - Workload cluster composites only exist in control-plane
+        EOF

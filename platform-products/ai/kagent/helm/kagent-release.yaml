@@ -1,0 +1,35 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kagent
+  namespace: kagent-system
+spec:
+  interval: 5m
+  dependsOn:
+    - name: kagent-crds
+      namespace: kagent-system
+  chart:
+    spec:
+      chart: kagent
+      version: "0.3.17"
+      sourceRef:
+        kind: HelmRepository
+        name: kagent-helm-repo
+        namespace: kagent-system
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    providers:
+      default: openAI
+      openAI:
+        provider: OpenAI
+        model: "gpt-4.1-mini"
+        apiKeySecretRef: kagent-openai
+        apiKeySecretKey: OPENAI_API_KEY
+        config: {}

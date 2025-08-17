@@ -1,12 +1,6 @@
 version: "3"
 
 tasks:
-  argocd:
-    desc: "Port-forward Argo CD server, in current context"
-    cmds:
-      - kubectx -c
-      - kubectl port-forward -n argocd svc/argocd-server 8080:443
-
   kagent:
     desc: "Port forward kagent"
     cmds:

@@ -1,10 +1,14 @@
 # Welcome
 
-A monorepo containing experimental mini-demos showcasing modern cloud-native and AI-powered workflows. Built on Crossplane for platform API abstractions and infrastructure orchestration, with GitOps practices for deployment automation.
-It includes cutting-edge AI projects such as `kgateway` and `kagent` - emerging Kubernetes-native projects designed to enable agentic AI workflows within cloud infrastructure.
-This repository serves as a playground for exploring the intersection of infrastructure-as-code, AI agents, and Kubernetes-native tooling.
+A monorepo showcasing modern cloud-native and AI-powered workflows. Built on **Crossplane v2** for platform API abstractions and **FluxCD** for GitOps automation.
 
-This AI Assisted project, leveraging Claude Sonnet/Opus, Github Copilot with GPT 4.1, Gemini Code Assist.
+Features cutting-edge AI projects including `kgateway` and `kagent` - Kubernetes-native projects designed to enable agentic AI workflows within cloud infrastructure. This repository serves as a playground for exploring the intersection of infrastructure-as-code, AI agents, and Kubernetes-native tooling.
+
+**Architecture**: Hierarchical 3-tier cluster setup with automated "batteries included" provisioning using Crossplane compositions and GitOps deployment via Flux notifications triggering GitHub Actions.
+
+🎯 **Latest Update**: Complete refactor from bash scripts to GitOps with comprehensive validation framework and automated cluster lifecycle management.
+
+This AI Assisted project, leveraging Claude Sonnet, Github Copilot, and Gemini Code Assist.
 
 # Tech Stack
 
@@ -16,7 +20,8 @@ This AI Assisted project, leveraging Claude Sonnet/Opus, Github Copilot with GPT
 | <img src="https://raw.githubusercontent.com/agentgateway/agentgateway/refs/heads/main/ui/public/favicon.svg" width="30"> | Agent Gateway| Gateway Dataplane for AI workloads (MCP, A2A) |
 | <img src="https://raw.githubusercontent.com/cncf/artwork/refs/heads/main/projects/crossplane/icon/color/crossplane-icon-color.svg" width="30"> | Crossplane | An open source Kubernetes add-on that transforms your cluster into a universal control plane, enabling platform teams to build infrastructure abstractions. |
 | <img src="https://raw.githubusercontent.com/kagent-dev/kagent/33a48ede61be68c84f6adcfddde09db41aeb1ea7/img/icon-dark.svg" width="30"> | kagent | Kubernetes-native AI agent framework that enables the deployment and management of AI agents within Kubernetes clusters. |
-| <img src="https://argo-cd.readthedocs.io/en/stable/assets/logo.png" width="30"> | ArgoCD | GitOps continuous delivery tool for Kubernetes that automates the deployment of applications and manages their lifecycle based on Git repositories. |
+| <img src="https://raw.githubusercontent.com/cncf/artwork/88fa3f88ea2e4bf3e4941be8dc797b6d860c9ade/projects/flux/icon/color/flux-icon-color.svg" width="30"> | FluxCD | GitOps toolkit for Kubernetes that keeps clusters in sync with configuration sources and automates deployments. |
+| <img src="https://argo-cd.readthedocs.io/en/stable/assets/logo.png" width="10"> | ~~ArgoCD~~ | :kill-with-fire: This project was using ArgoCD until release TBC |
 
 # Demos
 
@@ -25,80 +30,88 @@ These demos are found in [Wiki](https://github.com/olga-mir/playground/wiki)
 
 # Infrastructure
 
-This project consists of 2 or more GKE clusters (terminology should be switched to hub/spoke instead of management):
+This project implements a **hierarchical 3-tier architecture** with fully automated cluster provisioning and GitOps deployment:
 
-1. **Management Cluster**: Infrastructure management and provisioning, running Crossplane and ArgoCD with ApplicationSet controller
-2. **Apps Cluster(s)**: One or more clusters for application workload hosting, running ArgoCD
+## 🏗️ Cluster Architecture
 
-**Refactor in progress** from bash scripts to GKE Crossplane compositions: https://github.com/olga-mir/playground/pull/13
-Cluster provisioning with Argo and Crossplane installed on target clusters with HelmRelease is already functional.
+1. **Bootstrap cluster (kind)**: Local cluster running Crossplane v2 + FluxCD. Provisions control-plane cluster.
+2. **Control-plane cluster (GKE)**: Management cluster with Crossplane, platform services, and AI stack. Provisions workload clusters.
+3. **Workload clusters (GKE)**: Isolated clusters for tenant applications (apps-dev, staging, prod).
 
--![infra-demo](./docs/images/demo-infra.png)
+## 🔄 "Batteries Included" GitOps Flow
+
+```mermaid
+graph LR
+    A[Developer commits] --> B[Crossplane provisions cluster]
+    B --> C[Flux notification]
+    C --> D[GitHub Actions trigger]
+    D --> E[Flux bootstrap on target]
+    E --> F[Platform services deployed]
+```
+
+1. **Crossplane compositions** → create GKE infrastructure (clusters, nodes, secrets)
+2. **Flux notifications** → detect cluster readiness → trigger GitHub workflow
+3. **GitHub Actions** → bootstrap Flux on new cluster → point to `/clusters/{cluster-type}/`
+4. **Target cluster Flux** → deploy platform services + applications automatically
+
+## ✅ Validation & Management
+
+**Comprehensive validation framework**:
+```bash
+task validate:all                   # Full infrastructure validation
+task validate:architecture          # Architectural constraints
+```
+
+**Key benefits**: Zero circular dependencies, clean separation of concerns, automated failure detection.
 
 # Deployment
 
-Source required environment variables (explained in [infra-setup](./infra-setup/) and run task to provision both clusters with all components configured, up and running.
-```
-$ task setup:deploy
-```
+## Prerequisites
 
-Everything should be running, all manifests applied by Argo, resources provisioned by Crossplane once the above task finishes.
+### GitHub Repository Secrets
 
-Uninstall everything:
-```
-$ task setup:cleanup
-```
+Configure these secrets in your GitHub repository settings (Settings → Secrets and variables → Actions):
 
-List all available tasks
-```
-$ task --list
+```bash
+# Workload Identity Federation for GitHub Actions
+WIF_PROVIDER=projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+WIF_SERVICE_ACCOUNT=github-actions-sa@PROJECT_ID.iam.gserviceaccount.com
+
+# GitHub token for Flux bootstrap (needs repo:write permissions)
+FLUX_GITHUB_TOKEN=ghp_your_personal_access_token_here
 ```
 
-# Repository Structure
+### Enviroment Variables
 
-This repository hosts both platform teams and consumer teams configurations. Typically they are spread across multiple repos.
-Despite being hosted here in one repo for the demonstration purposes, these platform vs development teams sepration of concerns is still maintained.
+All required env variables are validated in preconditions of `deploy` task, defined [here](./tasks/setup.yaml).
 
-## Platform Building Blocks
+## Project Structure and Bootstrap
 
-**Note** `config` in most folder paths usually mean "payload" to a specific system. e.g. `ai/kagent/config` contains kagent CR manifests that create kagent resources such as custom agents, model config, etc.
+### Architectural Flow
 
-These are foundational objects to configure ArgoCD and umbrella ApplicationSets that include all apps managed in this repo. More on this in [./docs/demo/01-argocd.md](./docs/demo/01-argocd.md)
-Because they are the base for Argo itself, files in this folder are applied during cluster provisioning by scripts in [./infra-setup](./infra-setup/)
+1. **Infrastructure Provisioning** (Kind cluster → GCP):
+   - Crossplane compositions create GKE clusters (infrastructure only)
+   - Connection secrets with kubeconfig are generated
 
-```
-platform/argocd-foundations/
-├── argo-projects.yaml                 # Definitions for all ArgoCD Projects
-├── platform-applicationsets.yaml      # ApplicationSet for all apps managed in this repo
-├── helm-applicationsets.yaml          # ApplicationSet for all apps installed as external helm
-└── teams-applicationsets.yaml         # Teams discovery
-```
+2. **Cluster Bootstrapping** (GitHub Actions → Target cluster):
+   - Flux notification detects cluster readiness → triggers GitHub webhook
+   - GitHub Actions authenticates via Workload Identity Federation
+   - Flux bootstrapped on target cluster pointing to `/clusters/{cluster-type}/`
 
-applicationsets files are ArgoCD `ApplicationSets` That generate applications from config provided in:
-I don't think this is great approach, I'm still finding my feet in Argo-land and it is not my primary focus (but oh boy did argo quirkiness take so much of my time!)
-`cmp` in the filename is important - it will tell ApplicationSet to run these through ArgoCD CMP mechnism to substitute variables (for future refactor)
+3. **"Batteries Included" Deployment** (Target cluster GitOps):
+   - Flux on target cluster deploys Crossplane installation
+   - Platform services (kagent, kgateway, networking) deployed
+   - Applications and tenant workloads deployed
 
-```
-platform/config
-├── applications
-│   ├── crossplane-infra-environment-configs-cmp.yaml
-│   ├── crossplane-infra-functions.yaml
-│   ├── ....
-│   └── mcp-gateway-config.yaml
-├── helm-applications
-│   ├── ...
-│   └── kgateway-crds.yaml
-└── repository.yaml
-```
+This repository hosts both platform teams and consumer teams configurations with clear separation of concerns.
 
-## Consumers
+Refer to [./bootstrap/README.md](./bootstrap/README.md) for detailed explanation of repository structure and deployment flow.
 
-All folders at the repo root which are not aux, are payloads that are managed by platform users.
+## Platform vs Tenants
 
-```
-├── ai          # AI tenancy, manifests required to create resources in AI space (kagent, kgateway, etc)
-└── teams       # Software Engineering teams Crossplane tenancy
-```
+- **Platform Products**: Core services like kagent, kgateway, networking components
+- **Platform Tenants**: End-user applications and team-specific workloads
+- **Flux GitOps**: Automatically syncs both platform services and tenant applications to appropriate clusters
 
 ## Connect MCP Servers
 
@@ -108,5 +121,27 @@ All folders at the repo root which are not aux, are payloads that are managed by
 
 Also https://github.com/olga-mir/playground/wiki/ArgoCD-MCP-%E2%80%90-The-Networking-Aspects
 
-More details to be updated soon
 
+## Tasks
+
+## 🚀 Quick Start
+
+**Deploy complete infrastructure**:
+```bash
+task setup:deploy
+```
+
+**Validate deployment**:
+```bash
+task validate:all
+```
+
+**Clean up everything**:
+```bash
+task setup:cleanup
+```
+
+**Available commands**:
+```bash
+task --list
+```

@@ -1,0 +1,12 @@
+---
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: apps-dev-cluster
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: apps-dev-cluster
+      key: kubeconfig

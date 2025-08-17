@@ -6,11 +6,7 @@
 
 .claude/
 
-# avoid commiting rendered manifests
-infra-setup/manifests/rendered/*
-
 crossplane-gke-sa-key.json
 
 claude_desktop_config.json
 claude_desktop_config_mcp.json
-

@@ -1,0 +1,31 @@
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: github-dispatch
+  namespace: flux-system
+spec:
+  type: githubdispatch
+  address: https://github.com/olga-mir/playground
+  secretRef:
+    name: github-webhook-token
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: github-dispatch-gke-clusters
+  namespace: flux-system
+spec:
+  providerRef:
+    name: github-dispatch
+  eventSeverity: info
+  eventSources:
+    - kind: Kustomization
+      name: crossplane-composite-resources
+      namespace: flux-system
+  # Include structured data in the payload
+  eventMetadata:
+    summary: |
+      GKE Cluster Event: {{ range .InvolvedObject }}{{ .Name }}{{ end }}
+      Status: {{ .Reason }}
+      Details: {{ .Message }}

@@ -3,8 +3,6 @@ kind: ValueStreamLandingZone
 metadata:
   name: team-alpha-landing-zone
   namespace: team-alpha-tenant
-  annotations:
-    argocd.argoproj.io/sync-options: ServerSideApply=true
 spec:
   environment: "dev"
   teamName: "team-alpha"

@@ -1,0 +1,82 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xworkloadclusters.platform.tornado-demo.io
+spec:
+  group: platform.tornado-demo.io
+  names:
+    kind: XWorkloadCluster
+    plural: xworkloadclusters
+  claimNames:
+    kind: WorkloadCluster
+    plural: workloadclusters
+  connectionSecretKeys:
+    - kubeconfig
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              writeConnectionSecretsToNamespace:
+                type: string
+                description: The namespace where connection secrets will be written
+              parameters:
+                type: object
+                properties:
+                  clusterName:
+                    type: string
+                    description: Name of the GKE cluster
+                  projectId:
+                    type: string
+                    description: GCP Project ID
+                  region:
+                    type: string
+                    description: GCP region
+                  zone:
+                    type: string
+                    description: GCP zone
+                  vpcName:
+                    type: string
+                    description: VPC network name
+                  subnetName:
+                    type: string
+                    description: Subnet name
+                  machineType:
+                    type: string
+                    description: Node machine type
+                    default: e2-medium
+                  minNodes:
+                    type: integer
+                    description: Minimum number of nodes
+                    default: 2
+                  maxNodes:
+                    type: integer
+                    description: Maximum number of nodes
+                    default: 5
+                required:
+                  - clusterName
+                  - projectId
+                  - region
+                  - zone
+                  - vpcName
+                  - subnetName
+            required:
+              - parameters
+          status:
+            type: object
+            properties:
+              clusterName:
+                description: The name of the created cluster
+                type: string
+              controlPlaneStatus:
+                description: The status of the GKE control plane
+                type: string
+              nodeCount:
+                description: The number of nodes in the cluster
+                type: integer

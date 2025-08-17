@@ -7,11 +7,8 @@ includes:
   debug:
     taskfile: ./tasks/test-and-debug.yaml
     dir: .
-  mcp:
-    taskfile: ./tasks/mcp.yaml
-    dir: .
-  argocd:
-    taskfile: ./tasks/argocd.yaml
+  validate:
+    taskfile: ./tasks/validate-clusters.yaml
     dir: .
   port-forward:
     taskfile: ./tasks/port-forward.yaml

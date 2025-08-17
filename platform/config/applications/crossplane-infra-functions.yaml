@@ -1,5 +1,0 @@
-name: crossplane-functions
-path: platform/crossplane/functions
-namespace: argocd
-syncWave: "-4"
-project: platform

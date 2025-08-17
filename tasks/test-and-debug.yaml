@@ -1,11 +1,6 @@
 version: "3"
 
 tasks:
-  bucket:
-    desc: "Test bucket and access"
-    cmds:
-      - "{{.TASKFILE_DIR}}/infra-setup/99-pod-write-bucket-test.sh"
-
   kind-create-sandbox:
     desc: "Create a vanilla Kind cluster (latest k8s, 2 nodes, name 'sandbox-cluster')"
     cmds:
@@ -28,15 +23,67 @@ tasks:
     cmds:
       - crossplane beta trace valuestreamlandingzones -f "{{.TASKFILE_DIR}}/teams/team-alpha/landing-zone-claim.yaml" -n team-alpha-tenant
 
-  restart-argo:
-    desc: "Restart Argo CD repo server"
+  gke-cluster-status:
+    desc: "Debug composed resources for a GKE cluster (usage: task debug-cluster CLUSTER=control-plane-cluster)"
+    vars:
+      CLUSTER: '{{default "control-plane-cluster" .CLUSTER}}'
+      CONTEXT: '{{default "kind-kind-test-cluster" .CONTEXT}}'
     cmds:
-      - kubectl -n argocd rollout restart deployment argocd-repo-server
-      - kubectl -n argocd rollout status deployment argocd-repo-server
+      - kubectl --context={{.CONTEXT}} get nodepools.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No nodepools found"
+      - kubectl --context={{.CONTEXT}} get releases.helm.crossplane.io -o wide 2>/dev/null || echo "No helm releases found"
+      - echo
+      - kubectl --context={{.CONTEXT}} get clusters.container.gcp-beta.upbound.io -o wide 2>/dev/null || echo "No clusters found"
+      - echo
+      - kubectl --context={{.CONTEXT}} describe clusters.container.gcp-beta.upbound.io {{.CLUSTER}} | tail -5
+      - echo
+      - kubectl --context={{.CONTEXT}} get gkeclusters.platform.tornado-demo.io {{.CLUSTER}} -o wide
+      - echo
+      - kubectl --context={{.CONTEXT}} describe gkeclusters.platform.tornado-demo.io {{.CLUSTER}} | tail -5
+      - echo
+
+  crossplane-status:
+    desc: "Debug Crossplane install (TODO - dynamic config)"
+    vars:
+      CLUSTER: '{{default "control-plane-cluster" .CLUSTER}}'
+      CONTEXT: '{{default "kind-kind-test-cluster" .CONTEXT}}'
+    cmds:
+      - kubectl --context={{.CONTEXT}} get providerconfigs.kubernetes.crossplane.io -o wide 2>/dev/null || echo "No k8s provider configs found"
+      - kubectl --context={{.CONTEXT}} get providers.pkg.crossplane.io -o wide 2>/dev/null || echo "No providers found"
+      - kubectl --context={{.CONTEXT}} get providerconfigs.helm.crossplane.io -o wide 2>/dev/null || echo "No helm provider configs found"
+      - kubectl --context={{.CONTEXT}} get pod -n crossplane-system 2>/dev/null || echo "No providers found"
+
+  get-gke-credentials:
+    desc: "Get credentials for GKE clusters"
+    vars:
+      CLUSTER: '{{default "control-plane" .CLUSTER}}'
+      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    cmds:
+      - gcloud container clusters get-credentials {{.CLUSTER}} --zone={{.ZONE}} --project={{.PROJECT_ID}}
+      - echo "Credentials configured for cluster {{.CLUSTER}}"
+      - kubectl config current-context
+
+  get-all-gke-credentials:
+    desc: "Get credentials for all GKE clusters"
+    vars:
+      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    cmds:
+      - gcloud container clusters get-credentials control-plane --zone={{.ZONE}} --project={{.PROJECT_ID}}
+      - gcloud container clusters get-credentials apps-dev --zone={{.ZONE}} --project={{.PROJECT_ID}}
+      - echo "Credentials configured for all clusters"
+      - kubectl config get-contexts
 
   helper-commands:
     desc: "Collection of troubleshooting commands"
     cmds:
       - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
-      - echo "REPO_POD=$(kubectl -n argocd get pod -l app.kubernetes.io/name=argocd-repo-server -o name | head -1)"
       - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"
+      - echo "while :; do flux get all -A && sleep 5; done"
+      - echo "while :; do k get gkeclusters.platform.tornado-demo.io && kubectl --context=kind-kind-test-cluster describe gkeclusters.platform.tornado-demo.io control-plane-cluster | tail -2 && sleep 5; done"
+      - echo "kubectl --context kind-kind-test-cluster annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=\$(date '+%Y-%m-%dT')"
+      # re-trigger Composite Resource sync status
+      - echo "kubectl --context kind-kind-test-cluster annotate composite apps-dev-cluster test-webhook-trigger="$(date)" --overwrite"
+      - echo "kubectl --context kind-kind-test-cluster annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=\$(date '+%Y-%m-%dT%H:%M:%S%z') --overwrite"
+      - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge"
+      - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge"
+      - echo "gh run list --repo olga-mir/playground --limit 10"
+      - echo "gh run view 17002852908 --repo olga-mir/playground"
