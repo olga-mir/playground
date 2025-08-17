@@ -10,9 +10,6 @@ includes:
   validate:
     taskfile: ./tasks/validate-clusters.yaml
     dir: .
-  mcp:
-    taskfile: ./tasks/mcp.yaml
-    dir: .
   port-forward:
     taskfile: ./tasks/port-forward.yaml
     dir: .

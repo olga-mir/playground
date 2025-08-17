@@ -32,7 +32,6 @@ tasks:
         msg: "DNS_PROJECT is not set"
       - sh: test -n "$DNS_ZONE"
         msg: "DNS_ZONE is not set"
-# ArgoCD variables removed - migrated to FluxCD
       - sh: test -n "$GITHUB_DEMO_REPO_OWNER"
         msg: "GITHUB_DEMO_REPO_OWNER is not set"
       - sh: test -n "$GITHUB_DEMO_REPO_NAME"
