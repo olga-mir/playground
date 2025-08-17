@@ -1,87 +1,93 @@
 # Project purpose
 * This is project that covers wide range of technology for learning and exploration for experienced Kubernetes and Platform Engineers
 * This is not production ready project, but we aim for comprehensive prod-like solutions as much as possible
-* The infrastructure in this project is disposable - it is provisioned in the beginning of a learning session and then fully destroyed after use - therefore all out-of-band commands must be captured in yaml manifests, bash scripts or taskfiles.
+* The infrastructure in this project is disposable - it is provisioned in the beginning of a learning session and then fully destroyed. All out-of-band commands must be captured in yaml manifests, bash scripts or taskfiles.
 * The infrastructure is provisioned in a personal GCP account - we need to be aware of costs and security.
 
 # important-instruction-reminders
-* prefer editing an existing file to creating a new one.
 * NEVER proactively create documentation files (.md) or README files. Only create documentation files if explicitly requested by the User.
 * NEVER commit project ID or other semi-sensitve information
-* when moving or creating files remember that they need to be versioned - use 'git mv' over 'mv' and similar commands.
+* be aware if files are versioned, use "git mv" over "mv" commands when working with files.
+* ALWAYS place newline at the end of the file
 
 # architecture-context
-This is a multi-cluster Kubernetes setup using Crossplane for infrastructure provisioning:
+This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure provisioning and FluxCD for GitOps:
 
 ## Cluster Architecture
-- **kind cluster (local)**: Runs Crossplane control plane for orchestrating cloud resources
-- **GKE mgmt cluster (GCP)**: Management cluster with ArgoCD for GitOps and Crossplane for managing platform
-- **GKE apps-dev cluster (GCP)**: Applications cluster with minimal ArgoCD agent
+- **kind cluster (local)**: Temporary bootstrap cluster running Crossplane v2 and FluxCD. Provisions GKE control plane cluster.
+- **GKE control-plane cluster (GCP)**: Control plane cluster with Crossplane, Flux, and platform services. Provisions workload clusters.
+- **GKE apps-dev cluster (GCP)**: Workload cluster for tenant applications.
 
-## Key Components
-- Crossplane compositions create GKE clusters, ArgoCD installations, and Crossplane deployments
-- Helm provider deploys charts to remote GKE clusters (requires GCP auth)
-- Claims define desired GKE clusters via custom resources (GKECluster)
+## GitOps Flow - "Batteries Included" Cluster Provisioning
+1. **Crossplane Composite Resources** → provision GKE clusters (infrastructure only)
+2. **Flux notifications** → detect cluster readiness → trigger GitHub webhook
+3. **GitHub Actions** → bootstrap Flux on new GKE clusters → point to `/clusters/{cluster-type}/`
+4. **Flux on target GKE cluster** → deploy Crossplane, platform services, and applications ("batteries")
+
+### Key Architectural Principles
+- **Compositions create infrastructure only** (GKE cluster, NodePool, connection secrets)
+- **GitOps handles cluster bootstrapping** (Crossplane installation, platform services)
+- **Separation of concerns** avoids circular dependencies and readiness issues
 
 ## File Structure
 ```
-├── ai           # misc AI stacks deployed by ArgoCD ApplicationSets to GKE clusters
-├── infra-setup  # provision local `kind` cluster, configure all required access for provisioning GKE clusters with Crossplane
-├── local        # supporting experiements that I run locally
-├── platform     # setup platform components on target GKE clusters, wires up GitOps to deploy payload from other folders
-├── tasks        # Taskfile supporting tasks
-└── teams        # Platform tenants that consume platform as exposed by the platform team
+├── .github/workflows/     # GitHub Actions for Flux bootstrap
+├── bootstrap/             # Bootstrap scripts and kind cluster configuration
+│   ├── scripts/           # Bootstrap scripts (setup, cleanup)
+│   └── kind/              # Kind cluster configs (Crossplane for provisioning infrastructure)
+│       ├── crossplane/    # Crossplane installation and compositions for kind cluster
+│       └── flux/          # Flux configuration for kind cluster
+├── clusters/              # Target cluster configurations (deployed via GitHub Actions)
+│   ├── control-plane/     # Control plane cluster: Crossplane + platform services
+│   └── apps-dev/          # Workload cluster: applications and tenants
+├── control-plane-crossplane/  # Crossplane configs deployed to control-plane cluster
+│   ├── providers/         # Providers for control-plane (GCP, Helm, K8s)
+│   ├── compositions/      # WorkloadCluster compositions
+│   └── workload-clusters/ # Workload cluster definitions (apps-dev, etc.)
+├── platform-products/    # Platform services (AI stack, networking)
+├── platform-tenants/     # Tenant application deployments
+├── tasks/                 # Taskfile supporting tasks
+└── local/                 # Local development experiments
 ```
 
-one level in `platforms`
-```
-platform
-├── argocd-foundations # foundations for ArgoCD on GKE Clusters - ArgoCD projects, ApplicationSets
-├── config             # payload to be read by ArgoCD applicationSets and deployed to GKE clusters
-└── crossplane         # Crossplane payload deployed by Argo to "mgmt" cluster
-```
+### Key Features
 
-### Sub Goals
+#### AI Platform Stack
+* **kagent**: Custom agent for Crossplane composition management
+* **kgateway**: AI-specific networking gateway
+* MCP server integration for agent workflows
+* Platform services deployed via Flux to mgmt cluster
 
-#### Github Config as Code powered by Crossplane
-* This repo is referred to as "DEMO"
-* Crossplane Github provider configured to provision resources only in "DEST" organisation - there are separate set of credentials to this end.
-
-#### AI Networking - kgateway, agentgatway
-* manifests in "${REPO_ROOT}/ai" folder
-
-#### AI discovery
-* writing my own `kagent` agent to help work with compositions
-* combining agents and MCP servers
-* exploring workflows
-* understanding AI specific network requirements
+#### GitOps with Flux
+* Multi-cluster Flux setup with hub-and-spoke pattern
+* Automated cluster bootstrap via GitHub Actions and Workload Identity Federation
+* Cluster-specific configurations in dedicated namespaces (gkecluster-*)
+* Platform-products vs platform-tenants separation
 
 ## VARIABLES
 * Some of the variables won't be available to you terminal where you are running.
-* This variables are always sourced in a "working" terminal:
+* These variables are always sourced in a "working" terminal:
 
 ```
 export GKE_VPC
-export GKE_MGMT_CLUSTER
+export GKE_CONTROL_PLANE_CLUSTER
 export GKE_APPS_DEV_CLUSTER
 export REGION
 export ZONE
 export PROJECT_ID
 export PROJECT_NUMBER
-export MGMT_SUBNET_NAME
+export CONTROL_PLANE_SUBNET_NAME
 export APPS_DEV_SUBNET_NAME
 export CROSSPLANE_GSA_KEY_FILE
 export DOMAIN
 export CERT_NAME
 export DNS_PROJECT
 export DNS_ZONE
-export ARGOCD_STD_HOSTNAME="argocd.gcp.${DOMAIN}"
-export ARGOCD_MCP_HOSTNAME="argo-mcp.gcp.${DOMAIN}"
+# ArgoCD variables removed - migrated to FluxCD
 export GITHUB_DEMO_REPO_OWNER
 export GITHUB_DEMO_REPO_NAME
 export GITHUB_DEMO_REPO_PAT
 export GITHUB_DEST_ORG_NAME
-export GITHUB_DEST_ORG_PAT
 export GITHUB_DEST_ORG_REPO_LVL_PAT
 export GITHUB_DEST_ORG_ORG_LVL_PAT
 export ANTHROPIC_API_KEY
@@ -89,3 +95,114 @@ export OPENAI_API_KEY
 export CLAUDE_MCP_CONFIG_FILE
 export PINECONE_API_KEY
 ```
+
+## Working with Crossplane Composite Resources (GitOps)
+
+When debugging or fixing Crossplane composite resources in this GitOps setup:
+
+1. **Suspend Flux kustomization** to prevent interference:
+   ```bash
+   kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge
+   ```
+
+2. **Fix issues** by editing the composition or composite resource files locally
+
+3. **Resume kustomization** after fixes:
+   ```bash
+   kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge
+   ```
+
+4. **Commit and push** let the user review, commit and push
+
+5. **Force reconciliation** if needed:
+   ```bash
+   kubectl --context kind-kind-test-cluster annotate kustomization crossplane-base -n flux-system reconcile.fluxcd.io/requestedAt=$(date '+%Y-%m-%dT%H:%M:%S%z') --overwrite
+   ```
+
+**Note**: Always work through GitOps - direct kubectl changes will be overridden by Flux.
+
+## Flux Notifications & GitHub Workflows Debugging
+
+### Common Issues and Solutions for Flux → GitHub Actions Integration
+
+#### Issue: GitHub workflows not triggering from Flux notifications
+**Root Causes and Fixes:**
+
+1. **Event Type Mismatch** (Most Common)
+   - **Problem**: Flux `githubdispatch` provider sends `event_type` in format: `{Kind}/{Name}.{Namespace}`
+   - **Example**: For `crossplane-composite-resources` Kustomization in `flux-system` namespace → `Kustomization/crossplane-composite-resources.flux-system`
+   - **Solution**: GitHub workflow must match exact format:
+   ```yaml
+   on:
+     repository_dispatch:
+       types: [Kustomization/crossplane-composite-resources.flux-system]
+   ```
+
+2. **Workflow Location**
+   - **Problem**: GitHub only looks for workflows in the **default branch** (usually `main`)
+   - **Solution**: Ensure `.github/workflows/` files are committed to main branch
+
+3. **Secret Configuration**
+   - **Problem**: `githubdispatch` provider expects `token` key in secret
+   - **Solution**: Create separate secret for GitHub webhook:
+   ```bash
+   kubectl create secret generic github-webhook-token --namespace flux-system --from-literal=token="${GITHUB_TOKEN}"
+   ```
+
+4. **Provider vs PostBuild Secrets**
+   - **Problem**: Mixing notification provider secrets with Flux PostBuild substitution secrets
+   - **Solution**: Keep separate:
+     - `platform-secrets`: For Flux PostBuild `substituteFrom`
+     - `github-webhook-token`: For notification Provider `secretRef`
+
+### Debugging Flux Notifications
+
+1. **Check notification controller logs**:
+   ```bash
+   kubectl logs -n flux-system -l app=notification-controller --tail=20
+   ```
+   - Look for `"dispatching event"` (success) vs `"failed to send notification"` (error)
+
+2. **Force trigger for testing**:
+   ```bash
+   kubectl annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=$(date '+%Y-%m-%dT%H:%M:%S%z') --overwrite
+   ```
+
+3. **Check Provider/Alert status**:
+   ```bash
+   kubectl describe provider github-webhook -n flux-system
+   kubectl describe alert cluster-ready-alert -n flux-system
+   ```
+
+### Flux Notification Configuration Best Practices
+
+**Avoid Over-Filtering in Alerts**:
+- Complex inclusion/exclusion regex filters in Alert specs can be unreliable and hard to debug
+- **Better approach**: Remove filters from alerts and implement logic in GitHub Actions workflows
+- This makes the system more transparent and easier to troubleshoot
+
+**Use Modern API Fields**:
+- **Deprecated**: `spec.summary` field in Alert resources
+- **Current**: `spec.eventMetadata.summary` field
+- Mixing both causes conflicts and can prevent alerts from firing properly
+
+**Alert Configuration Issues**:
+1. **Configuration Conflicts**: Having both deprecated `summary` and new `eventMetadata` fields
+2. **Filter Complexity**: Inclusion filters like `.*GKECluster.*created.*` may not match as expected
+3. **Event Processing**: Alerts process events differently than expected - test with actual payloads
+
+**Debugging Event Payloads**:
+- Capture webhook payloads from GitHub Actions logs to understand actual event structure
+- Event messages may not match expected patterns due to formatting differences
+- Use simple test alerts without filters to verify basic webhook functionality
+
+**Workflow Design**:
+- GitHub workflows only read from the default branch (usually `main`)
+- Both workflows listening to same `repository_dispatch` type will both trigger
+- Implement cluster readiness checks in workflows rather than relying on alert filters
+- Add conditional execution to skip irrelevant events (non-cluster events)
+
+**Provider vs Alert Separation**:
+- Multiple alerts can share the same provider (webhook endpoint)
+- Each alert processes events independently based on its configuration
+- Provider issues affect all alerts using that provider
