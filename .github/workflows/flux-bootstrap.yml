@@ -1,5 +1,7 @@
 name: Flux Bootstrap GKE Clusters
 
+run-name: "Flux Bootstrap: ${{ github.event.client_payload.involvedObject.name || 'Unknown Cluster' }} 🚀"
+
 on:
   repository_dispatch:
     types: [Kustomization/crossplane-composite-resources.flux-system]
@@ -86,15 +88,15 @@ jobs:
       id: cluster-ready
       run: |
         echo "Checking if cluster is ready..."
-        
+
         # Wait for cluster to be accessible (max 10 minutes)
         timeout_seconds=600
         elapsed=0
-        
+
         while [ $elapsed -lt $timeout_seconds ]; do
           if kubectl cluster-info >/dev/null 2>&1; then
             echo "Cluster is accessible via kubectl"
-            
+
             # Wait for essential system pods to be ready
             echo "Waiting for kube-system pods to be ready..."
             if kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s; then
@@ -107,11 +109,11 @@ jobs:
           else
             echo "Cluster not yet accessible, waiting..."
           fi
-          
+
           sleep 30
           elapsed=$((elapsed + 30))
         done
-        
+
         if [ $elapsed -ge $timeout_seconds ]; then
           echo "Timeout waiting for cluster to be ready"
           echo "cluster_ready=false" >> $GITHUB_OUTPUT

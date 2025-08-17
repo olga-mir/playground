@@ -4,7 +4,9 @@ A monorepo showcasing modern cloud-native and AI-powered workflows. Built on **C
 
 Features cutting-edge AI projects including `kgateway` and `kagent` - Kubernetes-native projects designed to enable agentic AI workflows within cloud infrastructure. This repository serves as a playground for exploring the intersection of infrastructure-as-code, AI agents, and Kubernetes-native tooling.
 
-**Architecture**: Multi-cluster setup with automated GitOps deployment using Flux notifications and GitHub Actions.
+**Architecture**: Hierarchical 3-tier cluster setup with automated "batteries included" provisioning using Crossplane compositions and GitOps deployment via Flux notifications triggering GitHub Actions.
+
+🎯 **Latest Update**: Complete refactor from bash scripts to GitOps with comprehensive validation framework and automated cluster lifecycle management.
 
 This AI Assisted project, leveraging Claude Sonnet, Github Copilot, and Gemini Code Assist.
 
@@ -28,19 +30,39 @@ These demos are found in [Wiki](https://github.com/olga-mir/playground/wiki)
 
 # Infrastructure
 
-This project uses a **hub-and-spoke** architecture with automated cluster provisioning:
+This project implements a **hierarchical 3-tier architecture** with fully automated cluster provisioning and GitOps deployment:
 
-1. **kind cluster (local)**: Hub cluster running Crossplane v2 and FluxCD. Provisions GKE clusters via Composite Resources.
-2. **GKE mgmt cluster**: Management cluster with Flux, platform services, and AI stack (kagent).
-3. **GKE apps-dev cluster**: Applications cluster for tenant workloads.
+## 🏗️ Cluster Architecture
 
-**"Batteries Included" GitOps Flow**: 
-1. **Crossplane provisions infrastructure** (GKE clusters, NodePools, connection secrets)
-2. **Flux detects cluster readiness** → triggers GitHub webhook  
-3. **GitHub Actions bootstrap Flux** on target cluster → points to `/clusters/{cluster-type}/`
-4. **Target cluster Flux deploys "batteries"** (Crossplane, platform services, applications)
+1. **Bootstrap cluster (kind)**: Local cluster running Crossplane v2 + FluxCD. Provisions control-plane cluster.
+2. **Control-plane cluster (GKE)**: Management cluster with Crossplane, platform services, and AI stack. Provisions workload clusters.
+3. **Workload clusters (GKE)**: Isolated clusters for tenant applications (apps-dev, staging, prod).
 
-Each cluster is managed in its own namespace (`gkecluster-mgmt`, `gkecluster-apps-dev`) with dedicated Flux configurations.
+## 🔄 "Batteries Included" GitOps Flow
+
+```mermaid
+graph LR
+    A[Developer commits] --> B[Crossplane provisions cluster]
+    B --> C[Flux notification]
+    C --> D[GitHub Actions trigger]
+    D --> E[Flux bootstrap on target]
+    E --> F[Platform services deployed]
+```
+
+1. **Crossplane compositions** → create GKE infrastructure (clusters, nodes, secrets)
+2. **Flux notifications** → detect cluster readiness → trigger GitHub workflow
+3. **GitHub Actions** → bootstrap Flux on new cluster → point to `/clusters/{cluster-type}/`
+4. **Target cluster Flux** → deploy platform services + applications automatically
+
+## ✅ Validation & Management
+
+**Comprehensive validation framework**:
+```bash
+task validate:all                   # Full infrastructure validation
+task validate:architecture          # Architectural constraints
+```
+
+**Key benefits**: Zero circular dependencies, clean separation of concerns, automated failure detection.
 
 # Deployment
 
@@ -101,20 +123,27 @@ Also https://github.com/olga-mir/playground/wiki/ArgoCD-MCP-%E2%80%90-The-Networ
 
 ## Tasks
 
-Fully automated deployment:
+## 🚀 Quick Start
 
+**Deploy complete infrastructure**:
 ```bash
-$ task setup:deploy
+task setup:deploy
 ```
 
-Everything should be running, all manifests applied by Flux, resources provisioned by Crossplane once the above task finishes.
-
-Uninstall everything:
+**Validate deployment**:
 ```bash
-$ task setup:cleanup
+task validate:all
 ```
 
-List all available tasks
+**Clean up everything**:
+
+Hierarchical deletion (kind → control-plane → workload clusters)
 ```bash
-$ task --list
+task setup:cleanup
 ```
+
+**Available commands**:
+task --list
+```
+
+Everything should be running with all manifests applied by Flux and resources provisioned by Crossplane once deployment finishes.
