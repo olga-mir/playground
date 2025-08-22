@@ -5,7 +5,7 @@ metadata:
 spec:
   group: platform.tornado-demo.io
   names:
-    kind: XWorkloadCluster
+    kind: WorkloadCluster
     plural: xworkloadclusters
   claimNames:
     kind: WorkloadCluster

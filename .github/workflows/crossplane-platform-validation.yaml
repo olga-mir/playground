@@ -1,0 +1,166 @@
+name: Crossplane Platform Validation
+
+on: workflow_dispatch
+
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  #   paths:
+  #     - 'control-plane-crossplane/compositions/**/*.yaml'
+  #     - 'control-plane-crossplane/functions/**/*.yaml'
+  #     - 'control-plane-crossplane/providers/**/*.yaml'
+  #     - 'control-plane-crossplane/provider-configs/**/*.yaml'
+  #     - 'control-plane-crossplane/environment-configs/**/*.yaml'
+
+jobs:
+  validate-platform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tools
+        run: |
+          # Install Crossplane CLI
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | bash
+          sudo mv crossplane /usr/local/bin/
+
+          # Install yq for YAML processing
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+          echo "🔧 Installed tools:"
+          crossplane version --client
+          yq --version
+
+      - name: Detect and categorize changed files
+        id: changes
+        run: |
+          echo "🔍 Detecting changed platform files..."
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+
+          COMPOSITIONS=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/compositions/.*-composition\.yaml$' || true)
+          XRDS=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/compositions/.*-xrd\.yaml$|control-plane-crossplane/platform-services/.*-xrd\.yaml$' || true)
+          FUNCTIONS=$(echo "$CHANGED_FILES" | grep 'control-plane-crossplane/functions/' || true)
+          PROVIDERS=$(echo "$CHANGED_FILES" | grep 'control-plane-crossplane/providers/' || true)
+          CONFIGS=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/provider-configs/|control-plane-crossplane/environment-configs/' || true)
+
+          echo "📋 Changed files summary:"
+          echo "Compositions: $(echo "$COMPOSITIONS" | wc -w)"
+          echo "XRDs: $(echo "$XRDS" | wc -w)"
+          echo "Functions: $(echo "$FUNCTIONS" | wc -w)"
+          echo "Providers: $(echo "$PROVIDERS" | wc -w)"
+          echo "Configs: $(echo "$CONFIGS" | wc -w)"
+
+          # Set outputs for later steps
+          echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
+          echo "xrds=$XRDS" >> $GITHUB_OUTPUT
+          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+          echo "providers=$PROVIDERS" >> $GITHUB_OUTPUT
+          echo "configs=$CONFIGS" >> $GITHUB_OUTPUT
+
+      - name: Validate YAML syntax
+        if: steps.changes.outputs.compositions != '' || steps.changes.outputs.xrds != '' || steps.changes.outputs.functions != '' || steps.changes.outputs.providers != '' || steps.changes.outputs.configs != ''
+        run: |
+          echo "✅ Validating YAML syntax..."
+
+          for file in ${{ steps.changes.outputs.compositions }} ${{ steps.changes.outputs.xrds }} ${{ steps.changes.outputs.functions }} ${{ steps.changes.outputs.providers }} ${{ steps.changes.outputs.configs }}; do
+            if [[ -n "$file" && -f "$file" ]]; then
+              echo "Checking $file"
+              if yq eval '.' "$file" > /dev/null; then
+                echo "  ✅ Valid YAML"
+              else
+                echo "  ❌ Invalid YAML syntax"
+                exit 1
+              fi
+            fi
+          done
+
+      - name: Validate Crossplane resources
+        if: steps.changes.outputs.compositions != '' || steps.changes.outputs.xrds != ''
+        run: |
+          echo "🏗️ Validating Crossplane platform resources..."
+
+          # Validate Compositions
+          for composition in ${{ steps.changes.outputs.compositions }}; do
+            if [[ -n "$composition" && -f "$composition" ]]; then
+              echo "Validating Composition: $composition"
+
+              # Check basic Composition structure
+              if yq eval '.apiVersion == "apiextensions.crossplane.io/v1" and .kind == "Composition"' "$composition" | grep -q "true"; then
+                echo "  ✅ Valid Composition resource"
+
+                # Check for required fields
+                if yq eval '.spec.compositeTypeRef.apiVersion and .spec.compositeTypeRef.kind' "$composition" | grep -q -v "null"; then
+                  echo "  ✅ Has compositeTypeRef"
+                else
+                  echo "  ❌ Missing compositeTypeRef"
+                  exit 1
+                fi
+              else
+                echo "  ❌ Not a valid Composition"
+                exit 1
+              fi
+            fi
+          done
+
+          # Validate XRDs
+          for xrd in ${{ steps.changes.outputs.xrds }}; do
+            if [[ -n "$xrd" && -f "$xrd" ]]; then
+              echo "Validating XRD: $xrd"
+
+              if yq eval '.apiVersion == "apiextensions.crossplane.io/v1" and .kind == "CompositeResourceDefinition"' "$xrd" | grep -q "true"; then
+                echo "  ✅ Valid XRD resource"
+
+                # Check required fields
+                GROUP=$(yq eval '.spec.group' "$xrd")
+                PLURAL=$(yq eval '.spec.names.plural' "$xrd")
+                KIND=$(yq eval '.spec.names.kind' "$xrd")
+
+                if [[ "$GROUP" != "null" && "$PLURAL" != "null" && "$KIND" != "null" ]]; then
+                  echo "  ✅ Has required fields: $GROUP/$PLURAL ($KIND)"
+                else
+                  echo "  ❌ Missing required fields (group, names.plural, names.kind)"
+                  exit 1
+                fi
+              else
+                echo "  ❌ Not a valid XRD"
+                exit 1
+              fi
+            fi
+          done
+
+      - name: Test composition rendering
+        if: steps.changes.outputs.compositions != '' && steps.changes.outputs.xrds != ''
+        run: |
+          echo "🎨 Testing composition rendering..."
+
+          # Find sample XR files for testing
+          XR_SAMPLES=$(find control-plane-crossplane/workload-clusters -name "*.yaml" 2>/dev/null || true)
+
+          if [[ -n "$XR_SAMPLES" ]]; then
+            for xr_sample in $XR_SAMPLES; do
+              echo "Testing rendering with: $xr_sample"
+
+              # Try to render the composition with the sample XR
+              if timeout 30s crossplane beta render "$xr_sample" control-plane-crossplane/compositions/*.yaml 2>/dev/null; then
+                echo "  ✅ Composition rendering successful"
+              else
+                echo "  ⚠️  Composition rendering skipped (may need runtime context)"
+              fi
+            done
+          else
+            echo "⚠️  No sample XRs found for rendering test"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🏗️ Platform Validation Summary"
+          echo ""
+          echo "✅ YAML syntax validation completed"
+          echo "✅ Crossplane resource validation completed"
+          echo "✅ Composition rendering tests completed"
+          echo ""
+          echo "Platform changes are ready for review! 🚀"

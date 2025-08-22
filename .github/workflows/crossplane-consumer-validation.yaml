@@ -1,0 +1,314 @@
+name: Crossplane Consumer Validation
+
+on: workflow_dispatch
+
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  #   paths:
+  #     - 'control-plane-crossplane/workload-clusters/**/*.yaml'
+  #     - 'control-plane-crossplane/platform-services/**/*.yaml'
+  #     - 'platform-tenants/**/*.yaml'
+  #     - 'control-plane-crossplane/workload-cluster-configs/**/*.yaml'
+
+jobs:
+  detect-consumer-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      composite-resources: ${{ steps.changes.outputs.composite-resources }}
+      claims: ${{ steps.changes.outputs.claims }}
+      tenant-configs: ${{ steps.changes.outputs.tenant-configs }}
+      workload-configs: ${{ steps.changes.outputs.workload-configs }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed consumer files
+        id: changes
+        run: |
+          # Get changed files
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+
+          # Categorize consumer changes
+          COMPOSITE_RESOURCES=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/workload-clusters/.*\.yaml$|control-plane-crossplane/platform-services/.*\.yaml$' | grep -v kustomization.yaml || true)
+          CLAIMS=$(echo "$CHANGED_FILES" | grep -E 'platform-tenants/.*/.*\.yaml$' | grep -v kustomization.yaml || true)
+          TENANT_CONFIGS=$(echo "$CHANGED_FILES" | grep -E 'platform-tenants/.*/kustomization\.yaml$' || true)
+          WORKLOAD_CONFIGS=$(echo "$CHANGED_FILES" | grep 'control-plane-crossplane/workload-cluster-configs/' || true)
+
+          echo "composite-resources<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMPOSITE_RESOURCES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "claims<<EOF" >> $GITHUB_OUTPUT
+          echo "$CLAIMS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "tenant-configs<<EOF" >> $GITHUB_OUTPUT
+          echo "$TENANT_CONFIGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "workload-configs<<EOF" >> $GITHUB_OUTPUT
+          echo "$WORKLOAD_CONFIGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  validate-yaml-syntax:
+    needs: detect-consumer-changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-consumer-changes.outputs.composite-resources != '' || needs.detect-consumer-changes.outputs.claims != '' || needs.detect-consumer-changes.outputs.tenant-configs != '' || needs.detect-consumer-changes.outputs.workload-configs != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML syntax for consumer files..."
+          
+          # Check all changed consumer files
+          for file in ${{ needs.detect-consumer-changes.outputs.composite-resources }} ${{ needs.detect-consumer-changes.outputs.claims }} ${{ needs.detect-consumer-changes.outputs.tenant-configs }} ${{ needs.detect-consumer-changes.outputs.workload-configs }}; do
+            if [[ -n "$file" && -f "$file" ]]; then
+              echo "Validating $file"
+              yq eval '.' "$file" > /dev/null || {
+                echo "❌ YAML syntax error in $file"
+                exit 1
+              }
+              echo "✅ $file is valid YAML"
+            fi
+          done
+
+  validate-composite-resources:
+    needs: [detect-consumer-changes, validate-yaml-syntax]
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-consumer-changes.outputs.composite-resources != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      
+      - name: Validate Composite Resources
+        run: |
+          echo "Validating Composite Resources against available XRDs..."
+          
+          # Collect available XRDs
+          XRD_FILES=$(find control-plane-crossplane -name "*-xrd.yaml" 2>/dev/null || true)
+          echo "Available XRDs: $XRD_FILES"
+          
+          for xr in ${{ needs.detect-consumer-changes.outputs.composite-resources }}; do
+            if [[ -n "$xr" && -f "$xr" ]]; then
+              echo "Validating Composite Resource: $xr"
+              
+              # Extract apiVersion and kind
+              API_VERSION=$(yq eval '.apiVersion' "$xr")
+              KIND=$(yq eval '.kind' "$xr")
+              
+              echo "  Resource: $API_VERSION/$KIND"
+              
+              # Basic validation - ensure it has required Crossplane fields
+              if ! yq eval '.apiVersion and .kind and .metadata.name and .spec' "$xr" | grep -q "true"; then
+                echo "❌ $xr missing required fields (apiVersion, kind, metadata.name, spec)"
+                exit 1
+              fi
+              
+              # Check if it's a composite resource (contains spec fields typical of XRs)
+              if yq eval '.spec | has("compositeDeletePolicy") or has("compositionRef") or has("compositionRevisionRef") or has("writeConnectionSecretsToNamespace")' "$xr" | grep -q "true"; then
+                echo "✅ $xr appears to be a valid Composite Resource"
+              else
+                echo "⚠️  $xr may not be a Composite Resource (missing typical XR spec fields)"
+              fi
+            fi
+          done
+
+  validate-claims:
+    needs: [detect-consumer-changes, validate-yaml-syntax]
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-consumer-changes.outputs.claims != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      
+      - name: Validate Claims
+        run: |
+          echo "Validating Claims..."
+          
+          for claim in ${{ needs.detect-consumer-changes.outputs.claims }}; do
+            if [[ -n "$claim" && -f "$claim" ]]; then
+              echo "Validating Claim: $claim"
+              
+              # Extract team from path
+              TEAM=$(echo "$claim" | cut -d'/' -f2)
+              echo "  Team: $TEAM"
+              
+              # Basic validation
+              if ! yq eval '.apiVersion and .kind and .metadata.name and .spec' "$claim" | grep -q "true"; then
+                echo "❌ $claim missing required fields"
+                exit 1
+              fi
+              
+              # Check if it's a known Crossplane-managed resource type
+              API_VERSION=$(yq eval '.apiVersion' "$claim")
+              if [[ "$API_VERSION" == *"platform.tornado-demo.io"* ]]; then
+                echo "✅ $claim is a platform-managed resource"
+              else
+                echo "⚠️  $claim may not be a platform-managed resource"
+              fi
+            fi
+          done
+
+  validate-tenant-configurations:
+    needs: [detect-consumer-changes, validate-yaml-syntax]
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-consumer-changes.outputs.tenant-configs != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      
+      - name: Validate Tenant Configurations
+        run: |
+          echo "Validating Tenant Kustomization files..."
+          
+          for config in ${{ needs.detect-consumer-changes.outputs.tenant-configs }}; do
+            if [[ -n "$config" && -f "$config" ]]; then
+              echo "Validating tenant config: $config"
+              
+              # Extract team from path
+              TEAM=$(echo "$config" | cut -d'/' -f2)
+              echo "  Team: $TEAM"
+              
+              # Validate kustomization structure
+              if ! yq eval '.apiVersion == "kustomize.config.k8s.io/v1beta1" and .kind == "Kustomization"' "$config" | grep -q "true"; then
+                echo "❌ $config is not a valid Kustomization"
+                exit 1
+              fi
+              
+              # Check that referenced resources exist
+              RESOURCES=$(yq eval '.resources[]' "$config" 2>/dev/null || true)
+              if [[ -n "$RESOURCES" ]]; then
+                echo "  Resources:"
+                for resource in $RESOURCES; do
+                  RESOURCE_PATH="$(dirname "$config")/$resource"
+                  if [[ -f "$RESOURCE_PATH" ]]; then
+                    echo "    ✅ $resource exists"
+                  else
+                    echo "    ❌ $resource not found at $RESOURCE_PATH"
+                    exit 1
+                  fi
+                done
+              else
+                echo "  ⚠️  No resources defined in kustomization"
+              fi
+            fi
+          done
+
+  check-resource-conflicts:
+    needs: [detect-consumer-changes, validate-composite-resources, validate-claims]
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-consumer-changes.outputs.composite-resources != '' || needs.detect-consumer-changes.outputs.claims != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      
+      - name: Check for Resource Name Conflicts
+        run: |
+          echo "Checking for resource name conflicts..."
+          
+          # Create temporary file to track resource names
+          TEMP_FILE=$(mktemp)
+          
+          # Collect all resource names from consumer files
+          for file in ${{ needs.detect-consumer-changes.outputs.composite-resources }} ${{ needs.detect-consumer-changes.outputs.claims }}; do
+            if [[ -n "$file" && -f "$file" ]]; then
+              NAME=$(yq eval '.metadata.name' "$file" 2>/dev/null)
+              NAMESPACE=$(yq eval '.metadata.namespace // "default"' "$file" 2>/dev/null)
+              KIND=$(yq eval '.kind' "$file" 2>/dev/null)
+              
+              if [[ -n "$NAME" && "$NAME" != "null" ]]; then
+                echo "$NAMESPACE/$KIND/$NAME $file" >> "$TEMP_FILE"
+              fi
+            fi
+          done
+          
+          # Check for duplicates
+          if [[ -f "$TEMP_FILE" ]]; then
+            DUPLICATES=$(sort "$TEMP_FILE" | uniq -d)
+            if [[ -n "$DUPLICATES" ]]; then
+              echo "❌ Found resource name conflicts:"
+              echo "$DUPLICATES"
+              exit 1
+            else
+              echo "✅ No resource name conflicts found"
+            fi
+          fi
+          
+          rm -f "$TEMP_FILE"
+
+  consumer-validation-summary:
+    needs: [validate-yaml-syntax, validate-composite-resources, validate-claims, validate-tenant-configurations, check-resource-conflicts]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Consumer Validation Summary
+        run: |
+          echo "## 👥 Consumer Validation Summary"
+          echo ""
+          
+          if [[ "${{ needs.validate-yaml-syntax.result }}" == "success" ]]; then
+            echo "✅ YAML Syntax Validation: PASSED"
+          else
+            echo "❌ YAML Syntax Validation: FAILED"
+          fi
+          
+          if [[ "${{ needs.validate-composite-resources.result }}" == "success" ]]; then
+            echo "✅ Composite Resource Validation: PASSED"
+          elif [[ "${{ needs.validate-composite-resources.result }}" == "skipped" ]]; then
+            echo "⏭️ Composite Resource Validation: SKIPPED (no changes)"
+          else
+            echo "❌ Composite Resource Validation: FAILED"
+          fi
+          
+          if [[ "${{ needs.validate-claims.result }}" == "success" ]]; then
+            echo "✅ Claims Validation: PASSED"
+          elif [[ "${{ needs.validate-claims.result }}" == "skipped" ]]; then
+            echo "⏭️ Claims Validation: SKIPPED (no changes)"
+          else
+            echo "❌ Claims Validation: FAILED"
+          fi
+          
+          if [[ "${{ needs.validate-tenant-configurations.result }}" == "success" ]]; then
+            echo "✅ Tenant Configuration Validation: PASSED"
+          elif [[ "${{ needs.validate-tenant-configurations.result }}" == "skipped" ]]; then
+            echo "⏭️ Tenant Configuration Validation: SKIPPED (no changes)"
+          else
+            echo "❌ Tenant Configuration Validation: FAILED"
+          fi
+          
+          if [[ "${{ needs.check-resource-conflicts.result }}" == "success" ]]; then
+            echo "✅ Resource Conflict Check: PASSED"
+          elif [[ "${{ needs.check-resource-conflicts.result }}" == "skipped" ]]; then
+            echo "⏭️ Resource Conflict Check: SKIPPED (no changes)"
+          else
+            echo "❌ Resource Conflict Check: FAILED"
+          fi

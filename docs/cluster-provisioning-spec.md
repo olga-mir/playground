@@ -48,46 +48,33 @@ This document defines the specification and acceptance criteria for automated cl
   - Must NOT manage infrastructure composites
   - No direct infrastructure provisioning capabilities
 
-## Technical Specifications
+## Crossplane Compositions
 
-### Crossplane Compositions
+### Control Plane Cluster Composition
 
-#### Control Plane Cluster Composition
 ```yaml
-# Managed by: Bootstrap cluster
-# Target: Single control-plane cluster
 apiVersion: platform.tornado-demo.io/v1alpha1
-kind: XControlPlaneCluster
+kind: GKECluster
+metadata:
+  name: control-plane-cluster
+  namespace: gkecluster-control-plane
 spec:
+  compositionRef:
+    name: control-plane-composition
   parameters:
-    clusterName: control-plane
-    projectId: ${PROJECT_ID}
-    region: ${REGION}
-    zone: ${ZONE}
-    vpcName: ${VPC_NAME}
-    subnetName: ${CONTROL_PLANE_SUBNET}
-```
-
-#### Workload Cluster Composition
-```yaml
-# Managed by: Control-plane cluster
-# Target: Multiple workload clusters (apps-dev, staging, prod)
-apiVersion: platform.tornado-demo.io/v1alpha1
-kind: XWorkloadCluster
-spec:
-  parameters:
-    clusterName: apps-dev
-    projectId: ${PROJECT_ID}
-    region: ${REGION}
-    zone: ${ZONE}
-    vpcName: ${VPC_NAME}
-    subnetName: ${APPS_DEV_SUBNET}
-    minNodes: 1
+    clusterName: "${GKE_CONTROL_PLANE_CLUSTER}"
+    clusterType: control-plane
+    projectId: "${PROJECT_ID}"
+    region: "${REGION}"
+    zone: "${ZONE}"
+    vpcName: "${GKE_VPC}"
+    subnetName: "${CONTROL_PLANE_SUBNET_NAME}"
+    machineType: "e2-standard-4"
+    minNodes: 2
     maxNodes: 5
-    machineType: e2-medium
 ```
 
-### GitOps Bootstrap Flow
+## GitOps Bootstrap Flow
 
 ```mermaid
 graph TD
@@ -101,7 +88,7 @@ graph TD
     H --> I[Workload cluster Flux deploys applications]
 ```
 
-### Directory Structure Requirements
+## Directory Structure Requirements
 
 ```
 ├── bootstrap/                     # Bootstrap cluster configs
@@ -123,43 +110,44 @@ graph TD
     └── apps-dev/               # Apps for apps-dev cluster
 ```
 
-## Acceptance Criteria
+# Acceptance Criteria
 
-### Infrastructure Validation
+## Infrastructure Validation
 - [ ] Bootstrap cluster provisions control-plane cluster successfully
 - [ ] Control-plane cluster provisions workload clusters successfully
 - [ ] All Crossplane composite resources reach "Ready" state
 - [ ] All Flux components reach "Applied" status
 - [ ] GitHub Actions trigger correctly from Flux notifications
 
-### Architectural Constraints
+## Architectural Constraints
 - [ ] Bootstrap cluster manages ONLY control-plane provisioning
 - [ ] Control-plane cluster manages ONLY workload cluster provisioning
 - [ ] Workload clusters have NO Crossplane installation
 - [ ] Workload clusters have NO infrastructure management capabilities
 - [ ] Control-plane cluster runs NO tenant applications
 
-### Security & Isolation
+## Security & Isolation
 - [ ] Workload clusters use separate service accounts
 - [ ] Network isolation between workload clusters
 - [ ] No cross-cluster application access without explicit configuration
 - [ ] All secrets managed via Kubernetes secrets or external secret management
 
-### GitOps Requirements
+## GitOps Requirements
 - [ ] All infrastructure changes via git commits
 - [ ] No manual kubectl changes to infrastructure
 - [ ] Flux reconciliation succeeds within 5 minutes
 - [ ] GitHub Actions complete within 10 minutes
 - [ ] Failed deployments automatically revert
 
-## Validation Commands
+# Validation Commands
 
-### Quick Validation
+Quick Validation:
+
 ```bash
 task validate:all
 ```
 
-### Detailed Validation
+Detailed Validation:
 ```bash
 # Check individual clusters
 task validate:bootstrap

@@ -12,8 +12,9 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  #issues: write
+  #pull-requests: write
+  id-token: write
 
 jobs:
   bootstrap-flux:
@@ -48,13 +49,15 @@ jobs:
           else
             echo "cluster_name=unknown" >> $GITHUB_OUTPUT
             echo "cluster_type=unknown" >> $GITHUB_OUTPUT
+            echo "should_proceed=false" >> $GITHUB_OUTPUT
           fi
+          echo "Detected GKE Cluster event will proceed to the next step"
           echo "should_proceed=true" >> $GITHUB_OUTPUT
         else
           echo "Not a GKE cluster event, skipping bootstrap"
-          echo "should_proceed=false" >> $GITHUB_OUTPUT
           echo "cluster_name=unknown" >> $GITHUB_OUTPUT
           echo "cluster_type=unknown" >> $GITHUB_OUTPUT
+          echo "should_proceed=false" >> $GITHUB_OUTPUT
         fi
 
         echo "region=australia-southeast1" >> $GITHUB_OUTPUT

@@ -8,7 +8,7 @@ metadata:
 spec:
   compositeTypeRef:
     apiVersion: platform.tornado-demo.io/v1alpha1
-    kind: XWorkloadCluster
+    kind: WorkloadCluster
 
   mode: Pipeline
   pipeline:

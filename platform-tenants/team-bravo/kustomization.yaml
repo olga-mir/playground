@@ -4,4 +4,6 @@ kind: Kustomization
 # Team Bravo applications will go here
 # Example: web applications, microservices, etc.
 
-resources: []
+resources:
+  - team-config.yaml
+  - tornado-repo.yaml
