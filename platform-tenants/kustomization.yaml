@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - team-alpha/
   - team-bravo/
+  - team-charlie/
