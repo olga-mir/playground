@@ -1,0 +1,30 @@
+apiVersion: platform.tornado-demo.io/v1alpha1
+kind: TornadoRepo
+metadata:
+  name: team-bravo-service-xyz
+  namespace: team-bravo-tenant
+spec:
+  serviceName: service-xyz
+  teamName: team-bravo
+  description: "User management service"
+  visibility: private
+
+  settings:
+    defaultBranch: main
+    hasWiki: false
+    deleteBranchOnMerge: true
+
+  branchProtection:
+    defaultBranch:
+      requiredStatusChecks:
+        - "ci/build"
+        - "ci/test"
+      requiredPullRequestReviews:
+        requiredApprovingReviewCount: 2
+        requireCodeOwnerReviews: true
+
+  teamAccess:
+  - team: backend
+    permission: maintain
+  - team: platform
+    permission: admin

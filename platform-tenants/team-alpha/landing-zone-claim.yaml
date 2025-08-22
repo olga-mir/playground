@@ -1,0 +1,30 @@
+apiVersion: platform.tornado-demo.io/v1alpha1
+kind: ValueStreamLandingZone
+metadata:
+  name: team-alpha-landing-zone
+  namespace: team-alpha-tenant
+spec:
+  environment: "dev"
+  teamName: "team-alpha"
+  serviceId: "service-one"
+
+  githubConfig:
+    repositoryVisibility: "private"
+    useTemplate: true
+    enableActions: true
+    teamPermission: "maintain"
+
+  networkTags:
+    - "external-egress"
+
+  gcpServices:
+    - storage.googleapis.com
+    - iam.googleapis.com
+
+  workloadIdentity:
+    roles:
+      - "roles/storage.admin"
+
+  writeConnectionSecretToRef:
+    name: team-alpha-gcp-creds
+    namespace: team-alpha-tenant
