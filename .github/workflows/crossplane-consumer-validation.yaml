@@ -1,13 +1,15 @@
 name: Crossplane Consumer Validation
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - 'control-plane-crossplane/workload-clusters/**/*.yaml'
-      - 'control-plane-crossplane/platform-services/**/*.yaml'
-      - 'platform-tenants/**/*.yaml'
-      - 'control-plane-crossplane/workload-cluster-configs/**/*.yaml'
+  workflow_dispatch:
+
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  #   paths:
+  #     - 'control-plane-crossplane/workload-clusters/**/*.yaml'
+  #     - 'control-plane-crossplane/platform-services/**/*.yaml'
+  #     - 'platform-tenants/**/*.yaml'
+  #     - 'control-plane-crossplane/workload-cluster-configs/**/*.yaml'
 
 jobs:
   detect-consumer-changes:
@@ -58,12 +60,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install yq
         run: |
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
-      
+
       - name: Validate YAML syntax
         run: |
           echo "Validating YAML syntax for consumer files..."
