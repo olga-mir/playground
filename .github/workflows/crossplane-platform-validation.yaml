@@ -58,20 +58,6 @@ jobs:
           echo "$CONFIGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-  install-crossplane-cli:
-    runs-on: ubuntu-latest
-    outputs:
-      crossplane-version: ${{ steps.install.outputs.version }}
-    steps:
-      - name: Install Crossplane CLI
-        id: install
-        run: |
-          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | bash
-          sudo mv crossplane /usr/local/bin/
-          VERSION=$(crossplane version --client)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Installed Crossplane CLI version: $VERSION"
-
   validate-yaml-syntax:
     needs: detect-platform-changes
     runs-on: ubuntu-latest
@@ -102,7 +88,7 @@ jobs:
           done
 
   validate-compositions:
-    needs: [detect-platform-changes, install-crossplane-cli]
+    needs: [detect-platform-changes]
     runs-on: ubuntu-latest
     if: ${{ needs.detect-platform-changes.outputs.compositions != '' }}
     steps:
@@ -136,7 +122,7 @@ jobs:
           done
 
   validate-xrds:
-    needs: [detect-platform-changes, install-crossplane-cli]
+    needs: [detect-platform-changes]
     runs-on: ubuntu-latest
     if: ${{ needs.detect-platform-changes.outputs.xrds != '' }}
     steps:
