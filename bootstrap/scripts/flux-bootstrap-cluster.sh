@@ -45,7 +45,7 @@ echo "📦 Installing Flux on ${CLUSTER_TYPE} cluster..."
 GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
   --owner=${GITHUB_DEMO_REPO_OWNER} \
   --repository=${GITHUB_DEMO_REPO_NAME} \
-  --branch=base-refactor \
+  --branch=develop \
   --path=${FLUX_PATH} \
   --context="${CLUSTER_CONTEXT}" \
   --personal

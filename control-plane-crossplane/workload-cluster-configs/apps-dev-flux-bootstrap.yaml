@@ -30,7 +30,7 @@ spec:
       spec:
         interval: 1m
         ref:
-          branch: base-refactor
+          branch: develop
         url: https://github.com/olga-mir/playground
   providerConfigRef:
     name: apps-dev-cluster
@@ -97,7 +97,7 @@ spec:
       spec:
         interval: 1m
         ref:
-          branch: base-refactor
+          branch: develop
         url: https://github.com/olga-mir/playground
   providerConfigRef:
     name: apps-dev-cluster
