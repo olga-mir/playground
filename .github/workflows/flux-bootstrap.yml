@@ -12,8 +12,9 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  #issues: write
+  #pull-requests: write
+  id-token: write
 
 jobs:
   bootstrap-flux:
@@ -48,16 +49,17 @@ jobs:
           else
             echo "cluster_name=unknown" >> $GITHUB_OUTPUT
             echo "cluster_type=unknown" >> $GITHUB_OUTPUT
+            echo "should_proceed=false" >> $GITHUB_OUTPUT
           fi
+          echo "Detected GKE Cluster event will proceed to the next step"
+          echo "should_proceed=true" >> $GITHUB_OUTPUT
         else
           echo "Not a GKE cluster event, skipping bootstrap"
           echo "cluster_name=unknown" >> $GITHUB_OUTPUT
           echo "cluster_type=unknown" >> $GITHUB_OUTPUT
+          echo "should_proceed=false" >> $GITHUB_OUTPUT
         fi
 
-        # temp - For now proceed even if flux event does not show ready.
-        # actual cluster might be already in working state
-        echo "should_proceed=true" >> $GITHUB_OUTPUT
         echo "region=australia-southeast1" >> $GITHUB_OUTPUT
 
         # Project ID will be available from WIF auth context
