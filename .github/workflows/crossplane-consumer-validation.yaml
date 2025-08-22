@@ -1,7 +1,6 @@
 name: Crossplane Consumer Validation
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
   # pull_request:
   #   types: [opened, synchronize, reopened]
@@ -24,19 +23,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Detect changed consumer files
         id: changes
         run: |
           # Get changed files
           CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
-          
+
           # Categorize consumer changes
           COMPOSITE_RESOURCES=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/workload-clusters/.*\.yaml$|control-plane-crossplane/platform-services/.*\.yaml$' | grep -v kustomization.yaml || true)
           CLAIMS=$(echo "$CHANGED_FILES" | grep -E 'platform-tenants/.*/.*\.yaml$' | grep -v kustomization.yaml || true)
           TENANT_CONFIGS=$(echo "$CHANGED_FILES" | grep -E 'platform-tenants/.*/kustomization\.yaml$' || true)
           WORKLOAD_CONFIGS=$(echo "$CHANGED_FILES" | grep 'control-plane-crossplane/workload-cluster-configs/' || true)
-          
+
           echo "composite-resources<<EOF" >> $GITHUB_OUTPUT
           echo "$COMPOSITE_RESOURCES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
