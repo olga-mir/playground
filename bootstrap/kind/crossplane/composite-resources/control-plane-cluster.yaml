@@ -17,5 +17,3 @@ spec:
     machineType: "e2-standard-4"
     minNodes: 2
     maxNodes: 5
-
-    # Crossplane configuration removed - clusters managed by Flux only
