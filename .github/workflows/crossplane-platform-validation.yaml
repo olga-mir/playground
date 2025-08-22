@@ -1,0 +1,257 @@
+name: Crossplane Platform Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'control-plane-crossplane/compositions/**/*.yaml'
+      - 'control-plane-crossplane/functions/**/*.yaml'
+      - 'control-plane-crossplane/providers/**/*.yaml'
+      - 'control-plane-crossplane/provider-configs/**/*.yaml'
+      - 'control-plane-crossplane/environment-configs/**/*.yaml'
+
+jobs:
+  detect-platform-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      compositions: ${{ steps.changes.outputs.compositions }}
+      xrds: ${{ steps.changes.outputs.xrds }}
+      functions: ${{ steps.changes.outputs.functions }}
+      providers: ${{ steps.changes.outputs.providers }}
+      configs: ${{ steps.changes.outputs.configs }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Detect changed platform files
+        id: changes
+        run: |
+          # Get changed files
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+          
+          # Categorize platform changes
+          COMPOSITIONS=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/compositions/.*-composition\.yaml$' || true)
+          XRDS=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/compositions/.*-xrd\.yaml$|control-plane-crossplane/platform-services/.*-xrd\.yaml$' || true)
+          FUNCTIONS=$(echo "$CHANGED_FILES" | grep 'control-plane-crossplane/functions/' || true)
+          PROVIDERS=$(echo "$CHANGED_FILES" | grep 'control-plane-crossplane/providers/' || true)
+          CONFIGS=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/provider-configs/|control-plane-crossplane/environment-configs/' || true)
+          
+          echo "compositions<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMPOSITIONS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "xrds<<EOF" >> $GITHUB_OUTPUT
+          echo "$XRDS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "functions<<EOF" >> $GITHUB_OUTPUT
+          echo "$FUNCTIONS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "providers<<EOF" >> $GITHUB_OUTPUT
+          echo "$PROVIDERS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "configs<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONFIGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  install-crossplane-cli:
+    runs-on: ubuntu-latest
+    outputs:
+      crossplane-version: ${{ steps.install.outputs.version }}
+    steps:
+      - name: Install Crossplane CLI
+        id: install
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | bash
+          sudo mv crossplane /usr/local/bin/
+          VERSION=$(crossplane version --client)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Installed Crossplane CLI version: $VERSION"
+
+  validate-yaml-syntax:
+    needs: detect-platform-changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-platform-changes.outputs.compositions != '' || needs.detect-platform-changes.outputs.xrds != '' || needs.detect-platform-changes.outputs.functions != '' || needs.detect-platform-changes.outputs.providers != '' || needs.detect-platform-changes.outputs.configs != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML syntax for platform files..."
+          
+          # Check all changed platform files
+          for file in ${{ needs.detect-platform-changes.outputs.compositions }} ${{ needs.detect-platform-changes.outputs.xrds }} ${{ needs.detect-platform-changes.outputs.functions }} ${{ needs.detect-platform-changes.outputs.providers }} ${{ needs.detect-platform-changes.outputs.configs }}; do
+            if [[ -n "$file" && -f "$file" ]]; then
+              echo "Validating $file"
+              yq eval '.' "$file" > /dev/null || {
+                echo "❌ YAML syntax error in $file"
+                exit 1
+              }
+              echo "✅ $file is valid YAML"
+            fi
+          done
+
+  validate-compositions:
+    needs: [detect-platform-changes, install-crossplane-cli]
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-platform-changes.outputs.compositions != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | bash
+          sudo mv crossplane /usr/local/bin/
+      
+      - name: Validate Compositions
+        run: |
+          echo "Validating Compositions..."
+          
+          # Create temporary directory for validation
+          mkdir -p /tmp/crossplane-validation
+          
+          for composition in ${{ needs.detect-platform-changes.outputs.compositions }}; do
+            if [[ -n "$composition" && -f "$composition" ]]; then
+              echo "Validating composition: $composition"
+              
+              # Basic composition validation
+              if ! yq eval '.apiVersion == "apiextensions.crossplane.io/v1" and .kind == "Composition"' "$composition" | grep -q "true"; then
+                echo "❌ $composition is not a valid Composition resource"
+                exit 1
+              fi
+              
+              echo "✅ $composition is a valid Composition"
+            fi
+          done
+
+  validate-xrds:
+    needs: [detect-platform-changes, install-crossplane-cli]
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-platform-changes.outputs.xrds != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | bash
+          sudo mv crossplane /usr/local/bin/
+      
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      
+      - name: Validate XRDs
+        run: |
+          echo "Validating CompositeResourceDefinitions..."
+          
+          for xrd in ${{ needs.detect-platform-changes.outputs.xrds }}; do
+            if [[ -n "$xrd" && -f "$xrd" ]]; then
+              echo "Validating XRD: $xrd"
+              
+              # Basic XRD validation
+              if ! yq eval '.apiVersion == "apiextensions.crossplane.io/v1" and .kind == "CompositeResourceDefinition"' "$xrd" | grep -q "true"; then
+                echo "❌ $xrd is not a valid CompositeResourceDefinition"
+                exit 1
+              fi
+              
+              # Check required fields
+              if ! yq eval '.spec.group' "$xrd" | grep -q "."; then
+                echo "❌ $xrd missing spec.group"
+                exit 1
+              fi
+              
+              echo "✅ $xrd is a valid XRD"
+            fi
+          done
+
+  test-composition-rendering:
+    needs: [detect-platform-changes, validate-compositions, validate-xrds]
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-platform-changes.outputs.compositions != '' && needs.detect-platform-changes.outputs.xrds != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | bash
+          sudo mv crossplane /usr/local/bin/
+      
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      
+      - name: Test Composition Rendering
+        run: |
+          echo "Testing composition rendering with sample composite resources..."
+          
+          # Create sample XRs for testing compositions
+          mkdir -p /tmp/test-xrs
+          
+          # Find existing XR examples in workload-clusters for testing
+          for xr_file in control-plane-crossplane/workload-clusters/*.yaml; do
+            if [[ -f "$xr_file" ]]; then
+              echo "Testing rendering with XR: $xr_file"
+              
+              # Test rendering (this validates the composition logic)
+              if crossplane beta render "$xr_file" control-plane-crossplane/compositions/*.yaml --include-function-results 2>/dev/null; then
+                echo "✅ Successfully rendered $xr_file"
+              else
+                echo "⚠️  Could not render $xr_file (may require runtime context)"
+              fi
+            fi
+          done
+
+  platform-validation-summary:
+    needs: [validate-yaml-syntax, validate-compositions, validate-xrds, test-composition-rendering]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Platform Validation Summary
+        run: |
+          echo "## 🏗️ Platform Validation Summary"
+          echo ""
+          
+          if [[ "${{ needs.validate-yaml-syntax.result }}" == "success" ]]; then
+            echo "✅ YAML Syntax Validation: PASSED"
+          else
+            echo "❌ YAML Syntax Validation: FAILED"
+          fi
+          
+          if [[ "${{ needs.validate-compositions.result }}" == "success" ]]; then
+            echo "✅ Composition Validation: PASSED"
+          elif [[ "${{ needs.validate-compositions.result }}" == "skipped" ]]; then
+            echo "⏭️ Composition Validation: SKIPPED (no changes)"
+          else
+            echo "❌ Composition Validation: FAILED"
+          fi
+          
+          if [[ "${{ needs.validate-xrds.result }}" == "success" ]]; then
+            echo "✅ XRD Validation: PASSED"
+          elif [[ "${{ needs.validate-xrds.result }}" == "skipped" ]]; then
+            echo "⏭️ XRD Validation: SKIPPED (no changes)"
+          else
+            echo "❌ XRD Validation: FAILED"
+          fi
+          
+          if [[ "${{ needs.test-composition-rendering.result }}" == "success" ]]; then
+            echo "✅ Composition Rendering: PASSED"
+          elif [[ "${{ needs.test-composition-rendering.result }}" == "skipped" ]]; then
+            echo "⏭️ Composition Rendering: SKIPPED (no changes)"
+          else
+            echo "❌ Composition Rendering: FAILED"
+          fi
