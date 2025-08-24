@@ -1,8 +1,6 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  annotations:
-    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
   name: cloudrun-service
   labels:
     provider: gcp

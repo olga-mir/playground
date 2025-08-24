@@ -1,6 +1,0 @@
-project: platform
-syncWave: "2"
-
-name: gcp-claude
-path: gcp-claude
-namespace: gcp-claude

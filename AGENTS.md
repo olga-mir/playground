@@ -83,7 +83,6 @@ export DOMAIN
 export CERT_NAME
 export DNS_PROJECT
 export DNS_ZONE
-# ArgoCD variables removed - migrated to FluxCD
 export GITHUB_DEMO_REPO_OWNER
 export GITHUB_DEMO_REPO_NAME
 export GITHUB_DEMO_REPO_PAT
