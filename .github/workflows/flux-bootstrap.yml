@@ -41,7 +41,7 @@ jobs:
         if [[ "$MESSAGE" == *"GKECluster"* ]]; then
           # Extract cluster name and type from message like "GKECluster/control-plane-cluster created"
           if [[ "$MESSAGE" == *"control-plane"* ]]; then
-            echo "cluster_name=gke-control-plane-cluster" >> $GITHUB_OUTPUT
+            echo "cluster_name=control-plane" >> $GITHUB_OUTPUT
             echo "cluster_type=control-plane" >> $GITHUB_OUTPUT
           elif [[ "$MESSAGE" == *"apps-dev"* ]]; then
             echo "cluster_name=gke-apps-dev-cluster" >> $GITHUB_OUTPUT
@@ -76,6 +76,12 @@ jobs:
         token_format: access_token
         workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+    - name: Mask sensitive outputs
+      if: steps.cluster-info.outputs.should_proceed == 'true'
+      run: |
+        echo "::add-mask::${{ steps.auth.outputs.project_id }}"
+        echo "::add-mask::${{ steps.auth.outputs.service_account_email }}"
 
     # The KUBECONFIG env var is automatically exported and picked up by kubectl
     - name: Get GKE credentials
