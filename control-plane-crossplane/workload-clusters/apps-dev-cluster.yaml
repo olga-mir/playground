@@ -14,5 +14,4 @@ spec:
     machineType: "e2-medium"
     minNodes: 2
     maxNodes: 5
-  compositeDeletePolicy: Foreground
   writeConnectionSecretsToNamespace: default

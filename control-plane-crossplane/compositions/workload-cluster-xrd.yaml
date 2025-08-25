@@ -6,9 +6,6 @@ spec:
   group: platform.tornado-demo.io
   names:
     kind: WorkloadCluster
-    plural: xworkloadclusters
-  claimNames:
-    kind: WorkloadCluster
     plural: workloadclusters
   connectionSecretKeys:
     - kubeconfig

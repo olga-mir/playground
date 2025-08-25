@@ -119,7 +119,7 @@ jobs:
               fi
               
               # Check if it's a composite resource (contains spec fields typical of XRs)
-              if yq eval '.spec | has("compositeDeletePolicy") or has("compositionRef") or has("compositionRevisionRef") or has("writeConnectionSecretsToNamespace")' "$xr" | grep -q "true"; then
+              if yq eval '.spec | has("compositionRef") or has("compositionRevisionRef") or has("writeConnectionSecretsToNamespace")' "$xr" | grep -q "true"; then
                 echo "✅ $xr appears to be a valid Composite Resource"
               else
                 echo "⚠️  $xr may not be a Composite Resource (missing typical XR spec fields)"
