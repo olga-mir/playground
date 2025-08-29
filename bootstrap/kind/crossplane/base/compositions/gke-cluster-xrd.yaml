@@ -7,9 +7,6 @@ spec:
   names:
     kind: GKECluster
     plural: gkeclusters
-  claimNames:
-    kind: GKEClusterClaim
-    plural: gkeclusterclaims
   versions:
   - name: v1alpha1
     served: true

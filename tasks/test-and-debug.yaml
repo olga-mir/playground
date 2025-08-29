@@ -21,7 +21,7 @@ tasks:
   crossplane-trace:
     desc: "Trace Crossplane resources"
     cmds:
-      - crossplane beta trace valuestreamlandingzones -f "{{.TASKFILE_DIR}}/teams/team-alpha/landing-zone-claim.yaml" -n team-alpha-tenant
+      - crossplane beta trace valuestreamlandingzones -f "{{.TASKFILE_DIR}}/platform-tenants/team-alpha/landing-zone.yaml" -n team-alpha-tenant
 
   gke-cluster-status:
     desc: "Debug composed resources for a GKE cluster (usage: task debug-cluster CLUSTER=control-plane-cluster)"

@@ -5,4 +5,4 @@ kind: Kustomization
 # Example: web applications, microservices, etc.
 
 resources:
-  - landing-zone-claim.yaml
+  - landing-zone.yaml
