@@ -60,7 +60,7 @@ jobs:
           echo "should_proceed=false" >> $GITHUB_OUTPUT
         fi
 
-        echo "region=australia-southeast1" >> $GITHUB_OUTPUT
+        echo "location=australia-southeast1-a" >> $GITHUB_OUTPUT
 
         # Project ID will be available from WIF auth context
 
@@ -90,7 +90,7 @@ jobs:
       uses: google-github-actions/get-gke-credentials@v2
       with:
         cluster_name: ${{ steps.cluster-info.outputs.cluster_name }}
-        location: ${{ steps.cluster-info.outputs.region }}
+        location: ${{ steps.cluster-info.outputs.location }}
 
     - name: Wait for cluster to be ready
       if: steps.cluster-info.outputs.should_proceed == 'true'
@@ -136,7 +136,7 @@ jobs:
         kubectl get namespace flux-system >/dev/null 2>&1 || kubectl create namespace flux-system
         # Always create or update the ConfigMap
         kubectl create configmap cluster-config -n flux-system \
-          --from-literal=REGION="${{ steps.cluster-info.outputs.region }}" \
+          --from-literal=REGION="${{ steps.cluster-info.outputs.location }}" \
           --from-literal=CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster_name }}" \
           --from-literal=CLUSTER_TYPE="${{ steps.cluster-info.outputs.cluster_type }}" \
           --from-literal=REPO_OWNER="${{ github.repository_owner }}" \
