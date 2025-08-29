@@ -80,8 +80,16 @@ jobs:
     - name: Mask sensitive outputs
       if: steps.cluster-info.outputs.should_proceed == 'true'
       run: |
-        echo "::add-mask::${{ steps.auth.outputs.project_id }}"
-        echo "::add-mask::${{ steps.auth.outputs.service_account_email }}"
+        PROJECT_ID="${{ steps.auth.outputs.project_id }}"
+        SERVICE_ACCOUNT="${{ steps.auth.outputs.service_account_email }}"
+
+        if [ -n "$PROJECT_ID" ]; then
+          echo "::add-mask::$PROJECT_ID"
+        fi
+
+        if [ -n "$SERVICE_ACCOUNT" ]; then
+          echo "::add-mask::$SERVICE_ACCOUNT"
+        fi
 
     # The KUBECONFIG env var is automatically exported and picked up by kubectl
     - name: Get GKE credentials
