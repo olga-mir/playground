@@ -129,3 +129,28 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: cluster-vars
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-composite-resources
+  namespace: flux-system
+spec:
+  interval: 1m
+  path: "./bootstrap/kind/crossplane/composite-resources"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-workload-clusters
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: platform-config
+      - kind: Secret
+        name: platform-secrets
+  healthChecks:
+    - apiVersion: platform.tornado-demo.io/v1alpha1
+      kind: GKECluster
+      name: control-plane-cluster

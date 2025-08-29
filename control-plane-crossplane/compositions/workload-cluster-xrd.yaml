@@ -7,6 +7,9 @@ spec:
   names:
     kind: WorkloadCluster
     plural: workloadclusters
+  claimNames:
+    kind: WorkloadClusterClaim
+    plural: workloadclusterclaims
   connectionSecretKeys:
     - kubeconfig
   versions:

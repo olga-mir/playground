@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: apps-dev-workload
-  labels:
-    crossplane.io/workload-cluster: "true"
-    platform.tornado-demo.io/environment: "dev"
-    platform.tornado-demo.io/cluster-type: "workload"
