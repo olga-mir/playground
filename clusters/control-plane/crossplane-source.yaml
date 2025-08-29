@@ -129,18 +129,3 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: cluster-vars
----
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
-metadata:
-  name: crossplane-workload-cluster-configs
-  namespace: flux-system
-spec:
-  interval: 10m
-  path: "./control-plane-crossplane/workload-cluster-configs"
-  prune: true
-  sourceRef:
-    kind: GitRepository
-    name: crossplane-config
-  dependsOn:
-    - name: crossplane-workload-clusters
