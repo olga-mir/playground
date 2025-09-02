@@ -124,3 +124,9 @@ spec:
   timeout: 15m
   dependsOn:
     - name: crossplane-compositions
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: platform-config
+      - kind: Secret
+        name: platform-secrets
