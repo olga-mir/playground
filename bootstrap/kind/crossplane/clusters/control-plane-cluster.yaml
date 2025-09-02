@@ -18,6 +18,5 @@ spec:
     minNodes: 2
     maxNodes: 5
     crossplane:
-      enabled: true
       version: "v2.0.0-rc.1"
   writeConnectionSecretsToNamespace: gkecluster-control-plane
