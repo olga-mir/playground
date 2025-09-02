@@ -1,18 +1,20 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: workload-cluster-composition
+  name: gke-cluster-composition
   labels:
     provider: gcp
-    service: workload-cluster
+    service: gke-cluster
+  annotations:
+    crossplane.io/revision: "v1"
 spec:
   compositeTypeRef:
     apiVersion: platform.tornado-demo.io/v1alpha1
-    kind: WorkloadCluster
+    kind: GKECluster
 
   mode: Pipeline
   pipeline:
-  - step: cluster-infrastructure
+  - step: cluster-resources
     functionRef:
       name: function-go-templating
     input:
@@ -30,7 +32,10 @@ spec:
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
           spec:
+            providerConfigRef:
+              name: crossplane-provider-gcp
             forProvider:
               network: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/global/networks/{{ .observed.composite.resource.spec.parameters.vpcName }}"
               subnetwork: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/regions/{{ .observed.composite.resource.spec.parameters.region }}/subnetworks/{{ .observed.composite.resource.spec.parameters.subnetName }}"
@@ -44,6 +49,8 @@ spec:
               enableAutopilot: false
               releaseChannel:
                 channel: RAPID
+              securityPostureConfig:
+                mode: DISABLED
             writeConnectionSecretToRef:
               namespace: crossplane-system
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
@@ -56,6 +63,7 @@ spec:
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+              crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
           spec:
             forProvider:
               clusterRef:
@@ -71,7 +79,8 @@ spec:
               management:
                 autoRepair: true
                 autoUpgrade: true
-
+            providerConfigRef:
+              name: crossplane-provider-gcp
 
   - step: ready
     functionRef:

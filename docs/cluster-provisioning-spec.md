@@ -60,7 +60,7 @@ metadata:
   namespace: gkecluster-control-plane
 spec:
   compositionRef:
-    name: control-plane-composition
+    name: gke-cluster-composition
   parameters:
     clusterName: "${GKE_CONTROL_PLANE_CLUSTER}"
     clusterType: control-plane
@@ -103,7 +103,7 @@ graph TD
 │       ├── platform-services.yaml
 │       └── flux-system/
 ├── control-plane-crossplane/    # Crossplane configs for control-plane
-│   ├── compositions/            # Workload cluster compositions
+│   ├── compositions/            # GKE cluster compositions (unified for all cluster types)
 │   ├── providers/              # Provider installations
 │   └── workload-clusters/      # Workload cluster definitions
 └── platform-tenants/           # Application deployments
