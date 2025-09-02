@@ -20,5 +20,5 @@ spec:
       name: apps-dev-cluster
       namespace: apps-dev-cluster
   timeout: 15m
-  #dependsOn: # TODO
-  #  - name: crossplane-platform-services
+  dependsOn:
+    - name: gke-cluster-compositions
