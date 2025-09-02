@@ -5,3 +5,4 @@ resources:
   #- crossplane-providers-health.yaml
   - notification-provider.yaml
   - test-webhook-provider.yaml
+  - control-plane-cluster-flux-kustomization.yaml
