@@ -18,9 +18,18 @@ This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure 
 - **GKE control-plane cluster (GCP)**: Control plane cluster with Crossplane, Flux, and platform services. Provisions workload clusters.
 - **GKE apps-dev cluster (GCP)**: Workload cluster for tenant applications.
 
+## Crossplane v2 Changes (No More Claims)
+In Crossplane v2, the concept of "claims" is removed. Key changes:
+- **Direct namespace-scoped Composite Resources**: Users create namespaced XRs directly using XRDs
+- **Eliminated claim-XR indirection**: No separate claim CRD proxying XRs
+- **Simplified authoring**: Fewer lines of code, more intuitive for Kubernetes developers
+- **Alignment with K8s conventions**: Namespace-scoped by default for multi-tenancy
+
+**Migration Impact**: All "claim" references removed from codebase, using direct GKECluster composite resources.
+
 ## GitOps Flow - "Batteries Included" Cluster Provisioning
 1. **Crossplane Composite Resources** → provision GKE clusters (infrastructure only)
-2. **Flux notifications** → detect cluster readiness → trigger GitHub webhook
+2. **Flux notifications** → detect cluster readiness → trigger GitHub webhook  
 3. **GitHub Actions** → bootstrap Flux on new GKE clusters → point to `/clusters/{cluster-type}/`
 4. **Flux on target GKE cluster** → deploy Crossplane, platform services, and applications ("batteries")
 
@@ -28,27 +37,56 @@ This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure 
 - **Compositions create infrastructure only** (GKE cluster, NodePool, connection secrets)
 - **GitOps handles cluster bootstrapping** (Crossplane installation, platform services)
 - **Separation of concerns** avoids circular dependencies and readiness issues
+- **Namespace-scoped resources** for proper multi-tenancy (v2 default)
 
-## File Structure
+## File Structure (Simplified)
 ```
 ├── .github/workflows/     # GitHub Actions for Flux bootstrap
 ├── bootstrap/             # Bootstrap scripts and kind cluster configuration
 │   ├── scripts/           # Bootstrap scripts (setup, cleanup)
-│   └── kind/              # Kind cluster configs (Crossplane for provisioning infrastructure)
-│       ├── crossplane/    # Crossplane installation and compositions for kind cluster
-│       └── flux/          # Flux configuration for kind cluster
-├── clusters/              # Target cluster configurations (deployed via GitHub Actions)
-│   ├── control-plane/     # Control plane cluster: Crossplane + platform services
-│   └── apps-dev/          # Workload cluster: applications and tenants
-├── control-plane-crossplane/  # Crossplane configs deployed to control-plane cluster
-│   ├── providers/         # Providers for control-plane (GCP, Helm, K8s)
-│   ├── compositions/      # WorkloadCluster compositions
-│   └── workload-clusters/ # Workload cluster definitions (apps-dev, etc.)
-├── platform-products/    # Platform services (AI stack, networking)
+│   └── kind/              # Kind cluster configs
+│       ├── crossplane/    # Simplified flat structure (no base/ nesting)
+│       │   ├── install/   # Crossplane installation
+│       │   ├── providers/ # Providers (GCP, Helm) 
+│       │   ├── functions/ # Composition functions
+│       │   ├── compositions/ # GKE cluster XRD + composition (unified)
+│       │   ├── providerconfigs/ # Provider configurations
+│       │   └── clusters/  # Control-plane cluster + namespace
+│       └── flux/          # Flux configuration + alerts
+├── clusters/              # Target cluster configurations  
+│   └── control-plane/     # Control plane cluster: Crossplane + platform services
+├── control-plane-crossplane/  # Crossplane configs for control-plane cluster
+│   ├── providers/         # Providers for workload cluster provisioning
+│   ├── compositions/      # (Empty - uses unified composition from bootstrap)
+│   └── workload-clusters/ # Per-cluster folders with dedicated namespaces
+│       └── apps-dev/      # Apps-dev cluster in its own namespace + folder
+├── platform-products/    # Platform services (AI stack, networking)  
 ├── platform-tenants/     # Tenant application deployments
 ├── tasks/                 # Taskfile supporting tasks
 └── local/                 # Local development experiments
 ```
+
+## Key Improvements Made
+### Unified GKE Cluster Composition
+- **Before**: Separate `control-plane-composition` and `workload-composition` (nearly identical)
+- **After**: Single `gke-cluster-composition` with `clusterType` parameter (`control-plane` or `workload`)
+- **XRD**: Combined features from both XRDs (connectionSecrets, writeConnectionSecretsToNamespace, crossplane config)
+
+### Simplified Bootstrap Structure  
+- **Before**: Convoluted `base/` + peer folders, single-file directories
+- **After**: Clean flat structure in `bootstrap/kind/crossplane/` with logical grouping
+- **Removed**: Unnecessary nesting, duplicate kustomizations, unused directories
+
+### Namespace-Per-Workload-Cluster
+- **Before**: Shared `workload-clusters` namespace for all workload clusters
+- **After**: Each workload cluster gets dedicated namespace (e.g., `apps-dev-cluster`)
+- **Structure**: `control-plane-crossplane/workload-clusters/apps-dev/` folder per cluster
+
+### FluxCD Integration for Alerts
+- **Per-cluster FluxCD Kustomizations**: Each cluster has dedicated Flux Kustomization with healthChecks
+- **Control-plane**: `control-plane-cluster` Kustomization (KIND cluster) 
+- **Apps-dev**: `apps-dev-cluster` Kustomization (control-plane cluster)
+- **Alerts**: GitHub webhook notifications tied to specific Flux objects for granular monitoring
 
 ### Key Features
 
