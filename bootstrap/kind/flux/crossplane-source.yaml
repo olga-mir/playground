@@ -30,7 +30,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./bootstrap/kind/crossplane/base"
+  path: "./bootstrap/kind/crossplane"
   prune: true
   retryInterval: 2m
   sourceRef:

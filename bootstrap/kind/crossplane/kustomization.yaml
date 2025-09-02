@@ -1,11 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
-  #- base/rbac
-  #- base/functions
-  #- base/providers
-  #- base/compositions
-  - providerconfigs
-  - clusters
-  # TODO - this is wild - why do we need base and folders in the same level??
+  - install/
+  - providers/
+  - functions/
+  - compositions/
+  - providerconfigs/
+  - clusters/

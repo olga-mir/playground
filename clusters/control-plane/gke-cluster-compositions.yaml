@@ -5,7 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./bootstrap/kind/crossplane/base/compositions"
+  path: "./bootstrap/kind/crossplane/compositions"
   prune: true
   sourceRef:
     kind: GitRepository
