@@ -25,4 +25,4 @@ kind: Provider
 metadata:
   name: provider-gcp-cloudrun
 spec:
-  package: xpkg.upbound.io/upbound/provider-gcp-cloudrun:v1.14.0
+  package: xpkg.crossplane.io/crossplane-contrib/provider-gcp-cloudrun:v1.14.0

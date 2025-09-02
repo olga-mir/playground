@@ -5,7 +5,7 @@ metadata:
   namespace: gkecluster-control-plane
 spec:
   compositionRef:
-    name: control-plane-composition
+    name: gke-cluster-composition
   parameters:
     clusterName: "${GKE_CONTROL_PLANE_CLUSTER}"
     clusterType: control-plane
@@ -17,3 +17,6 @@ spec:
     machineType: "e2-standard-4"
     minNodes: 2
     maxNodes: 5
+    crossplane:
+      version: "v2.0.0-rc.1"
+  writeConnectionSecretsToNamespace: gkecluster-control-plane

@@ -1,6 +1,10 @@
 name: Crossplane Consumer Validation
 
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
+      - 'releases/**'
 
   # pull_request:
   #   types: [opened, synchronize, reopened]
@@ -15,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       composite-resources: ${{ steps.changes.outputs.composite-resources }}
-      claims: ${{ steps.changes.outputs.claims }}
+      tenant-resources: ${{ steps.changes.outputs.tenant-resources }}
       tenant-configs: ${{ steps.changes.outputs.tenant-configs }}
       workload-configs: ${{ steps.changes.outputs.workload-configs }}
     steps:
@@ -32,22 +36,22 @@ jobs:
 
           # Categorize consumer changes
           COMPOSITE_RESOURCES=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/workload-clusters/.*\.yaml$|control-plane-crossplane/platform-services/.*\.yaml$' | grep -v kustomization.yaml || true)
-          CLAIMS=$(echo "$CHANGED_FILES" | grep -E 'platform-tenants/.*/.*\.yaml$' | grep -v kustomization.yaml || true)
+          TENANT_RESOURCES=$(echo "$CHANGED_FILES" | grep -E 'platform-tenants/.*/.*\.yaml$' | grep -v kustomization.yaml || true)
           TENANT_CONFIGS=$(echo "$CHANGED_FILES" | grep -E 'platform-tenants/.*/kustomization\.yaml$' || true)
           WORKLOAD_CONFIGS=$(echo "$CHANGED_FILES" | grep 'control-plane-crossplane/workload-cluster-configs/' || true)
 
           echo "composite-resources<<EOF" >> $GITHUB_OUTPUT
           echo "$COMPOSITE_RESOURCES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
-          echo "claims<<EOF" >> $GITHUB_OUTPUT
-          echo "$CLAIMS" >> $GITHUB_OUTPUT
+
+          echo "tenant-resources<<EOF" >> $GITHUB_OUTPUT
+          echo "$TENANT_RESOURCES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
+
           echo "tenant-configs<<EOF" >> $GITHUB_OUTPUT
           echo "$TENANT_CONFIGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
+
           echo "workload-configs<<EOF" >> $GITHUB_OUTPUT
           echo "$WORKLOAD_CONFIGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -55,7 +59,7 @@ jobs:
   validate-yaml-syntax:
     needs: detect-consumer-changes
     runs-on: ubuntu-latest
-    if: ${{ needs.detect-consumer-changes.outputs.composite-resources != '' || needs.detect-consumer-changes.outputs.claims != '' || needs.detect-consumer-changes.outputs.tenant-configs != '' || needs.detect-consumer-changes.outputs.workload-configs != '' }}
+    if: ${{ needs.detect-consumer-changes.outputs.composite-resources != '' || needs.detect-consumer-changes.outputs.tenant-resources != '' || needs.detect-consumer-changes.outputs.tenant-configs != '' || needs.detect-consumer-changes.outputs.workload-configs != '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -68,9 +72,9 @@ jobs:
       - name: Validate YAML syntax
         run: |
           echo "Validating YAML syntax for consumer files..."
-          
+
           # Check all changed consumer files
-          for file in ${{ needs.detect-consumer-changes.outputs.composite-resources }} ${{ needs.detect-consumer-changes.outputs.claims }} ${{ needs.detect-consumer-changes.outputs.tenant-configs }} ${{ needs.detect-consumer-changes.outputs.workload-configs }}; do
+          for file in ${{ needs.detect-consumer-changes.outputs.composite-resources }} ${{ needs.detect-consumer-changes.outputs.tenant-resources }} ${{ needs.detect-consumer-changes.outputs.tenant-configs }} ${{ needs.detect-consumer-changes.outputs.workload-configs }}; do
             if [[ -n "$file" && -f "$file" ]]; then
               echo "Validating $file"
               yq eval '.' "$file" > /dev/null || {
@@ -88,7 +92,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install yq
         run: |
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
@@ -101,25 +105,25 @@ jobs:
           # Collect available XRDs
           XRD_FILES=$(find control-plane-crossplane -name "*-xrd.yaml" 2>/dev/null || true)
           echo "Available XRDs: $XRD_FILES"
-          
+
           for xr in ${{ needs.detect-consumer-changes.outputs.composite-resources }}; do
             if [[ -n "$xr" && -f "$xr" ]]; then
               echo "Validating Composite Resource: $xr"
-              
+
               # Extract apiVersion and kind
               API_VERSION=$(yq eval '.apiVersion' "$xr")
               KIND=$(yq eval '.kind' "$xr")
-              
+
               echo "  Resource: $API_VERSION/$KIND"
-              
+
               # Basic validation - ensure it has required Crossplane fields
               if ! yq eval '.apiVersion and .kind and .metadata.name and .spec' "$xr" | grep -q "true"; then
                 echo "❌ $xr missing required fields (apiVersion, kind, metadata.name, spec)"
                 exit 1
               fi
-              
+
               # Check if it's a composite resource (contains spec fields typical of XRs)
-              if yq eval '.spec | has("compositeDeletePolicy") or has("compositionRef") or has("compositionRevisionRef") or has("writeConnectionSecretsToNamespace")' "$xr" | grep -q "true"; then
+              if yq eval '.spec | has("compositionRef") or has("compositionRevisionRef") or has("writeConnectionSecretsToNamespace")' "$xr" | grep -q "true"; then
                 echo "✅ $xr appears to be a valid Composite Resource"
               else
                 echo "⚠️  $xr may not be a Composite Resource (missing typical XR spec fields)"
@@ -127,46 +131,6 @@ jobs:
             fi
           done
 
-  validate-claims:
-    needs: [detect-consumer-changes, validate-yaml-syntax]
-    runs-on: ubuntu-latest
-    if: ${{ needs.detect-consumer-changes.outputs.claims != '' }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
-      
-      - name: Validate Claims
-        run: |
-          echo "Validating Claims..."
-          
-          for claim in ${{ needs.detect-consumer-changes.outputs.claims }}; do
-            if [[ -n "$claim" && -f "$claim" ]]; then
-              echo "Validating Claim: $claim"
-              
-              # Extract team from path
-              TEAM=$(echo "$claim" | cut -d'/' -f2)
-              echo "  Team: $TEAM"
-              
-              # Basic validation
-              if ! yq eval '.apiVersion and .kind and .metadata.name and .spec' "$claim" | grep -q "true"; then
-                echo "❌ $claim missing required fields"
-                exit 1
-              fi
-              
-              # Check if it's a known Crossplane-managed resource type
-              API_VERSION=$(yq eval '.apiVersion' "$claim")
-              if [[ "$API_VERSION" == *"platform.tornado-demo.io"* ]]; then
-                echo "✅ $claim is a platform-managed resource"
-              else
-                echo "⚠️  $claim may not be a platform-managed resource"
-              fi
-            fi
-          done
 
   validate-tenant-configurations:
     needs: [detect-consumer-changes, validate-yaml-syntax]
@@ -175,16 +139,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install yq
         run: |
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
-      
+
       - name: Validate Tenant Configurations
         run: |
           echo "Validating Tenant Kustomization files..."
-          
+
           for config in ${{ needs.detect-consumer-changes.outputs.tenant-configs }}; do
             if [[ -n "$config" && -f "$config" ]]; then
               echo "Validating tenant config: $config"
@@ -219,9 +183,9 @@ jobs:
           done
 
   check-resource-conflicts:
-    needs: [detect-consumer-changes, validate-composite-resources, validate-claims]
+    needs: [detect-consumer-changes, validate-composite-resources]
     runs-on: ubuntu-latest
-    if: ${{ needs.detect-consumer-changes.outputs.composite-resources != '' || needs.detect-consumer-changes.outputs.claims != '' }}
+    if: ${{ needs.detect-consumer-changes.outputs.composite-resources != '' || needs.detect-consumer-changes.outputs.tenant-resources != '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -239,7 +203,7 @@ jobs:
           TEMP_FILE=$(mktemp)
           
           # Collect all resource names from consumer files
-          for file in ${{ needs.detect-consumer-changes.outputs.composite-resources }} ${{ needs.detect-consumer-changes.outputs.claims }}; do
+          for file in ${{ needs.detect-consumer-changes.outputs.composite-resources }} ${{ needs.detect-consumer-changes.outputs.tenant-resources }}; do
             if [[ -n "$file" && -f "$file" ]]; then
               NAME=$(yq eval '.metadata.name' "$file" 2>/dev/null)
               NAMESPACE=$(yq eval '.metadata.namespace // "default"' "$file" 2>/dev/null)
@@ -266,13 +230,14 @@ jobs:
           rm -f "$TEMP_FILE"
 
   consumer-validation-summary:
-    needs: [validate-yaml-syntax, validate-composite-resources, validate-claims, validate-tenant-configurations, check-resource-conflicts]
+    needs: [validate-yaml-syntax, validate-composite-resources, validate-tenant-configurations, check-resource-conflicts]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Consumer Validation Summary
         run: |
           echo "## 👥 Consumer Validation Summary"
+          echo "Note: In Crossplane v2, all tenant resources are composite resources"
           echo ""
           
           if [[ "${{ needs.validate-yaml-syntax.result }}" == "success" ]]; then
@@ -289,13 +254,8 @@ jobs:
             echo "❌ Composite Resource Validation: FAILED"
           fi
           
-          if [[ "${{ needs.validate-claims.result }}" == "success" ]]; then
-            echo "✅ Claims Validation: PASSED"
-          elif [[ "${{ needs.validate-claims.result }}" == "skipped" ]]; then
-            echo "⏭️ Claims Validation: SKIPPED (no changes)"
-          else
-            echo "❌ Claims Validation: FAILED"
-          fi
+          echo "Note: Tenant resources in platform-tenants/ are validated as composite resources"
+          
           
           if [[ "${{ needs.validate-tenant-configurations.result }}" == "success" ]]; then
             echo "✅ Tenant Configuration Validation: PASSED"

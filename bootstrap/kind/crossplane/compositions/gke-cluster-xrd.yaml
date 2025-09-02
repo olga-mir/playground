@@ -7,6 +7,8 @@ spec:
   names:
     kind: GKECluster
     plural: gkeclusters
+  connectionSecretKeys:
+    - kubeconfig
   versions:
   - name: v1alpha1
     served: true
@@ -18,6 +20,9 @@ spec:
           spec:
             type: object
             properties:
+              writeConnectionSecretsToNamespace:
+                type: string
+                description: The namespace where connection secrets will be written
               parameters:
                 type: object
                 properties:
@@ -28,7 +33,8 @@ spec:
                   clusterType:
                     type: string
                     enum: ["control-plane", "workload"]
-                    description: "Type of cluster - control-plane (management) or apps (applications)"
+                    description: "Type of cluster - control-plane (management) or workload (applications)"
+                    default: "workload"
                   projectId:
                     type: string
                     description: "GCP Project ID"
@@ -50,7 +56,7 @@ spec:
                   # Node configuration
                   machineType:
                     type: string
-                    default: "e2-standard-4"
+                    default: "e2-standard-2"
                     description: "Machine type for nodes"
                   minNodes:
                     type: integer
@@ -75,7 +81,6 @@ spec:
                         description: "Crossplane version"
                 required:
                 - clusterName
-                - clusterType
                 - projectId
                 - region
                 - zone
@@ -92,3 +97,12 @@ spec:
               connectionDetails:
                 description: Connection details for the cluster
                 type: object
+              clusterName:
+                description: The name of the created cluster
+                type: string
+              controlPlaneStatus:
+                description: The status of the GKE control plane
+                type: string
+              nodeCount:
+                description: The number of nodes in the cluster
+                type: integer

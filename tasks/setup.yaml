@@ -52,7 +52,6 @@ tasks:
         msg: "CLAUDE_MCP_CONFIG_FILE is not set"
       - sh: test -n "$PINECONE_API_KEY"
         msg: "PINECONE_API_KEY is not set"
-      # Note: WIF_PROVIDER and WIF_SERVICE_ACCOUNT should be set as GitHub repository secrets
     env:
       GKE_VPC: "{{.GKE_VPC}}"
       GKE_CONTROL_PLANE_CLUSTER: "{{.GKE_CONTROL_PLANE_CLUSTER}}"
@@ -79,13 +78,13 @@ tasks:
       CLAUDE_MCP_CONFIG_FILE: "{{.CLAUDE_MCP_CONFIG_FILE}}"
       PINECONE_API_KEY: "{{.PINECONE_API_KEY}}"
     cmds:
-      - "{{.TASKFILE_DIR}}/bootstrap/scripts/02-create-and-setup-kind.sh"
-      - "{{.TASKFILE_DIR}}/bootstrap/scripts/03-apply-compositions.sh"
+      - "{{.ROOT_DIR}}/bootstrap/scripts/02-create-and-setup-kind.sh"
+      - "{{.ROOT_DIR}}/bootstrap/scripts/03-apply-compositions.sh"
 
   cleanup:
     desc: "Cleanup infrastructure (forcefull)"
     cmds:
-      - "{{.TASKFILE_DIR}}/bootstrap/scripts/00-cleanup.sh"
+      - "{{.ROOT_DIR}}/bootstrap/scripts/00-cleanup.sh"
 
   delete-kind:
     desc: "I never get this right :/"

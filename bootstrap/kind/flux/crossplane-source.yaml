@@ -30,7 +30,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./bootstrap/kind/crossplane/base"
+  path: "./bootstrap/kind/crossplane"
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -66,8 +66,8 @@ spec:
   sourceRef:
     kind: GitRepository
     name: crossplane-config
-  dependsOn:
-    - name: crossplane-providers-health
+  #dependsOn:
+  #  - name: crossplane-providers-health
   postBuild:
     substituteFrom:
       - kind: ConfigMap

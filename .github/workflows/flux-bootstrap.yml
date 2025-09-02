@@ -1,19 +1,17 @@
 name: Flux Bootstrap GKE Clusters
 
-run-name: "Flux Bootstrap: ${{ github.event.client_payload.involvedObject.name || 'Unknown Cluster' }} 🚀"
+run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || 'Unknown Cluster' }} 🚀"
 
 on:
   repository_dispatch:
-    types: [Kustomization/crossplane-composite-resources.flux-system]
+    types: [Kustomization/.*-cluster.flux-system]
 
-#concurrency:
-#  group: flux-bootstrap-${{ github.event.inputs.cluster_name || github.event.client_payload.cluster_name }}
-#  cancel-in-progress: false
+concurrency:
+  group: fluxcd-bootstrap-${{ github.event.client_payload.metadata.cluster }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  #issues: write
-  #pull-requests: write
   id-token: write
 
 jobs:
@@ -22,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # REQUIRED: actions/checkout MUST come before auth
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
@@ -31,38 +28,10 @@ jobs:
     - name: Extract cluster info from payload
       id: cluster-info
       run: |
-        # Parse cluster info from the message field
-        MESSAGE="${{ github.event.client_payload.message }}"
-        REASON="${{ github.event.client_payload.reason }}"
-        echo "Message: $MESSAGE"
-        echo "Reason: $REASON"
-
-        # Check if this is a cluster-related event we should process
-        if [[ "$MESSAGE" == *"GKECluster"* ]]; then
-          # Extract cluster name and type from message like "GKECluster/control-plane-cluster created"
-          if [[ "$MESSAGE" == *"control-plane"* ]]; then
-            echo "cluster_name=control-plane" >> $GITHUB_OUTPUT
-            echo "cluster_type=control-plane" >> $GITHUB_OUTPUT
-          elif [[ "$MESSAGE" == *"apps-dev"* ]]; then
-            echo "cluster_name=gke-apps-dev-cluster" >> $GITHUB_OUTPUT
-            echo "cluster_type=apps-dev" >> $GITHUB_OUTPUT
-          else
-            echo "cluster_name=unknown" >> $GITHUB_OUTPUT
-            echo "cluster_type=unknown" >> $GITHUB_OUTPUT
-            echo "should_proceed=false" >> $GITHUB_OUTPUT
-          fi
-          echo "Detected GKE Cluster event will proceed to the next step"
-          echo "should_proceed=true" >> $GITHUB_OUTPUT
-        else
-          echo "Not a GKE cluster event, skipping bootstrap"
-          echo "cluster_name=unknown" >> $GITHUB_OUTPUT
-          echo "cluster_type=unknown" >> $GITHUB_OUTPUT
-          echo "should_proceed=false" >> $GITHUB_OUTPUT
-        fi
-
-        echo "region=australia-southeast1" >> $GITHUB_OUTPUT
-
-        # Project ID will be available from WIF auth context
+        echo "projectID=${{ github.event.client_payload.metadata.project }}" >> $GITHUB_OUTPUT
+        echo "cluster=${{ github.event.client_payload.metadata.cluster }}" >> $GITHUB_OUTPUT
+        echo "location=${{ github.event.client_payload.metadata.location }}" >> $GITHUB_OUTPUT
+        echo "should_proceed=true" >> $GITHUB_OUTPUT
 
     - name: Setup Flux CLI
       if: steps.cluster-info.outputs.should_proceed == 'true'
@@ -77,20 +46,13 @@ jobs:
         workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
-    - name: Mask sensitive outputs
-      if: steps.cluster-info.outputs.should_proceed == 'true'
-      run: |
-        echo "::add-mask::${{ steps.auth.outputs.project_id }}"
-        echo "::add-mask::${{ steps.auth.outputs.service_account_email }}"
-
-    # The KUBECONFIG env var is automatically exported and picked up by kubectl
     - name: Get GKE credentials
       if: steps.cluster-info.outputs.should_proceed == 'true'
       id: get-credentials
       uses: google-github-actions/get-gke-credentials@v2
       with:
-        cluster_name: ${{ steps.cluster-info.outputs.cluster_name }}
-        location: ${{ steps.cluster-info.outputs.region }}
+        cluster_name: ${{ steps.cluster-info.outputs.cluster}}
+        location: ${{ steps.cluster-info.outputs.location }}
 
     - name: Wait for cluster to be ready
       if: steps.cluster-info.outputs.should_proceed == 'true'
@@ -136,7 +98,7 @@ jobs:
         kubectl get namespace flux-system >/dev/null 2>&1 || kubectl create namespace flux-system
         # Always create or update the ConfigMap
         kubectl create configmap cluster-config -n flux-system \
-          --from-literal=REGION="${{ steps.cluster-info.outputs.region }}" \
+          --from-literal=ZONE="${{ steps.cluster-info.outputs.location }}" \
           --from-literal=CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster_name }}" \
           --from-literal=CLUSTER_TYPE="${{ steps.cluster-info.outputs.cluster_type }}" \
           --from-literal=REPO_OWNER="${{ github.repository_owner }}" \

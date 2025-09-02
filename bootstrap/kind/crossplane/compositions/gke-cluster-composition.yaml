@@ -1,10 +1,10 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: control-plane-composition
+  name: gke-cluster-composition
   labels:
     provider: gcp
-    service: control-plane
+    service: gke-cluster
   annotations:
     crossplane.io/revision: "v1"
 spec:

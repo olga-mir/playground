@@ -1,0 +1,24 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-dev-cluster
+  namespace: flux-system
+  annotations:
+    event.toolkit.fluxcd.io/cluster: "apps-dev"
+spec:
+  interval: 5m
+  path: "./control-plane-crossplane/workload-clusters/apps-dev"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+    namespace: flux-system
+  targetNamespace: apps-dev-cluster
+  healthChecks:
+    - apiVersion: platform.tornado-demo.io/v1alpha1
+      kind: GKECluster
+      name: apps-dev-cluster
+      namespace: apps-dev-cluster
+  timeout: 15m
+  dependsOn:
+    - name: gke-cluster-compositions
