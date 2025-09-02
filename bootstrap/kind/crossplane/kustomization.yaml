@@ -9,4 +9,3 @@ resources:
   - base/compositions
   - secrets
   - providerconfigs
-  - composite-resources

@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: gkecluster-apps-dev
-  labels:
-    cluster.platform.io/name: apps-dev
-    cluster.platform.io/type: applications

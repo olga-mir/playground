@@ -3,4 +3,3 @@ kind: Kustomization
 
 resources:
   - ../../namespaces/gkecluster-control-plane-ns.yaml
-  - ../../namespaces/gkecluster-apps-dev-ns.yaml
