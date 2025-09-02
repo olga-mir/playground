@@ -1,0 +1,20 @@
+apiVersion: platform.tornado-demo.io/v1alpha1
+kind: GKECluster
+metadata:
+  name: apps-dev-cluster
+  namespace: apps-dev-cluster
+spec:
+  compositionRef:
+    name: gke-cluster-composition
+  parameters:
+    clusterName: "${GKE_APPS_DEV_CLUSTER}"
+    clusterType: workload
+    projectId: "${PROJECT_ID}"
+    region: "${REGION}"
+    zone: "${ZONE}"
+    vpcName: "${GKE_VPC}"
+    subnetName: "${APPS_DEV_SUBNET_NAME}"
+    machineType: "e2-standard-2"
+    minNodes: 2
+    maxNodes: 5
+  writeConnectionSecretsToNamespace: apps-dev-cluster

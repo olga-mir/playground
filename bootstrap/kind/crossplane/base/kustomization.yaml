@@ -5,5 +5,5 @@ resources:
   - providers/
   - functions/
   - compositions/
-  - rbac/
+  # - rbac/ TODO - is it required? if yes why doesn't it work without
   - namespaces/
