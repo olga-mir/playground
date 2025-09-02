@@ -54,11 +54,33 @@ spec:
   path: "./bootstrap/kind/flux/functions"
   prune: true
   retryInterval: 2m
+  dependsOn:
+    - name: crossplane-install
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-providerconfigs
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./bootstrap/kind/flux/providerconfigs"
+  prune: true
+  retryInterval: 2m
   sourceRef:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
     - name: crossplane-providers
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: platform-config
+      - kind: Secret
+        name: platform-secrets
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -79,48 +101,26 @@ spec:
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: crossplane-providerconfigs
+  name: control-plane-cluster
   namespace: flux-system
+  annotations:
+    # TODO: using different key to understand better how it works.
+    event.toolkit.fluxcd.io/cluster-name: "control-plane"
 spec:
-  interval: 10m
-  path: "./bootstrap/kind/flux/providerconfigs"
+  interval: 5m
+  # TODO - this path implies there is only one cluster, which is true, but not great
+  path: "./bootstrap/kind/crossplane/clusters"
   prune: true
-  retryInterval: 2m
   sourceRef:
     kind: GitRepository
-    name: crossplane-config
-  dependsOn:
-    - name: crossplane-compositions
-  postBuild:
-    substituteFrom:
-      - kind: ConfigMap
-        name: platform-config
-      - kind: Secret
-        name: platform-secrets
----
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
-metadata:
-  name: crossplane-clusters
-  namespace: flux-system
-spec:
-  interval: 10m
-  path: "./bootstrap/kind/crossplane"
-  prune: true
-  retryInterval: 2m
-  sourceRef:
-    kind: GitRepository
-    name: crossplane-config
-  dependsOn:
-    - name: crossplane-providerconfigs
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: gkecluster-control-plane
   healthChecks:
     - apiVersion: platform.tornado-demo.io/v1alpha1
       kind: GKECluster
       name: control-plane-cluster
       namespace: gkecluster-control-plane
-  postBuild:
-    substituteFrom:
-      - kind: ConfigMap
-        name: platform-config
-      - kind: Secret
-        name: platform-secrets
+  timeout: 15m
+  dependsOn:
+    - name: crossplane-compositions

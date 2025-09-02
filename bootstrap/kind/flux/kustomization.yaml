@@ -3,4 +3,3 @@ kind: Kustomization
 resources:
   - crossplane-source.yaml
   - notification-provider.yaml
-  - control-plane-cluster-flux-kustomization.yaml
