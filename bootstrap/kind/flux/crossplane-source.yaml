@@ -13,7 +13,95 @@ spec:
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: crossplane
+  name: crossplane-install
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./bootstrap/kind/flux/install"
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-providers
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./bootstrap/kind/flux/providers"
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-install
+  healthChecks:
+    - apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: providers.pkg.crossplane.io
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-functions
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./bootstrap/kind/flux/functions"
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-providers
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-compositions
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./bootstrap/kind/flux/compositions"
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-functions
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-providerconfigs
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./bootstrap/kind/flux/providerconfigs"
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-compositions
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: platform-config
+      - kind: Secret
+        name: platform-secrets
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-clusters
   namespace: flux-system
 spec:
   interval: 10m
@@ -24,16 +112,12 @@ spec:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
-    - name: crossplane-install
+    - name: crossplane-providerconfigs
   healthChecks:
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: crossplane
-      namespace: crossplane-system
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: crossplane-rbac-manager
-      namespace: crossplane-system
+    - apiVersion: platform.tornado-demo.io/v1alpha1
+      kind: GKECluster
+      name: control-plane-cluster
+      namespace: gkecluster-control-plane
   postBuild:
     substituteFrom:
       - kind: ConfigMap

@@ -12,12 +12,14 @@ bootstrap/
 │   ├── 02-create-and-setup-kind.sh     # Create kind cluster
 │   └── 03-apply-compositions.sh        # Apply Crossplane configs to kind
 ├── kind/                    # Kind cluster configuration
-│   ├── crossplane/          # Crossplane configs that run ON KIND
-│   │   ├── base/            # Providers, compositions, XRDs for kind
-│   │   ├── composite-resources/  # Control-plane & apps-dev cluster definitions
-│   │   ├── providerconfigs/ # Provider configurations
-│   │   └── secrets/         # GCP credentials and secrets
+│   ├── crossplane/          # Crossplane cluster definitions that run ON KIND
+│   │   └── clusters/        # Control-plane cluster definition
 │   ├── flux/                # Flux configuration for kind cluster
+│   │   ├── install/         # Crossplane installation
+│   │   ├── providers/       # Crossplane providers
+│   │   ├── functions/       # Crossplane functions
+│   │   ├── compositions/    # Crossplane compositions and XRDs
+│   │   └── providerconfigs/ # Provider configurations
 │   └── kind-config.yaml     # Kind cluster specification
 └── README.md               # This file
 ```
@@ -25,8 +27,9 @@ bootstrap/
 ## 3-Tier Architecture
 
 1. **Kind cluster** (bootstrap) → provisions **control-plane cluster**
-   - Uses Crossplane configs in `bootstrap/kind/crossplane/`
-   - Provisions GKE control-plane cluster via `control-plane-composition`
+   - Uses Crossplane setup in `bootstrap/kind/flux/` (managed by Flux)
+   - Uses cluster definitions in `bootstrap/kind/crossplane/clusters/`
+   - Provisions GKE control-plane cluster via `gke-cluster-composition`
 
 2. **Control-plane cluster** → provisions **workload clusters** 
    - Uses Crossplane configs in `control-plane-crossplane/`
@@ -49,5 +52,6 @@ This executes:
 
 ## Key Distinction
 
-- **`bootstrap/kind/crossplane/`** = Crossplane configs that **run on kind** 
+- **`bootstrap/kind/flux/`** = Crossplane setup (providers, compositions) managed by Flux on kind
+- **`bootstrap/kind/crossplane/`** = Cluster definitions provisioned by Crossplane on kind
 - **`control-plane-crossplane/`** = Crossplane configs that **run on control-plane**
