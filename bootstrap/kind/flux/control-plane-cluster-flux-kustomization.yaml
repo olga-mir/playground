@@ -4,7 +4,8 @@ metadata:
   name: control-plane-cluster
   namespace: flux-system
   annotations:
-    event.toolkit.fluxcd.io/cluster: "control-plane"
+    # TODO: using different key to understand better how it works.
+    event.toolkit.fluxcd.io/cluster-name: "control-plane"
 spec:
   interval: 5m
   path: "./bootstrap/kind/crossplane/clusters"

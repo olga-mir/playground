@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
   - crossplane-install.yaml
   - crossplane-source.yaml
+  - apps-dev-flux-kustomization.yaml
+  - apps-dev-alert.yaml
