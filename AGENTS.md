@@ -29,7 +29,7 @@ In Crossplane v2, the concept of "claims" is removed. Key changes:
 
 ## GitOps Flow - "Batteries Included" Cluster Provisioning
 1. **Crossplane Composite Resources** → provision GKE clusters (infrastructure only)
-2. **Flux notifications** → detect cluster readiness → trigger GitHub webhook  
+2. **Flux notifications** → detect cluster readiness → trigger GitHub webhook
 3. **GitHub Actions** → bootstrap Flux on new GKE clusters → point to `/clusters/{cluster-type}/`
 4. **Flux on target GKE cluster** → deploy Crossplane, platform services, and applications ("batteries")
 
