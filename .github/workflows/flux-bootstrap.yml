@@ -4,7 +4,7 @@ run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || '
 
 on:
   repository_dispatch:
-    types: [Kustomization/.*-cluster.flux-system]
+    types: [Kustomization/control-plane-cluster.flux-system]
 
 concurrency:
   group: fluxcd-bootstrap-${{ github.event.client_payload.metadata.cluster }}
