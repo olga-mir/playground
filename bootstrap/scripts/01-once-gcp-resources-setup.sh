@@ -35,6 +35,10 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com" \
     --role="roles/container.clusterAdmin"
 
+# Needs additional perms do install Flux (dry-run CRD, or remove dry-run)
+# "Kubernetes Engine Admin (roles/container.admin)" or
+# `container.clusterRoles.update` permission
+
 # Allow GitHub repo to impersonate the service account
 GITHUB_REPO=${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}
 gcloud iam service-accounts add-iam-policy-binding \
@@ -72,8 +76,8 @@ gcloud iam service-accounts keys create crossplane-gke-sa-key.json \
 
 echo "Creating VPC network: $GKE_VPC"
 gcloud compute networks create $GKE_VPC \
-  --project=$PROJECT_ID \
-  --subnet-mode=custom
+    --project=$PROJECT_ID \
+    --subnet-mode=custom
 
 # Create management subnet
 # Using 10.1.0.0/24 for the primary range (plenty for 20 nodes)

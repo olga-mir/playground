@@ -27,5 +27,4 @@ spec:
   eventMetadata:
     project: "${PROJECT_ID}"
     location: "${ZONE}"
-    # TODO replace by labels
     cluster: "apps-dev"

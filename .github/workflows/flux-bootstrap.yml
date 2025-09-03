@@ -28,7 +28,9 @@ jobs:
     - name: Extract cluster info from payload
       id: cluster-info
       run: |
-        echo "projectID=${{ github.event.client_payload.metadata.project }}" >> $GITHUB_OUTPUT
+        PROJECT_ID="${{ github.event.client_payload.metadata.project }}"
+        echo "::add-mask::${PROJECT_ID}"
+        echo "projectID=${PROJECT_ID}" >> $GITHUB_OUTPUT
         echo "cluster=${{ github.event.client_payload.metadata.cluster }}" >> $GITHUB_OUTPUT
         echo "location=${{ github.event.client_payload.metadata.location }}" >> $GITHUB_OUTPUT
         echo "should_proceed=true" >> $GITHUB_OUTPUT
@@ -105,22 +107,6 @@ jobs:
           --from-literal=REPO_NAME="${{ github.event.repository.name }}" \
           --dry-run=client -o yaml | kubectl apply -f -
 
-    # will cross this bridge when we get there, def no API keys in GH secrets
-    # - name: Setup application secrets (control-plane cluster only)
-    #   if: steps.cluster-info.outputs.cluster_type == 'control-plane'
-    #   run: |
-    #     # Create kagent-system namespace
-    #     kubectl get namespace kagent-system >/dev/null 2>&1 || kubectl create namespace kagent-system
-
-    #     # Create AI API secrets
-    #     kubectl create secret generic kagent-anthropic -n kagent-system \
-    #       --from-literal=ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
-    #       --dry-run=client -o yaml | kubectl apply -f -
-
-    #     kubectl create secret generic kagent-openai -n kagent-system \
-    #       --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
-    #       --dry-run=client -o yaml | kubectl apply -f -
-
     - name: Run Flux pre-installation checks
       if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       run: |
@@ -132,14 +118,14 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.FLUX_GITHUB_TOKEN }}
       run: |
-        CLUSTER_TYPE="${{ steps.cluster-info.outputs.cluster_type }}"
+        CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
 
         flux bootstrap github \
           --owner="${{ github.repository_owner }}" \
           --repository="${{ github.event.repository.name }}" \
-          --branch="${{ github.ref_name }}" \
-          --path="./clusters/${CLUSTER_TYPE}" \
-          --token-auth \
+          --branch="develop" \
+          --path="./clusters/${CLUSTER_NAME}" \
+          --personal \
           --network-policy=true \
           --components-extra=image-reflector-controller,image-automation-controller \
           --timeout=10m0s

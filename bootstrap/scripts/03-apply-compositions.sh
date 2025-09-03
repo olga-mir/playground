@@ -2,21 +2,21 @@
 
 set -eoux pipefail
 
-export KIND_CROSSPLANE_CONTEXT="kind-kind-test-cluster"
+export KIND_CLUSTER_CONTEXT="kind-kind-test-cluster"
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 
 # Creating secrets needs namespace to exist, namespace is created in crossplane-base kustomization, which dependends on platform-config
 # for now I will just create ns manually and will solve it later (TODO)
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create namespace crossplane-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl --context="${KIND_CLUSTER_CONTEXT}" create namespace crossplane-system --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Creating GCP credentials secret..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic gcp-creds \
+kubectl --context="${KIND_CLUSTER_CONTEXT}" create secret generic gcp-creds \
     --namespace crossplane-system \
     --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
-    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+    --dry-run=client -o yaml | kubectl --context="${KIND_CLUSTER_CONTEXT}" apply -f -
 
 echo "Creating Crossplane variables ConfigMap for Flux substituteFrom..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap platform-config \
+kubectl --context="${KIND_CLUSTER_CONTEXT}" create configmap platform-config \
     --namespace flux-system \
     --from-literal=PROJECT_ID="${PROJECT_ID}" \
     --from-literal=REGION="${REGION}" \
@@ -27,44 +27,47 @@ kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create configmap platform-config 
     --from-literal=CONTROL_PLANE_SUBNET_NAME="${CONTROL_PLANE_SUBNET_NAME}" \
     --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
     --from-literal=GITHUB_DEMO_REPO_OWNER="${GITHUB_DEMO_REPO_OWNER}" \
-    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+    --dry-run=client -o yaml | kubectl --context="${KIND_CLUSTER_CONTEXT}" apply -f -
 
 echo "Creating platform secrets for Flux substituteFrom..."
 set +x
 export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic platform-secrets \
+kubectl --context="${KIND_CLUSTER_CONTEXT}" create secret generic platform-secrets \
     --namespace flux-system \
     --from-literal=GITHUB_DEMO_REPO_PAT="${GITHUB_DEMO_REPO_PAT}" \
     --from-literal=GITHUB_FLUX_PLAYGROUND_PAT="${GITHUB_FLUX_PLAYGROUND_PAT}" \
     --from-literal=BASE64_ENCODED_GCP_CREDS="${BASE64_ENCODED_GCP_CREDS}" \
-    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+    --dry-run=client -o yaml | kubectl --context="${KIND_CLUSTER_CONTEXT}" apply -f -
 
 echo "Creating GitHub webhook token secret for notification provider..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" create secret generic github-webhook-token \
+kubectl --context="${KIND_CLUSTER_CONTEXT}" create secret generic github-webhook-token \
     --namespace flux-system \
     --from-literal=token="${GITHUB_FLUX_PLAYGROUND_PAT}" \
-    --dry-run=client -o yaml | kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f -
+    --dry-run=client -o yaml | kubectl --context="${KIND_CLUSTER_CONTEXT}" apply -f -
 unset BASE64_ENCODED_GCP_CREDS
 set -x
 
 echo "Applying Flux Crossplane source..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" apply -f "${REPO_ROOT}/bootstrap/kind/flux/crossplane-source.yaml"
+kubectl --context="${KIND_CLUSTER_CONTEXT}" apply -f "${REPO_ROOT}/bootstrap/kind/flux/crossplane-source.yaml"
 
 echo "Clusters creation initiated via Crossplane compositions!"
 
 echo "Waiting for clusters to be ready (sleep 5 min)..."
 echo "This may take 10-15 minutes for GKE clusters to provision..."
 
+sleep 60
+flux --context="${KIND_CLUSTER_CONTEXT}" get all -A
+
 sleep 300
 
 echo "Waiting for Flux to sync Crossplane resources..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=300s
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=300s
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=90s
+kubectl --context="${KIND_CLUSTER_CONTEXT}" wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=300s
+kubectl --context="${KIND_CLUSTER_CONTEXT}" wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=300s
+kubectl --context="${KIND_CLUSTER_CONTEXT}" wait --for=condition=established xrd --all --timeout=90s
 
 MAX_RETRIES=20 # 20 * 30s = 10 minutes
 RETRY_COUNT=0
-while ! kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/control-plane-cluster -n flux-system --timeout=30s; do
+while ! kubectl --context="${KIND_CLUSTER_CONTEXT}" wait --for=condition=Ready kustomization/control-plane-cluster -n flux-system --timeout=30s; do
     RETRY_COUNT=$((RETRY_COUNT+1))
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
         echo "Timeout waiting for kustomization/control-plane-cluster to be Ready."
@@ -82,7 +85,7 @@ wait_for_cluster_ready() {
     local retry_count=0
 
     while [ $retry_count -lt $max_retries ]; do
-        if kubectl --context="${KIND_CROSSPLANE_CONTEXT}" get gkeclusters.platform.tornado-demo.io "${composite_name}" -n "${composite_namespace}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
+        if kubectl --context="${KIND_CLUSTER_CONTEXT}" get gkeclusters.platform.tornado-demo.io "${composite_name}" -n "${composite_namespace}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
             echo "✅ Cluster $composite_name is ready!"
             return 0
         fi
@@ -105,7 +108,7 @@ wait_for_cluster_ready() {
 wait_for_cluster_ready "control-plane-cluster" "gkecluster-control-plane"
 
 echo "✅ Control-plane cluster is ready!"
-echo "Monitor detailed progress with: kubectl --context=${KIND_CROSSPLANE_CONTEXT} get gkeclusters -w"
+echo "Monitor detailed progress with: kubectl --context=${KIND_CLUSTER_CONTEXT} get gkeclusters -w"
 
 # Get cluster credentials for local kubectl access
 echo "🔑 Setting up local cluster credentials..."
@@ -120,4 +123,4 @@ echo "2. GitHub Actions will bootstrap Flux on the new GKE clusters"
 echo "3. Flux will deploy applications to the clusters"
 echo ""
 echo "Monitor GitHub Actions: https://github.com/${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}/actions"
-echo "Check cluster status: kubectl --context=${KIND_CROSSPLANE_CONTEXT} get gkeclusters -A"
+echo "Check cluster status: kubectl --context=${KIND_CLUSTER_CONTEXT} get gkeclusters -A"
