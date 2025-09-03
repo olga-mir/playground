@@ -3,6 +3,10 @@ kind: Kustomization
 metadata:
   name: apps-dev-cluster
   namespace: flux-system
+  labels:
+    tornado-demo.io/cluster: apps-dev
+    tornado-demo.io/cluster-type: workload
+    tornado-demo.io/cluster-env: dev
   annotations:
     event.toolkit.fluxcd.io/cluster: "apps-dev"
 spec:

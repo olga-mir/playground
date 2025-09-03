@@ -5,7 +5,7 @@ metadata:
   name: crossplane-config
   namespace: flux-system
 spec:
-  interval: 1m
+  interval: 10m
   ref:
     branch: develop
   url: https://github.com/olga-mir/playground

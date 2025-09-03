@@ -102,8 +102,8 @@ jobs:
         run: |
           echo "Validating Composite Resources against available XRDs..."
           
-          # Collect available XRDs
-          XRD_FILES=$(find control-plane-crossplane -name "*-xrd.yaml" 2>/dev/null || true)
+          # Collect available XRDs from both bootstrap and control-plane configurations
+          XRD_FILES=$(find bootstrap/kind/flux/compositions -name "*-xrd.yaml" 2>/dev/null; find control-plane-crossplane -name "*-xrd.yaml" 2>/dev/null || true)
           echo "Available XRDs: $XRD_FILES"
 
           for xr in ${{ needs.detect-consumer-changes.outputs.composite-resources }}; do

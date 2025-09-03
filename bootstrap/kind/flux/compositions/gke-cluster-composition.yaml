@@ -47,10 +47,10 @@ spec:
               gatewayApiConfig:
                 channel: CHANNEL_STANDARD
               enableAutopilot: false
-              releaseChannel:
-                channel: RAPID
               securityPostureConfig:
                 mode: DISABLED
+              releaseChannel:
+                channel: RAPID
             writeConnectionSecretToRef:
               namespace: crossplane-system
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig

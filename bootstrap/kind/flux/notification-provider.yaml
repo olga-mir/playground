@@ -25,4 +25,5 @@ spec:
       namespace: flux-system
   eventMetadata:
     project: "${PROJECT_ID}"
+    location: "${ZONE}"
     cluster: "control-plane"

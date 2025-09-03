@@ -2,7 +2,7 @@
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
 metadata:
-  name: github-dispatch-apps-dev
+  name: github-dispatch-workload-cluster
   namespace: flux-system
 spec:
   type: githubdispatch
@@ -13,16 +13,18 @@ spec:
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert
 metadata:
-  name: github-dispatch-apps-dev-cluster
+  name: github-dispatch-workload-cluster
   namespace: flux-system
 spec:
   providerRef:
-    name: github-dispatch-apps-dev
+    name: github-dispatch-workload-cluster
   eventSeverity: info
+  # TODO replace by labels - this should be generic alert for any workload cluster
   eventSources:
     - kind: Kustomization
       name: apps-dev-cluster
       namespace: flux-system
   eventMetadata:
     project: "${PROJECT_ID}"
+    location: "${ZONE}"
     cluster: "apps-dev"
