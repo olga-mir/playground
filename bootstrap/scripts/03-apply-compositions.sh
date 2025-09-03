@@ -58,20 +58,19 @@ echo "This may take 10-15 minutes for GKE clusters to provision..."
 sleep 300
 
 echo "Waiting for Flux to sync Crossplane resources..."
-kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-base -n flux-system --timeout=600s
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=300s
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=300s
 kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=established xrd --all --timeout=90s
 
 MAX_RETRIES=20 # 20 * 30s = 10 minutes
 RETRY_COUNT=0
-while ! kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/crossplane -n flux-system --timeout=30s; do
+while ! kubectl --context="${KIND_CROSSPLANE_CONTEXT}" wait --for=condition=Ready kustomization/control-plane-cluster -n flux-system --timeout=30s; do
     RETRY_COUNT=$((RETRY_COUNT+1))
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        echo "Timeout waiting for kustomization/crossplane to be Ready."
+        echo "Timeout waiting for kustomization/control-plane-cluster to be Ready."
         exit 1
     fi
-    echo "Waiting for kustomization/crossplane to be Ready... (attempt ${RETRY_COUNT}/${MAX_RETRIES})"
+    echo "Waiting for kustomization/control-plane-cluster to be Ready... (attempt ${RETRY_COUNT}/${MAX_RETRIES})"
     sleep 5
 done
 

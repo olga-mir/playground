@@ -116,12 +116,7 @@ spec:
     name: flux-system
     namespace: flux-system
   targetNamespace: gkecluster-control-plane
-  healthChecks:
-    - apiVersion: platform.tornado-demo.io/v1alpha1
-      kind: GKECluster
-      name: control-plane-cluster
-      namespace: gkecluster-control-plane
-  timeout: 15m
+  timeout: 5m
   dependsOn:
     - name: crossplane-compositions
   postBuild:
