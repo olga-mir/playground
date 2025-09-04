@@ -11,7 +11,7 @@ metadata:
     event.toolkit.fluxcd.io/cluster: "apps-dev"
 spec:
   interval: 5m
-  path: "./control-plane-crossplane/workload-clusters/apps-dev"
+  path: "./bootstrap/control-plane/crossplane/workload-clusters/apps-dev"
   prune: true
   sourceRef:
     kind: GitRepository

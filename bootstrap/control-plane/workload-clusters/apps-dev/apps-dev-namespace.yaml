@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: apps-dev-cluster
-  labels:
-    app.kubernetes.io/managed-by: crossplane
-    cluster.platform.io/name: apps-dev
-    cluster.platform.io/type: workload

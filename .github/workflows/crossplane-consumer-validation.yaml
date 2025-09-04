@@ -35,10 +35,10 @@ jobs:
           CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
 
           # Categorize consumer changes
-          COMPOSITE_RESOURCES=$(echo "$CHANGED_FILES" | grep -E 'control-plane-crossplane/workload-clusters/.*\.yaml$|control-plane-crossplane/platform-services/.*\.yaml$' | grep -v kustomization.yaml || true)
+          COMPOSITE_RESOURCES=$(echo "$CHANGED_FILES" | grep -E 'bootstrap/control-plane/crossplane/workload-clusters/.*\.yaml$|bootstrap/control-plane/crossplane/platform-services/.*\.yaml$' | grep -v kustomization.yaml || true)
           TENANT_RESOURCES=$(echo "$CHANGED_FILES" | grep -E 'platform-tenants/.*/.*\.yaml$' | grep -v kustomization.yaml || true)
           TENANT_CONFIGS=$(echo "$CHANGED_FILES" | grep -E 'platform-tenants/.*/kustomization\.yaml$' || true)
-          WORKLOAD_CONFIGS=$(echo "$CHANGED_FILES" | grep 'control-plane-crossplane/workload-cluster-configs/' || true)
+          WORKLOAD_CONFIGS=$(echo "$CHANGED_FILES" | grep 'bootstrap/control-plane/crossplane/workload-cluster-configs/' || true)
 
           echo "composite-resources<<EOF" >> $GITHUB_OUTPUT
           echo "$COMPOSITE_RESOURCES" >> $GITHUB_OUTPUT
@@ -103,7 +103,7 @@ jobs:
           echo "Validating Composite Resources against available XRDs..."
           
           # Collect available XRDs from both bootstrap and control-plane configurations
-          XRD_FILES=$(find bootstrap/kind/flux/compositions -name "*-xrd.yaml" 2>/dev/null; find control-plane-crossplane -name "*-xrd.yaml" 2>/dev/null || true)
+          XRD_FILES=$(find bootstrap/kind/flux/compositions -name "*-xrd.yaml" 2>/dev/null; find bootstrap/control-plane/crossplane -name "*-xrd.yaml" 2>/dev/null || true)
           echo "Available XRDs: $XRD_FILES"
 
           for xr in ${{ needs.detect-consumer-changes.outputs.composite-resources }}; do

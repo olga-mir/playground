@@ -32,7 +32,7 @@ bootstrap/
    - Provisions GKE control-plane cluster via `gke-cluster-composition`
 
 2. **Control-plane cluster** → provisions **workload clusters** 
-   - Uses Crossplane configs in `control-plane-crossplane/`
+   - Uses Crossplane configs in `bootstrap/control-plane/crossplane/`
    - Provisions workload clusters via `workload-cluster-composition`
 
 3. **Workload clusters** → run applications
@@ -54,4 +54,4 @@ This executes:
 
 - **`bootstrap/kind/flux/`** = Crossplane setup (providers, compositions) managed by Flux on kind
 - **`bootstrap/kind/crossplane/`** = Cluster definitions provisioned by Crossplane on kind
-- **`control-plane-crossplane/`** = Crossplane configs that **run on control-plane**
+- **`bootstrap/control-plane/crossplane/`** = Crossplane configs that **run on control-plane**
