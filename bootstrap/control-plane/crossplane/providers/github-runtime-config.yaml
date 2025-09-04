@@ -1,0 +1,21 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: github-runtime-config
+spec:
+  deploymentTemplate:
+    metadata:
+      annotations:
+        demo-deployment-runtime-config: "demo-annotation"
+      labels:
+        demo-label: "demo-label"
+    spec:
+      selector:
+        matchLabels:
+          demo-label: "demo-label"
+      template:
+        metadata:
+          annotations:
+            demo-deployment-runtime-config: "demo-annotation"
+          labels:
+            demo-label: "demo-label"
