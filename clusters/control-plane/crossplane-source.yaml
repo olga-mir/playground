@@ -17,7 +17,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./control-plane-crossplane/providers"
+  path: "./bootstrap/control-plane/crossplane/providers"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -39,7 +39,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./control-plane-crossplane/provider-configs"
+  path: "./bootstrap/control-plane/crossplane/provider-configs"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -54,7 +54,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./control-plane-crossplane/compositions"
+  path: "./bootstrap/control-plane/crossplane/compositions"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -69,7 +69,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./control-plane-crossplane/functions"
+  path: "./bootstrap/control-plane/crossplane/functions"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -84,7 +84,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./control-plane-crossplane/environment-configs"
+  path: "./bootstrap/control-plane/crossplane/environment-configs"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -103,7 +103,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./control-plane-crossplane/platform-services"
+  path: "./bootstrap/control-plane/crossplane/platform-services"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -118,7 +118,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./control-plane-crossplane/workload-clusters"
+  path: "./bootstrap/control-plane/crossplane/workload-clusters"
   prune: true
   sourceRef:
     kind: GitRepository

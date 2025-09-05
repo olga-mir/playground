@@ -11,7 +11,7 @@ metadata:
     event.toolkit.fluxcd.io/cluster: "apps-dev"
 spec:
   interval: 5m
-  path: "./control-plane-crossplane/workload-clusters/apps-dev"
+  path: "./bootstrap/control-plane/crossplane/workload-clusters/apps-dev"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -26,3 +26,7 @@ spec:
   timeout: 15m
   dependsOn:
     - name: gke-cluster-compositions
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: platform-config
