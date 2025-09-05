@@ -26,3 +26,7 @@ spec:
   timeout: 15m
   dependsOn:
     - name: gke-cluster-compositions
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: platform-config

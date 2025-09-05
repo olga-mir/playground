@@ -127,5 +127,3 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: platform-config
-      - kind: Secret
-        name: platform-secrets

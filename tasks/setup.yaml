@@ -79,7 +79,7 @@ tasks:
       PINECONE_API_KEY: "{{.PINECONE_API_KEY}}"
     cmds:
       - "{{.ROOT_DIR}}/bootstrap/scripts/02-create-and-setup-kind.sh"
-      - "{{.ROOT_DIR}}/bootstrap/scripts/03-apply-compositions.sh"
+      - "{{.ROOT_DIR}}/bootstrap/scripts/03-setup-creds-on-control-plane-cluster.sh"
 
   cleanup:
     desc: "Cleanup infrastructure (forcefull)"
