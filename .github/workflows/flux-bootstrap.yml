@@ -28,11 +28,16 @@ jobs:
     - name: Extract cluster info from payload
       id: cluster-info
       run: |
-        #PROJECT_ID="${{ github.event.client_payload.metadata.project }}"
-        #echo "::add-mask::${PROJECT_ID}"
-        #echo "projectID=${PROJECT_ID}" >> $GITHUB_OUTPUT
-        echo "cluster=${{ github.event.client_payload.metadata.cluster }}" >> $GITHUB_OUTPUT
-        echo "location=australia-southeast1-a" >> $GITHUB_OUTPUT
+        PROJECT_ID="${{ github.event.client_payload.metadata.project }}"
+        LOCATION="${{ github.event.client_payload.metadata.location }}"
+        CLUSTER="${{ github.event.client_payload.metadata.cluster }}"
+
+        # Mask sensitive information immediately
+        echo "::add-mask::${PROJECT_ID}"
+
+        echo "projectID=${PROJECT_ID}" >> $GITHUB_OUTPUT
+        echo "cluster=${CLUSTER}" >> $GITHUB_OUTPUT
+        echo "location=${LOCATION}" >> $GITHUB_OUTPUT
         echo "should_proceed=true" >> $GITHUB_OUTPUT
 
     - name: Setup Flux CLI
@@ -47,6 +52,45 @@ jobs:
         token_format: access_token
         workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+        project_id: ${{ steps.cluster-info.outputs.projectID }}
+
+    - name: Mask project number from logs
+      if: steps.cluster-info.outputs.should_proceed == 'true'
+      run: |
+        # Get the project number and mask it
+        PROJECT_NUMBER=$(gcloud projects list --filter="project_id:${{ steps.cluster-info.outputs.projectID }}" --format="value(project_number)")
+        if [ ! -z "$PROJECT_NUMBER" ]; then
+          echo "::add-mask::$PROJECT_NUMBER"
+        fi
+
+    - name: Wait for cluster to exist
+      if: steps.cluster-info.outputs.should_proceed == 'true'
+      run: |
+        echo "Waiting for cluster ${{ steps.cluster-info.outputs.cluster }} to exist in project ${{ steps.cluster-info.outputs.projectID }}..."
+
+        # Wait for cluster to exist (max 15 minutes)
+        timeout_seconds=900
+        elapsed=0
+
+        while [ $elapsed -lt $timeout_seconds ]; do
+          if gcloud container clusters describe "${{ steps.cluster-info.outputs.cluster }}" \
+             --location="${{ steps.cluster-info.outputs.location }}" \
+             --project="${{ steps.cluster-info.outputs.projectID }}" >/dev/null 2>&1; then
+            echo "Cluster exists and is accessible"
+            break
+          else
+            echo "Cluster not yet available, waiting 30 seconds... (elapsed: ${elapsed}s)"
+            sleep 30
+            elapsed=$((elapsed + 30))
+          fi
+        done
+
+        if [ $elapsed -ge $timeout_seconds ]; then
+          echo "Timeout waiting for cluster to exist"
+          echo "Listing all clusters in project and location for debugging:"
+          gcloud container clusters list --project="${{ steps.cluster-info.outputs.projectID }}" || true
+          exit 1
+        fi
 
     - name: Get GKE credentials
       if: steps.cluster-info.outputs.should_proceed == 'true'
@@ -101,8 +145,8 @@ jobs:
         # Always create or update the ConfigMap
         kubectl create configmap platform-config -n flux-system \
           --from-literal=ZONE="${{ steps.cluster-info.outputs.location }}" \
-          --from-literal=CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster_name }}" \
-          --from-literal=CLUSTER_TYPE="${{ steps.cluster-info.outputs.cluster_type }}" \
+          --from-literal=CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}" \
+          --from-literal=PROJECT_ID="${{ steps.cluster-info.outputs.projectID }}" \
           --from-literal=REPO_OWNER="${{ github.repository_owner }}" \
           --from-literal=REPO_NAME="${{ github.event.repository.name }}" \
           --dry-run=client -o yaml | kubectl apply -f -
@@ -135,4 +179,4 @@ jobs:
       if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
       run: |
         flux check
-        echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster_name }}"
+        echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster }}"

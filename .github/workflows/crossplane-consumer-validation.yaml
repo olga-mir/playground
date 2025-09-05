@@ -253,10 +253,9 @@ jobs:
           else
             echo "❌ Composite Resource Validation: FAILED"
           fi
-          
+
           echo "Note: Tenant resources in platform-tenants/ are validated as composite resources"
-          
-          
+
           if [[ "${{ needs.validate-tenant-configurations.result }}" == "success" ]]; then
             echo "✅ Tenant Configuration Validation: PASSED"
           elif [[ "${{ needs.validate-tenant-configurations.result }}" == "skipped" ]]; then
