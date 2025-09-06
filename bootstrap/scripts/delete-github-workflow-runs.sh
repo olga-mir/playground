@@ -3,8 +3,6 @@
 set -eoux pipefail
 
 # gh run list --workflow  .github/workflows/flux-bootstrap.yml
-OWNER=$GITHUB_DEMO_REPO_OWNER
-REPO=$GITHUB_DEMO_REPO_NAME
 WORKFLOW_FILE=".github/workflows/flux-bootstrap.yml"
 
 
@@ -21,7 +19,7 @@ echo "Deleting workflow runs for $WORKFLOW_FILE..."
 # Iterate and delete each run
 for id in $RUN_IDS; do
   echo "Deleting run ID: $id"
-  gh api -X DELETE "repos/$OWNER/$REPO/actions/runs/$id"
+  gh api -X DELETE "repos/:owner/:repo/actions/runs/$id"
 done
 
 echo "Deletion complete."

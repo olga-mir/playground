@@ -17,9 +17,10 @@ This is a multi-cluster Kubernetes infrastructure project using Crossplane v2 an
 3. **GitHub Actions** → bootstraps Flux on newly provisioned clusters
 4. **Flux** → deploys platform services and applications
 
-## GitHub Workflows in This Project
+## GitHub Workflow
 
-### 1. flux-bootstrap.yml
+You are only working with `flux-bootstrap.yml` workflow, nothing else
+
 **Purpose**: Automatically bootstraps Flux on newly provisioned GKE clusters
 **Trigger**: `repository_dispatch` events from Flux notifications
 - Event types: `Kustomization/*-cluster.flux-system`
@@ -39,19 +40,6 @@ This is a multi-cluster Kubernetes infrastructure project using Crossplane v2 an
 - GitHub Actions → WIF Service Account → GKE Cluster
 - Uses `secrets.WIF_PROVIDER` and `secrets.WIF_SERVICE_ACCOUNT`
 - Requires `roles/container.clusterAdmin` or similar on WIF SA
-
-### 2. crossplane-consumer-validation.yaml
-**Purpose**: Validates Crossplane consumer resources (XRs, tenant configs)
-**Trigger**: Push to main/releases branches, PRs (commented out)
-
-**Validates**:
-- YAML syntax of consumer files
-- Composite Resource structure and fields
-- Tenant kustomization configurations
-- Resource name conflicts across namespaces
-- References to available XRDs
-
-## Flux Notification System
 
 ### How Cluster Provisioning Triggers Workflows
 
@@ -86,14 +74,6 @@ client_payload:
 
 ## Common Issues and Solutions
 
-### Missing Event Metadata
-**Symptoms**:
-- Workflow extracts empty values (`CLUSTER_NAME=""`, `CLUSTER_TYPE=""`)
-- Flux bootstrap fails with wrong path
-
-**Root Cause**: Alert not sending required metadata fields
-**Solution**: Ensure alerts send `project`, `location`, `cluster` in `eventMetadata`
-
 ### Health Check Issues
 **Symptoms**:
 - Flux Kustomization stuck in "Unknown" status
@@ -121,11 +101,10 @@ This problem is still not fixed
 
 ### GitHub Workflows
 - **Flux bootstrap**: `.github/workflows/flux-bootstrap.yml`
-- **Consumer validation**: `.github/workflows/crossplane-consumer-validation.yaml`
 
 ## Environment Variables and Secrets
 
-### GitHub Secrets Required
+### GitHub Secrets Required - They exist in repo in GitHub
 - `WIF_PROVIDER`: Workload Identity Federation provider resource name
 - `WIF_SERVICE_ACCOUNT`: WIF service account email
 - `FLUX_GITHUB_TOKEN`: GitHub PAT for Flux operations
@@ -162,6 +141,19 @@ curl -X POST \
   -d '{"event_type": "Kustomization/control-plane-cluster.flux-system", ...}'
 ```
 
+### Diagnostics
+
+Test trigger event and GitHub Actions workflow are properly configured by running a manual trigger:
+
+```bash
+$ gh api repos/:owner/:repo/dispatches -X POST  -f 'event_type=Kustomization/control-plane-cluster.flux-system' -F 'client_payload[metadata][cluster]=control-plane'  -F 'client_payload[metadata][location]=australia-southeast1-a'
+```
+
+Check workflow runs to validate the workflow indeed triggered:
+```bash
+$ gh run list
+```
+
 ## Key Points for Workflow Development
 
 1. **Event-driven**: Workflows are triggered by Flux notifications, not schedules
@@ -170,11 +162,5 @@ curl -X POST \
 4. **Dependencies**: Workflow success depends on proper WIF permissions and cluster readiness
 5. **GitOps native**: Everything deployed through Git, workflows just bootstrap the process
 6. **Crossplane v2**: No claims, direct composite resources, namespace-scoped by default
-
-## Current Status
-- Successfully reorganized Crossplane structure (moved to `bootstrap/kind/flux/`)
-- Fixed missing health checks causing Kustomization failures
-- Implemented project ID masking in workflows
-- Both control-plane and workload cluster workflows configured and tested
 
 When helping with workflow issues, always consider the full GitOps chain: Crossplane → Flux → GitHub → Cluster Bootstrap → Application Deployment.

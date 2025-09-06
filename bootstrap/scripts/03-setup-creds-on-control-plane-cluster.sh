@@ -34,7 +34,6 @@ set +x
 export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
 kubectl --context="${KIND_CLUSTER_CONTEXT}" create secret generic platform-secrets \
     --namespace flux-system \
-    --from-literal=GITHUB_DEMO_REPO_PAT="${GITHUB_DEMO_REPO_PAT}" \
     --from-literal=GITHUB_FLUX_PLAYGROUND_PAT="${GITHUB_FLUX_PLAYGROUND_PAT}" \
     --from-literal=BASE64_ENCODED_GCP_CREDS="${BASE64_ENCODED_GCP_CREDS}" \
     --dry-run=client -o yaml | kubectl --context="${KIND_CLUSTER_CONTEXT}" apply -f -
