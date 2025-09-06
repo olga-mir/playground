@@ -170,7 +170,7 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
      - `platform-secrets`: For Flux PostBuild `substituteFrom`
      - `github-webhook-token`: For notification Provider `secretRef`
 
-Note that PostBuild is not available on any Flux resource. Always check CRD in the clsuter to make sure your suggestions align with reality.
+Note that 'postBuild' is available on certain Flux resources like 'Kustomization', but not all. Always check the CRD in the cluster to verify feature support.
 
 ### Debugging Flux Notifications
 
