@@ -147,7 +147,7 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
      repository_dispatch:
        types: [Kustomization/control-plane-cluster.flux-system]
    ```
-   note that regex can be used, but in its own format using `*` not `.*`.
+   note that glob patterns can be used, which use '*' as a wildcard instead of '.*'.
    This type will match too:
    ```yaml
        types: [Kustomization/*-cluster.flux-system]
@@ -170,7 +170,7 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
      - `platform-secrets`: For Flux PostBuild `substituteFrom`
      - `github-webhook-token`: For notification Provider `secretRef`
 
-Note that PostBuild is not available on any Flux resource. Always check CRD in the clsuter to make sure your suggestions align with reality.
+Note that 'postBuild' is available on certain Flux resources like 'Kustomization', but not all. Always check the CRD in the cluster to verify feature support.
 
 ### Debugging Flux Notifications
 
