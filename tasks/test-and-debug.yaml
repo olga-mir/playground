@@ -85,5 +85,6 @@ tasks:
       - echo "kubectl --context kind-kind-test-cluster annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=\$(date '+%Y-%m-%dT%H:%M:%S%z') --overwrite"
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge"
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge"
-      - echo "gh run list --repo olga-mir/playground --limit 10"
-      - echo "gh run view 17002852908 --repo olga-mir/playground"
+      - echo "gh run list"
+      - echo "gh run view 17002852908"
+      - echo "gh api repos/:owner/:repo/dispatches -X POST -f event_type='Kustomization/control-plane-cluster.flux-system'"
