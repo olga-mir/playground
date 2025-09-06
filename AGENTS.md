@@ -47,20 +47,20 @@ In Crossplane v2, the concept of "claims" is removed. Key changes:
 │   └── kind/              # Kind cluster configs
 │       ├── crossplane/    # Simplified flat structure (no base/ nesting)
 │       │   ├── install/   # Crossplane installation
-│       │   ├── providers/ # Providers (GCP, Helm) 
+│       │   ├── providers/ # Providers (GCP, Helm)
 │       │   ├── functions/ # Composition functions
 │       │   ├── compositions/ # GKE cluster XRD + composition (unified)
 │       │   ├── providerconfigs/ # Provider configurations
 │       │   └── clusters/  # Control-plane cluster + namespace
 │       └── flux/          # Flux configuration + alerts
-├── clusters/              # Target cluster configurations  
+├── clusters/              # Target cluster configurations
 │   └── control-plane/     # Control plane cluster: Crossplane + platform services
 ├── control-plane-crossplane/  # Crossplane configs for control-plane cluster
 │   ├── providers/         # Providers for workload cluster provisioning
 │   ├── compositions/      # (Empty - uses unified composition from bootstrap)
 │   └── workload-clusters/ # Per-cluster folders with dedicated namespaces
 │       └── apps-dev/      # Apps-dev cluster in its own namespace + folder
-├── platform-products/    # Platform services (AI stack, networking)  
+├── platform-products/    # Platform services (AI stack, networking)
 ├── platform-tenants/     # Tenant application deployments
 ├── tasks/                 # Taskfile supporting tasks
 └── local/                 # Local development experiments
@@ -72,7 +72,7 @@ In Crossplane v2, the concept of "claims" is removed. Key changes:
 - **After**: Single `gke-cluster-composition` with `clusterType` parameter (`control-plane` or `workload`)
 - **XRD**: Combined features from both XRDs (connectionSecrets, writeConnectionSecretsToNamespace, crossplane config)
 
-### Simplified Bootstrap Structure  
+### Simplified Bootstrap Structure
 - **Before**: Convoluted `base/` + peer folders, single-file directories
 - **After**: Clean flat structure in `bootstrap/kind/crossplane/` with logical grouping
 - **Removed**: Unnecessary nesting, duplicate kustomizations, unused directories
@@ -84,7 +84,7 @@ In Crossplane v2, the concept of "claims" is removed. Key changes:
 
 ### FluxCD Integration for Alerts
 - **Per-cluster FluxCD Kustomizations**: Each cluster has dedicated Flux Kustomization with healthChecks
-- **Control-plane**: `control-plane-cluster` Kustomization (KIND cluster) 
+- **Control-plane**: `control-plane-cluster` Kustomization (KIND cluster)
 - **Apps-dev**: `apps-dev-cluster` Kustomization (control-plane cluster)
 - **Alerts**: GitHub webhook notifications tied to specific Flux objects for granular monitoring
 
@@ -104,34 +104,7 @@ In Crossplane v2, the concept of "claims" is removed. Key changes:
 
 ## VARIABLES
 * Some of the variables won't be available to you terminal where you are running.
-* These variables are always sourced in a "working" terminal:
-
-```
-export GKE_VPC
-export GKE_CONTROL_PLANE_CLUSTER
-export GKE_APPS_DEV_CLUSTER
-export REGION
-export ZONE
-export PROJECT_ID
-export PROJECT_NUMBER
-export CONTROL_PLANE_SUBNET_NAME
-export APPS_DEV_SUBNET_NAME
-export CROSSPLANE_GSA_KEY_FILE
-export DOMAIN
-export CERT_NAME
-export DNS_PROJECT
-export DNS_ZONE
-export GITHUB_DEMO_REPO_OWNER
-export GITHUB_DEMO_REPO_NAME
-export GITHUB_DEMO_REPO_PAT
-export GITHUB_DEST_ORG_NAME
-export GITHUB_DEST_ORG_REPO_LVL_PAT
-export GITHUB_DEST_ORG_ORG_LVL_PAT
-export ANTHROPIC_API_KEY
-export OPENAI_API_KEY
-export CLAUDE_MCP_CONFIG_FILE
-export PINECONE_API_KEY
-```
+* Env variables listed in task `deploy` in `env` section are always sourced in working terminal, but are not accessible to agents.
 
 ## Working with Crossplane Composite Resources (GitOps)
 
@@ -139,14 +112,14 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
 
 1. **Suspend Flux kustomization** to prevent interference:
    ```bash
-   kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge
+   kubectl --context kind-kind-test-cluster patch kustomization <kustomization_name> -n flux-system -p '{"spec":{"suspend":true}}' --type=merge
    ```
 
 2. **Fix issues** by editing the composition or composite resource files locally
 
 3. **Resume kustomization** after fixes:
    ```bash
-   kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge
+   kubectl --context kind-kind-test-cluster patch kustomization <kustomization_name>  -n flux-system -p '{"spec":{"suspend":false}}' --type=merge
    ```
 
 4. **Commit and push** let the user review, commit and push
@@ -167,12 +140,17 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
 
 1. **Event Type Mismatch** (Most Common)
    - **Problem**: Flux `githubdispatch` provider sends `event_type` in format: `{Kind}/{Name}.{Namespace}`
-   - **Example**: For `crossplane-composite-resources` Kustomization in `flux-system` namespace → `Kustomization/crossplane-composite-resources.flux-system`
+   - **Example**: For `control-plane-cluster` Kustomization in `flux-system` namespace → `Kustomization/control-plane-cluster.flux-system`
    - **Solution**: GitHub workflow must match exact format:
    ```yaml
    on:
      repository_dispatch:
-       types: [Kustomization/crossplane-composite-resources.flux-system]
+       types: [Kustomization/control-plane-cluster.flux-system]
+   ```
+   note that regex can be used, but in its own format using `*` not `.*`.
+   This type will match too:
+   ```yaml
+       types: [Kustomization/*-cluster.flux-system]
    ```
 
 2. **Workflow Location**
@@ -191,6 +169,8 @@ When debugging or fixing Crossplane composite resources in this GitOps setup:
    - **Solution**: Keep separate:
      - `platform-secrets`: For Flux PostBuild `substituteFrom`
      - `github-webhook-token`: For notification Provider `secretRef`
+
+Note that PostBuild is not available on any Flux resource. Always check CRD in the clsuter to make sure your suggestions align with reality.
 
 ### Debugging Flux Notifications
 
