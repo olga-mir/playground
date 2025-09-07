@@ -46,11 +46,11 @@ spec:
               removeDefaultNodePool: true
               gatewayApiConfig:
                 channel: CHANNEL_STANDARD
+              releaseChannel:
+                channel: RAPID
               enableAutopilot: false
               securityPostureConfig:
                 mode: DISABLED
-              releaseChannel:
-                channel: RAPID
             writeConnectionSecretToRef:
               namespace: crossplane-system
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig

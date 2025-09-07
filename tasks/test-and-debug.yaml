@@ -87,4 +87,5 @@ tasks:
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge"
       - echo "gh run list"
       - echo "gh run view 17002852908"
+      - echo "gh run view 17002852908 --log"
       - echo "gh api repos/:owner/:repo/dispatches -X POST -f event_type='Kustomization/control-plane-cluster.flux-system'"

@@ -18,12 +18,26 @@ jobs:
   bootstrap-flux:
     name: Bootstrap Flux on GKE Cluster
     runs-on: ubuntu-latest
+    env:
+      CLOUDSDK_CORE_PROJECT: ${{ github.event.client_payload.metadata.project }}
+      CLOUDSDK_PROJECT: ${{ github.event.client_payload.metadata.project }}
+      GCLOUD_PROJECT: ${{ github.event.client_payload.metadata.project }}
+      GCP_PROJECT: ${{ github.event.client_payload.metadata.project }}
+      GOOGLE_CLOUD_PROJECT: ${{ github.event.client_payload.metadata.project }}
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - name: Mask sensitive variables
+      run: |
+        echo "::add-mask::${{ env.CLOUDSDK_CORE_PROJECT }}"
+        echo "::add-mask::${{ env.CLOUDSDK_PROJECT }}"
+        echo "::add-mask::${{ env.GCLOUD_PROJECT }}"
+        echo "::add-mask::${{ env.GCP_PROJECT }}"
+        echo "::add-mask::${{ env.GOOGLE_CLOUD_PROJECT }}"
 
     - name: Extract cluster info from payload
       id: cluster-info
@@ -34,8 +48,8 @@ jobs:
 
         # Mask sensitive information immediately
         echo "::add-mask::${PROJECT_ID}"
-
         echo "projectID=${PROJECT_ID}" >> $GITHUB_OUTPUT
+
         echo "cluster=${CLUSTER}" >> $GITHUB_OUTPUT
         echo "location=${LOCATION}" >> $GITHUB_OUTPUT
         echo "should_proceed=true" >> $GITHUB_OUTPUT
@@ -57,7 +71,9 @@ jobs:
     - name: Wait for cluster to exist
       if: steps.cluster-info.outputs.should_proceed == 'true'
       run: |
-        echo "Waiting for cluster ${{ steps.cluster-info.outputs.cluster }} to exist in project ${{ steps.cluster-info.outputs.projectID }}..."
+        echo "::add-mask::$PROJECT_ID"
+        echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+        echo "Waiting for cluster ${{ steps.cluster-info.outputs.cluster }} to be up and running"
 
         # Wait for cluster to exist (max 15 minutes)
         timeout_seconds=900
@@ -65,8 +81,8 @@ jobs:
 
         while [ $elapsed -lt $timeout_seconds ]; do
           if gcloud container clusters describe "${{ steps.cluster-info.outputs.cluster }}" \
-             --location="${{ steps.cluster-info.outputs.location }}" \
-             --project="${{ steps.cluster-info.outputs.projectID }}" >/dev/null 2>&1; then
+              --location="${{ steps.cluster-info.outputs.location }}" \
+              --project="${{ steps.cluster-info.outputs.projectID }}" >/dev/null 2>&1; then
             echo "Cluster exists and is accessible"
             break
           else
