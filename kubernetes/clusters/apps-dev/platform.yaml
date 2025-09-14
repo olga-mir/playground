@@ -15,4 +15,4 @@ spec:
   postBuild:
     substituteFrom:
       - kind: ConfigMap
-        name: plaform-config
+        name: platform-config
