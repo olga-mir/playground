@@ -3,7 +3,5 @@ kind: Kustomization
 
 resources:
   - crossplane-source.yaml
-  - crossplane-kustomization.yaml
-  - flux-kustomization.yaml
   - notification-provider.yaml
   - platform-services

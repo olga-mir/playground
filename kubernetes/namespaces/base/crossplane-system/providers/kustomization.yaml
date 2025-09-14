@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
   - providers.yaml
-  - functions.yaml
   - aux-rbac-for-provider-gcp.yaml
   - aux-rbac-for-provider-github.yaml
   - gcp-provider-iam.yaml
