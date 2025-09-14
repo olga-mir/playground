@@ -9,6 +9,8 @@
 * NEVER commit project ID or other semi-sensitve information
 * be aware if files are versioned, use "git mv" over "mv" commands when working with files.
 * ALWAYS place newline at the end of the file
+* when updating Taskfiles, validate resulting files, by running through yq
+* This project relies on environment variables, they are not available to you in the terminal you run in. Assume they are always set in working terminal
 
 # architecture-context
 This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure provisioning and FluxCD for GitOps:

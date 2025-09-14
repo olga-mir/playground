@@ -39,12 +39,15 @@ jobs:
         echo "::add-mask::${{ env.GCP_PROJECT }}"
         echo "::add-mask::${{ env.GOOGLE_CLOUD_PROJECT }}"
 
-    - name: Extract cluster info from payload
+    - name: Extract cluster info from payload and print event message
       id: cluster-info
       run: |
         PROJECT_ID="${{ github.event.client_payload.metadata.project }}"
         LOCATION="${{ github.event.client_payload.metadata.location }}"
         CLUSTER="${{ github.event.client_payload.metadata.cluster }}"
+
+        # Print the event message from the payload
+        echo "📨 Event message: ${{ github.event.client_payload.message || 'No message in payload' }}"
 
         # Mask sensitive information immediately
         echo "::add-mask::${PROJECT_ID}"
@@ -68,14 +71,19 @@ jobs:
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
         project_id: ${{ steps.cluster-info.outputs.projectID }}
 
-    - name: Wait for cluster to exist
+    - name: Wait for cluster provisioning and readiness
       if: steps.cluster-info.outputs.should_proceed == 'true'
       run: |
         echo "::add-mask::$PROJECT_ID"
         echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
-        echo "Waiting for cluster ${{ steps.cluster-info.outputs.cluster }} to be up and running"
+        echo "🕒 Waiting 7 minutes for cluster ${{ steps.cluster-info.outputs.cluster }} to be provisioned..."
 
-        # Wait for cluster to exist (max 15 minutes)
+        # Initial 7-minute wait for cluster provisioning
+        sleep 420
+
+        echo "⏳ Now polling for cluster readiness (max 15 minutes at 30s intervals)..."
+
+        # Poll for cluster existence (max 15 minutes)
         timeout_seconds=900
         elapsed=0
 
@@ -83,10 +91,10 @@ jobs:
           if gcloud container clusters describe "${{ steps.cluster-info.outputs.cluster }}" \
               --location="${{ steps.cluster-info.outputs.location }}" \
               --project="${{ steps.cluster-info.outputs.projectID }}" >/dev/null 2>&1; then
-            echo "Cluster exists and is accessible"
+            echo "✅ Cluster exists and is accessible"
             break
           else
-            echo "Cluster not yet available, waiting 30 seconds... (elapsed: ${elapsed}s)"
+            echo "⏸️  Cluster not yet available, waiting 30 seconds... (elapsed: ${elapsed}s)"
             sleep 30
             elapsed=$((elapsed + 30))
           fi
