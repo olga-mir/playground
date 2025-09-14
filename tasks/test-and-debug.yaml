@@ -76,7 +76,7 @@ tasks:
     desc: "Download logs from latest Flux Bootstrap workflow"
     cmds:
       - RUN_ID=$(gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId') && gh run view $RUN_ID --log > ${RUN_ID}.txt
-      - echo "Downloaded latest workflow run logs to ${RUN_ID}.txt
+      - echo "Downloaded logs from latest workflow run to ${RUN_ID}.txt"
 
   trigger-flux-bootstrap-workflow:
     desc: "Manually trigger the Flux bootstrap workflow for debugging"
