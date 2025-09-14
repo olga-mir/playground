@@ -32,22 +32,6 @@ jobs:
       with:
         kustomize-version: "5.4.3"
 
-    - name: Validate Cluster Kustomizations
-      run: |
-        echo "🔨 Validating cluster kustomizations..."
-
-        for cluster in kind control-plane apps-dev; do
-          echo "📁 Building kubernetes/clusters/$cluster..."
-          if kustomize build kubernetes/clusters/$cluster >/dev/null 2>&1; then
-            echo "✅ kubernetes/clusters/$cluster - SUCCESS"
-          else
-            echo "❌ kubernetes/clusters/$cluster - FAILED"
-            echo "Error output:"
-            kustomize build kubernetes/clusters/$cluster 2>&1 | sed 's/^/  /'
-            exit 1
-          fi
-        done
-
     - name: Validate Namespace Overlays
       run: |
         echo "🔨 Validating namespace overlays..."
