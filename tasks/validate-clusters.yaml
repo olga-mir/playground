@@ -4,11 +4,76 @@ tasks:
   all:
     desc: "Validate all clusters meet acceptance criteria"
     cmds:
+      - task: kustomize-build
       - task: bootstrap
       - task: control-plane
       - task: workload-clusters
       - task: architecture
       - echo "✅ All clusters validation passed"
+
+  kustomize-build:
+    desc: "Validate all kustomize builds work correctly"
+    cmds:
+      - echo "🔨 Validating kustomize builds..."
+      - task: kustomize-build-clusters
+      - task: kustomize-build-overlays
+      - task: kustomize-build-base
+      - echo "✅ All kustomize builds successful"
+
+  kustomize-build-clusters:
+    desc: "Validate cluster kustomizations"
+    cmds:
+      - echo "📁 Validating cluster kustomizations..."
+      - |
+        for cluster in kind control-plane apps-dev; do
+          echo "  🔍 Building kubernetes/clusters/$cluster..."
+          if kustomize build kubernetes/clusters/$cluster >/dev/null 2>&1; then
+            echo "  ✅ kubernetes/clusters/$cluster - OK"
+          else
+            echo "  ❌ kubernetes/clusters/$cluster - FAILED"
+            echo "  Error output:"
+            kustomize build kubernetes/clusters/$cluster 2>&1 | sed 's/^/    /'
+            exit 1
+          fi
+        done
+
+  kustomize-build-overlays:
+    desc: "Validate namespace overlays"
+    cmds:
+      - echo "📁 Validating namespace overlays..."
+      - |
+        for overlay in kind control-plane apps-dev; do
+          echo "  🔍 Building kubernetes/namespaces/overlays/$overlay..."
+          if kustomize build kubernetes/namespaces/overlays/$overlay >/dev/null 2>&1; then
+            echo "  ✅ kubernetes/namespaces/overlays/$overlay - OK"
+          else
+            echo "  ❌ kubernetes/namespaces/overlays/$overlay - FAILED"
+            echo "  Error output:"
+            kustomize build kubernetes/namespaces/overlays/$overlay 2>&1 | sed 's/^/    /'
+            exit 1
+          fi
+        done
+
+  kustomize-build-base:
+    desc: "Validate base namespace components"
+    cmds:
+      - echo "📁 Validating base namespace components..."
+      - |
+        for base in crossplane-system flux-system gkecluster-control-plane gkecluster-apps-dev kagent kagent-system kgateway-system; do
+          if [ -f "kubernetes/namespaces/base/$base/kustomization.yaml" ]; then
+            echo "  🔍 Building kubernetes/namespaces/base/$base..."
+            if kustomize build kubernetes/namespaces/base/$base >/dev/null 2>&1; then
+              echo "  ✅ kubernetes/namespaces/base/$base - OK"
+            else
+              echo "  ❌ kubernetes/namespaces/base/$base - FAILED"
+              echo "  Error output:"
+              kustomize build kubernetes/namespaces/base/$base 2>&1 | sed 's/^/    /'
+              exit 1
+            fi
+          else
+            echo "  ⏭️  kubernetes/namespaces/base/$base - No kustomization.yaml (skipping)"
+          fi
+        done
 
   bootstrap:
     desc: "Validate bootstrap cluster (kind)"
@@ -148,6 +213,7 @@ tasks:
         ## PR Acceptance Criteria
         
         ### Infrastructure Validation
+        - [ ] All kustomize builds complete successfully without errors
         - [ ] Bootstrap cluster (kind) manages control-plane cluster provisioning only
         - [ ] Control-plane cluster manages workload cluster provisioning
         - [ ] All Crossplane composite resources are in Ready state
@@ -161,8 +227,11 @@ tasks:
         
         ### Validation Commands
         ```bash
-        # Run full validation
+        # Run full validation (includes kustomize builds)
         task validate:all
+        
+        # Validate kustomize builds only
+        task validate:kustomize-build
         
         # Check specific clusters
         task validate:bootstrap
