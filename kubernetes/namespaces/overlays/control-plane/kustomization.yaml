@@ -3,9 +3,12 @@ kind: Kustomization
 
 # Control-plane cluster overlay - full crossplane + platform services
 resources:
-  - ../../base/crossplane-system
-  - ../../base/platform-services
+  # Apply GKE Cluster Custom Resource
   - ../../base/gkecluster-apps-dev
+
+  # Install components (TODO - need to move to fluxtomizations and add dependency)
+  #- ../../base/crossplane-system
+  - ../../base/platform-services
   - ../../base/kagent
   - ../../base/kagent-system
   - ../../base/kgateway-system
