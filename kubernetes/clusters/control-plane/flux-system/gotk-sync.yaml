@@ -20,7 +20,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./clusters/control-plane
+  path: ./kubernetes/clusters/control-plane
   prune: true
   sourceRef:
     kind: GitRepository
