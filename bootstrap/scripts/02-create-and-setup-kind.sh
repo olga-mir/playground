@@ -45,7 +45,7 @@ GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
   --owner=${GITHUB_DEMO_REPO_OWNER} \
   --repository=${GITHUB_DEMO_REPO_NAME} \
   --branch=develop \
-  --path=./bootstrap/kind/flux \
+  --path=./clusters/kind \
   --personal
 set -x
 

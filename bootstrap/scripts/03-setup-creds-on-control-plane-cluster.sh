@@ -47,7 +47,7 @@ unset BASE64_ENCODED_GCP_CREDS
 set -x
 
 echo "Applying Flux Crossplane source..."
-kubectl --context="${KIND_CLUSTER_CONTEXT}" apply -f "${REPO_ROOT}/bootstrap/kind/flux/crossplane-source.yaml"
+kubectl --context="${KIND_CLUSTER_CONTEXT}" apply -f "${REPO_ROOT}/kubernetes/namespaces/base/flux-system/crossplane-source.yaml"
 
 echo "Clusters creation initiated via Crossplane compositions!"
 
