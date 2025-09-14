@@ -1,6 +1,6 @@
 name: Validate Kustomize Builds
 
-run-name: "${{ github.ref_name }} | ${{ github.event.head_commit.message }}"
+run-name: "${{ github.ref }} | ${{ github.workflow }}"
 
 on:
   pull_request:

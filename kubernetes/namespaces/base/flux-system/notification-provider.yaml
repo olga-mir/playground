@@ -13,7 +13,7 @@ spec:
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert
 metadata:
-  name: github-dispatch-control-plane-cluster
+  name: github-dispatch-cluster-created
   namespace: flux-system
 spec:
   providerRef:
@@ -21,10 +21,13 @@ spec:
   eventSeverity: info
   eventSources:
     - kind: Kustomization
-      name: control-plane-cluster
+      name: platform
       namespace: flux-system
+  # Namespace/gkecluster-control-plane created GKECluster/control-plane-cluster created
   inclusionList:
     - "GKECluster.*created"
+
+  # TODO - in theory this should support any cluster dynamically via flux annotation.
   eventMetadata:
     cluster: "control-plane"
     location: "australia-southeast1-a"
