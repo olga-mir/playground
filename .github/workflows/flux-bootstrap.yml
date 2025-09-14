@@ -184,7 +184,7 @@ jobs:
           --owner="${{ github.repository_owner }}" \
           --repository="${{ github.event.repository.name }}" \
           --branch="develop" \
-          --path="./clusters/${CLUSTER_NAME}" \
+          --path="./kubernetes/clusters/${CLUSTER_NAME}" \
           --personal \
           --network-policy=true \
           --components-extra=image-reflector-controller,image-automation-controller \
