@@ -100,7 +100,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./kubernetes/namespaces/base/flux-system/platform-services"
+  path: "./kubernetes/namespaces/base/platform-services"
   prune: true
   retryInterval: 2m
   sourceRef:
