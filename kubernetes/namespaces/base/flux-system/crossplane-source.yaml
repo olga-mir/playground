@@ -17,7 +17,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./bootstrap/kind/flux/install"
+  path: "./kubernetes/namespaces/base/crossplane-system/install-kind"
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -31,7 +31,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./bootstrap/kind/flux/providers"
+  path: "./kubernetes/namespaces/base/crossplane-system/providers-kind"
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -51,7 +51,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./bootstrap/kind/flux/functions"
+  path: "./kubernetes/namespaces/base/crossplane-system/functions-kind"
   prune: true
   retryInterval: 2m
   dependsOn:
@@ -67,7 +67,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./bootstrap/kind/flux/providerconfigs"
+  path: "./kubernetes/namespaces/base/crossplane-system/providerconfigs-kind"
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -89,7 +89,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./bootstrap/kind/flux/compositions"
+  path: "./kubernetes/namespaces/base/crossplane-system/compositions"
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -113,7 +113,7 @@ metadata:
 spec:
   interval: 5m
   # TODO - this path implies there is only one cluster, which is true, but not great
-  path: "./bootstrap/kind/crossplane/clusters"
+  path: "./kubernetes/namespaces/base/gkecluster-control-plane/workload-clusters"
   prune: true
   sourceRef:
     kind: GitRepository
