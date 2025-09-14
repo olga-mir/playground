@@ -72,6 +72,22 @@ tasks:
       - echo "Credentials configured for all clusters"
       - kubectl config get-contexts
 
+  latest-flux-bootstrap-logs:
+    desc: "Download logs from latest Flux Bootstrap workflow"
+    cmds:
+      - RUN_ID=$(gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId') && gh run view $RUN_ID --log > ${RUN_ID}.txt
+      - echo "Downloaded logs from latest workflow run to ${RUN_ID}.txt"
+
+  trigger-flux-bootstrap-workflow:
+    desc: "Manually trigger the Flux bootstrap workflow for debugging"
+    vars:
+      CLUSTER: '{{default "control-plane" .CLUSTER}}'
+      PROJECT_ID: '{{default .PROJECT_ID .PROJECT_ID}}'
+      LOCATION: '{{default "australia-southeast1-a" .LOCATION}}'
+    cmds:
+      - gh api repos/:owner/:repo/dispatches -X POST -f event_type=Kustomization/{{.CLUSTER}}-cluster.flux-system -F client_payload[metadata][cluster]={{.CLUSTER}} -F client_payload[metadata][project]={{.PROJECT_ID}} -F client_payload[metadata][location]={{.LOCATION}} -F 'client_payload[message]=Namespace/gkecluster-{{.CLUSTER}} created'
+      - echo "Triggered Flux bootstrap workflow for {{.CLUSTER}} cluster"
+
   helper-commands:
     desc: "Collection of troubleshooting commands"
     cmds:
@@ -85,6 +101,5 @@ tasks:
       - echo "kubectl --context kind-kind-test-cluster annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=\$(date '+%Y-%m-%dT%H:%M:%S%z') --overwrite"
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge"
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge"
-      - echo "gh run list"
-      - echo "gh run view 17002852908"
       - echo "gh api repos/:owner/:repo/dispatches -X POST -f event_type='Kustomization/control-plane-cluster.flux-system'"
+      - echo "gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId' --logs"

@@ -18,6 +18,12 @@ jobs:
   bootstrap-flux:
     name: Bootstrap Flux on GKE Cluster
     runs-on: ubuntu-latest
+    env:
+      CLOUDSDK_CORE_PROJECT: ${{ github.event.client_payload.metadata.project }}
+      CLOUDSDK_PROJECT: ${{ github.event.client_payload.metadata.project }}
+      GCLOUD_PROJECT: ${{ github.event.client_payload.metadata.project }}
+      GCP_PROJECT: ${{ github.event.client_payload.metadata.project }}
+      GOOGLE_CLOUD_PROJECT: ${{ github.event.client_payload.metadata.project }}
 
     steps:
     - name: Checkout repository
@@ -25,17 +31,28 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Extract cluster info from payload
+    - name: Mask sensitive variables
+      run: |
+        echo "::add-mask::${{ env.CLOUDSDK_CORE_PROJECT }}"
+        echo "::add-mask::${{ env.CLOUDSDK_PROJECT }}"
+        echo "::add-mask::${{ env.GCLOUD_PROJECT }}"
+        echo "::add-mask::${{ env.GCP_PROJECT }}"
+        echo "::add-mask::${{ env.GOOGLE_CLOUD_PROJECT }}"
+
+    - name: Extract cluster info from payload and print event message
       id: cluster-info
       run: |
         PROJECT_ID="${{ github.event.client_payload.metadata.project }}"
         LOCATION="${{ github.event.client_payload.metadata.location }}"
         CLUSTER="${{ github.event.client_payload.metadata.cluster }}"
 
+        # Print the event message from the payload
+        echo "📨 Event message: ${{ github.event.client_payload.message || 'No message in payload' }}"
+
         # Mask sensitive information immediately
         echo "::add-mask::${PROJECT_ID}"
-
         echo "projectID=${PROJECT_ID}" >> $GITHUB_OUTPUT
+
         echo "cluster=${CLUSTER}" >> $GITHUB_OUTPUT
         echo "location=${LOCATION}" >> $GITHUB_OUTPUT
         echo "should_proceed=true" >> $GITHUB_OUTPUT
@@ -54,23 +71,30 @@ jobs:
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
         project_id: ${{ steps.cluster-info.outputs.projectID }}
 
-    - name: Wait for cluster to exist
+    - name: Wait for cluster provisioning and readiness
       if: steps.cluster-info.outputs.should_proceed == 'true'
       run: |
-        echo "Waiting for cluster ${{ steps.cluster-info.outputs.cluster }} to exist in project ${{ steps.cluster-info.outputs.projectID }}..."
+        echo "::add-mask::$PROJECT_ID"
+        echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+        echo "🕒 Waiting 7 minutes for cluster ${{ steps.cluster-info.outputs.cluster }} to be provisioned..."
 
-        # Wait for cluster to exist (max 15 minutes)
+        # Initial 7-minute wait for cluster provisioning
+        sleep 420
+
+        echo "⏳ Now polling for cluster readiness (max 15 minutes at 30s intervals)..."
+
+        # Poll for cluster existence (max 15 minutes)
         timeout_seconds=900
         elapsed=0
 
         while [ $elapsed -lt $timeout_seconds ]; do
           if gcloud container clusters describe "${{ steps.cluster-info.outputs.cluster }}" \
-             --location="${{ steps.cluster-info.outputs.location }}" \
-             --project="${{ steps.cluster-info.outputs.projectID }}" >/dev/null 2>&1; then
-            echo "Cluster exists and is accessible"
+              --location="${{ steps.cluster-info.outputs.location }}" \
+              --project="${{ steps.cluster-info.outputs.projectID }}" >/dev/null 2>&1; then
+            echo "✅ Cluster exists and is accessible"
             break
           else
-            echo "Cluster not yet available, waiting 30 seconds... (elapsed: ${elapsed}s)"
+            echo "⏸️  Cluster not yet available, waiting 30 seconds... (elapsed: ${elapsed}s)"
             sleep 30
             elapsed=$((elapsed + 30))
           fi
