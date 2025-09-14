@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# This file is for validation purposes only
+# The actual cluster composition is handled by flux-system.yaml
+resources:
+  - flux-system
+  - flux-system.yaml
