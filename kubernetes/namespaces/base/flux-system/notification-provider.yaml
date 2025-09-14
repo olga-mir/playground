@@ -24,7 +24,7 @@ spec:
       name: control-plane-cluster
       namespace: flux-system
   inclusionList:
-    - "(Namespace|GKECluster).*created"
+    - "GKECluster.*created"
   eventMetadata:
     cluster: "control-plane"
     location: "australia-southeast1-a"

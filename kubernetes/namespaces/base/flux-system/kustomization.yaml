@@ -4,5 +4,3 @@ kind: Kustomization
 resources:
   - crossplane-source.yaml
   - notification-provider.yaml
-  # Note: platform-services moved to staged Crossplane installation
-  # to avoid applying XRDs before Crossplane is ready
