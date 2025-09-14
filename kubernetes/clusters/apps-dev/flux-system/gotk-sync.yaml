@@ -20,7 +20,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./bootstrap/kind/flux
+  path: ./kubernetes/clusters/apps-dev
   prune: true
   sourceRef:
     kind: GitRepository

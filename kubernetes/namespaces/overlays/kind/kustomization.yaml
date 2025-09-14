@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Kind cluster overlay - minimal crossplane + flux for bootstrapping
+resources:
+  - ../../base/crossplane-system/install-kind
+  - ../../base/crossplane-system/providers-kind
+  - ../../base/crossplane-system/providerconfigs-kind
+  - ../../base/crossplane-system/functions-kind
+  - ../../base/crossplane-system/compositions
+  - ../../base/flux-system
+  - ../../base/gkecluster-control-plane

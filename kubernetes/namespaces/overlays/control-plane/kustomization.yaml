@@ -1,4 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-bases:
-  - ../../base/platform-control-plane
+
+# Control-plane cluster overlay - full crossplane + platform services
+resources:
+  - ../../base/crossplane-system
+  - ../../base/flux-system/platform-services
+  - ../../base/gkecluster-apps-dev
+  - ../../base/kagent
+  - ../../base/kagent-system
+  - ../../base/kgateway-system
