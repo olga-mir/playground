@@ -1,4 +1,4 @@
-# Minimal functions for kind cluster - only essential ones for cluster provisioning
+# Bootstrap functions for kind cluster - essential functions needed for GKE cluster provisioning
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
 metadata:

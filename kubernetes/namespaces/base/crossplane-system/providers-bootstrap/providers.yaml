@@ -1,4 +1,4 @@
-# Minimal providers for kind cluster - only essential ones for bootstrapping
+# Bootstrap providers for kind cluster - essential providers needed to provision GKE control-plane
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:

@@ -31,15 +31,15 @@ spec:
       name: crossplane
       namespace: crossplane-system
 ---
-# Stage 2: Install minimal providers for kind cluster
+# Stage 2: Install bootstrap providers for kind cluster
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: crossplane-providers-minimal
+  name: crossplane-providers-bootstrap
   namespace: flux-system
 spec:
   interval: 10m
-  path: "./kubernetes/namespaces/base/crossplane-system/providers-minimal"
+  path: "./kubernetes/namespaces/base/crossplane-system/providers-bootstrap"
   prune: true
   retryInterval: 2m
   sourceRef:
@@ -68,7 +68,7 @@ spec:
     kind: GitRepository
     name: crossplane-config
   dependsOn:
-    - name: crossplane-providers-minimal
+    - name: crossplane-providers-bootstrap
   postBuild:
     substituteFrom:
       - kind: ConfigMap
@@ -93,7 +93,24 @@ spec:
   dependsOn:
     - name: crossplane-providerconfigs
 ---
-# Stage 5: Create control-plane cluster
+# Stage 5: Install platform services (additional XRDs/Compositions)
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-platform-services
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./kubernetes/namespaces/base/flux-system/platform-services"
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: crossplane-config
+  dependsOn:
+    - name: crossplane-compositions
+---
+# Stage 6: Create control-plane cluster
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -118,7 +135,7 @@ spec:
   targetNamespace: gkecluster-control-plane
   timeout: 5m
   dependsOn:
-    - name: crossplane-compositions
+    - name: crossplane-platform-services
   postBuild:
     substituteFrom:
       - kind: ConfigMap
