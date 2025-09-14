@@ -15,4 +15,4 @@ spec:
   postBuild:
     substituteFrom:
       - kind: ConfigMap
-        name: cluster-config
+        name: plaform-config
