@@ -4,7 +4,7 @@ kind: Kustomization
 # Control-plane cluster overlay - full crossplane + platform services
 resources:
   - ../../base/crossplane-system
-  - ../../base/flux-system/platform-services
+  - ../../base/platform-services
   - ../../base/gkecluster-apps-dev
   - ../../base/kagent
   - ../../base/kagent-system

@@ -9,7 +9,8 @@
 * NEVER commit project ID or other semi-sensitve information
 * be aware if files are versioned, use "git mv" over "mv" commands when working with files.
 * ALWAYS place newline at the end of the file
-* when updating Taskfiles, validate resulting files, by running through yq
+* when updating Taskfiles, validate resulting files by running "task --list" or yq on modified file
+* run "validate:kustomize-build-clusters" task to validate any changes made to clusters and setup
 
 # architecture-context
 This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure provisioning and FluxCD for GitOps:
