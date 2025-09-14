@@ -2,12 +2,11 @@ name: Validate Kustomize Builds
 
 on:
   pull_request:
-    branches: [main, develop]
     paths:
       - 'kubernetes/**/*.yaml'
       - 'kubernetes/**/*.yml'
   push:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - 'kubernetes/**/*.yaml'
       - 'kubernetes/**/*.yml'
@@ -36,7 +35,7 @@ jobs:
     - name: Validate Cluster Kustomizations
       run: |
         echo "🔨 Validating cluster kustomizations..."
-        
+
         for cluster in kind control-plane apps-dev; do
           echo "📁 Building kubernetes/clusters/$cluster..."
           if kustomize build kubernetes/clusters/$cluster >/dev/null 2>&1; then
@@ -52,7 +51,7 @@ jobs:
     - name: Validate Namespace Overlays
       run: |
         echo "🔨 Validating namespace overlays..."
-        
+
         for overlay in kind control-plane apps-dev; do
           echo "📁 Building kubernetes/namespaces/overlays/$overlay..."
           if kustomize build kubernetes/namespaces/overlays/$overlay >/dev/null 2>&1; then
@@ -68,7 +67,7 @@ jobs:
     - name: Validate Base Namespace Components
       run: |
         echo "🔨 Validating base namespace components..."
-        
+
         for base in crossplane-system flux-system gkecluster-control-plane gkecluster-apps-dev kagent kagent-system kgateway-system; do
           if [ -f "kubernetes/namespaces/base/$base/kustomization.yaml" ]; then
             echo "📁 Building kubernetes/namespaces/base/$base..."
@@ -97,12 +96,12 @@ jobs:
           BASE_SHA="${{ github.event.before }}"
           HEAD_SHA="${{ github.sha }}"
         fi
-        
+
         echo "Comparing $BASE_SHA..$HEAD_SHA"
-        
+
         # Get changed kustomization files
         CHANGED_KUSTOMIZATIONS=$(git diff --name-only "$BASE_SHA..$HEAD_SHA" -- 'kubernetes/**/kustomization.yaml' || true)
-        
+
         if [ -n "$CHANGED_KUSTOMIZATIONS" ]; then
           echo "changed_kustomizations=true" >> $GITHUB_OUTPUT
           echo "## 🔍 Changed Kustomization Files" >> $GITHUB_STEP_SUMMARY
