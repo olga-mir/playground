@@ -3,10 +3,10 @@ kind: Kustomization
 
 # Kind cluster overlay - minimal crossplane + flux for bootstrapping
 resources:
-  - ../../base/crossplane-system/install-kind
-  - ../../base/crossplane-system/providers-kind
-  - ../../base/crossplane-system/providerconfigs-kind
-  - ../../base/crossplane-system/functions-kind
+  - ../../base/crossplane-system/install
+  - ../../base/crossplane-system/providerconfigs
   - ../../base/crossplane-system/compositions
   - ../../base/flux-system
   - ../../base/gkecluster-control-plane
+  - minimal-providers.yaml
+  - minimal-functions.yaml
