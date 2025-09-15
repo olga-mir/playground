@@ -24,8 +24,9 @@ spec:
       name: platform
       namespace: flux-system
   # Namespace/gkecluster-control-plane created GKECluster/control-plane-cluster created
+  # {"msg":"dispatching event","eventInvolvedObject":{"kind":"Kustomization","namespace":"flux-system","name":"platform","uid":"12a57173-f4aa-41fd-b649-5e4810b653cc","apiVersion":"kustomize.toolkit.fluxcd.io/v1","resourceVersion":"4022"},"message":"Namespace/gkecluster-control-plane created\nKustomization/flux-system/crossplane-compositions configured\nKustomization/flux-system/crossplane-install configured\nKustomization/flux-system/crossplane-platform-services configured\nKustomization/flux-system/crossplane-providerconfigs configured\nKustomization/flux-system/crossplane-providers-bootstrap configured\nAlert/flux-system/github-dispatch-cluster-created created\nProvider/flux-system/github-dispatch created\nGKECluster/control-plane-cluster created\nGitRepository/flux-system/crossplane-config configured"}
   inclusionList:
-    - "GKECluster.*created"
+    - "GKECluster"
 
   # TODO - in theory this should support any cluster dynamically via flux annotation.
   eventMetadata:
