@@ -76,10 +76,15 @@ jobs:
       run: |
         echo "::add-mask::$PROJECT_ID"
         echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
-        echo "🕒 Waiting 7 minutes for cluster ${{ steps.cluster-info.outputs.cluster }} to be provisioned..."
 
-        # Initial 7-minute wait for cluster provisioning
-        sleep 420
+        IMMEDIATE="${{ github.event.client_payload.metadata.immediate }}"
+        if [ "$IMMEDIATE" = "true" ]; then
+          echo "🚀 Immediate mode enabled - skipping initial wait"
+        else
+          echo "🕒 Waiting 7 minutes for cluster ${{ steps.cluster-info.outputs.cluster }} to be provisioned..."
+          # Initial 7-minute wait for cluster provisioning
+          sleep 420
+        fi
 
         echo "⏳ Now polling for cluster readiness (max 15 minutes at 30s intervals)..."
 

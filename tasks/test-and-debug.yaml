@@ -73,20 +73,43 @@ tasks:
       - kubectl config get-contexts
 
   latest-flux-bootstrap-logs:
-    desc: "Download logs from latest Flux Bootstrap workflow"
+    desc: "Download logs from latest Flux Bootstrap workflow or provide URL if logs not available"
     cmds:
-      - RUN_ID=$(gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId') && gh run view $RUN_ID --log > ${RUN_ID}.txt
-      - echo "Downloaded logs from latest workflow run to ${RUN_ID}.txt"
+      - |
+        RUN_ID=$(gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId')
+        if gh run view $RUN_ID --log > ${RUN_ID}.txt 2>/dev/null; then
+          echo "Downloaded logs from latest workflow run to ${RUN_ID}.txt"
+        else
+          echo "Logs not yet available for run $RUN_ID"
+          JOB_ID=$(gh api repos/:owner/:repo/actions/runs/$RUN_ID/jobs --jq '.jobs[]|.id' | head -1)
+          if [ -n "$JOB_ID" ]; then
+            echo "View logs at: https://github.com/$(gh repo view --json owner,name -q '.owner.login + "/" + .name')/actions/runs/$RUN_ID/job/$JOB_ID"
+          else
+            echo "View run at: https://github.com/$(gh repo view --json owner,name -q '.owner.login + "/" + .name')/actions/runs/$RUN_ID"
+          fi
+        fi
 
   trigger-flux-bootstrap-workflow:
     desc: "Manually trigger the Flux bootstrap workflow for debugging"
     vars:
       CLUSTER: '{{default "control-plane" .CLUSTER}}'
-      PROJECT_ID: '{{default .PROJECT_ID .PROJECT_ID}}'
       LOCATION: '{{default "australia-southeast1-a" .LOCATION}}'
+      IMMEDIATE: '{{default "false" .IMMEDIATE}}'
     cmds:
-      - gh api repos/:owner/:repo/dispatches -X POST -f event_type=Kustomization/{{.CLUSTER}}-cluster.flux-system -F client_payload[metadata][cluster]={{.CLUSTER}} -F client_payload[metadata][project]={{.PROJECT_ID}} -F client_payload[metadata][location]={{.LOCATION}} -F 'client_payload[message]=Namespace/gkecluster-{{.CLUSTER}} created'
-      - echo "Triggered Flux bootstrap workflow for {{.CLUSTER}} cluster"
+      - |
+        if [ -z "$PROJECT_ID" ]; then
+          echo "Error: PROJECT_ID environment variable is required"
+          echo "Please set PROJECT_ID in your environment or via 'task deploy' command"
+          exit 1
+        fi
+        gh api repos/:owner/:repo/dispatches -X POST \
+          -f event_type=Kustomization/{{.CLUSTER}}-cluster.flux-system \
+          -F client_payload[metadata][cluster]={{.CLUSTER}} \
+          -F client_payload[metadata][project]="$PROJECT_ID" \
+          -F client_payload[metadata][location]={{.LOCATION}} \
+          -F client_payload[metadata][immediate]={{.IMMEDIATE}} \
+          -F 'client_payload[message]=Namespace/gkecluster-{{.CLUSTER}} created'
+      - echo "Triggered Flux bootstrap workflow for {{.CLUSTER}} cluster (immediate={{.IMMEDIATE}})"
 
   helper-commands:
     desc: "Collection of troubleshooting commands"
