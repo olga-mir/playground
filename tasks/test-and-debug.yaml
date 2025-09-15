@@ -97,11 +97,6 @@ tasks:
       IMMEDIATE: '{{default "false" .IMMEDIATE}}'
     cmds:
       - |
-        if [ -z "$PROJECT_ID" ]; then
-          echo "Error: PROJECT_ID environment variable is required"
-          echo "Please set PROJECT_ID in your environment or via 'task deploy' command"
-          exit 1
-        fi
         gh api repos/:owner/:repo/dispatches -X POST \
           -f event_type=Kustomization/{{.CLUSTER}}-cluster.flux-system \
           -F client_payload[metadata][cluster]={{.CLUSTER}} \
