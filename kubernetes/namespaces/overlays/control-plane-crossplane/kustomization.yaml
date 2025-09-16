@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Control-plane cluster - Crossplane installation only
+# This provides staged Crossplane installation for the control-plane cluster
+resources:
+  - ../../base/flux-system
