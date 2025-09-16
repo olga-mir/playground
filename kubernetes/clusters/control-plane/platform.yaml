@@ -16,3 +16,6 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: platform-config
+  # Depend on Crossplane being installed first
+  dependsOn:
+    - name: crossplane
