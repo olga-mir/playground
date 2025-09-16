@@ -30,3 +30,4 @@ spec:
   eventMetadata:
     cluster: "control-plane"
     location: "australia-southeast1-a"
+    project: "${PROJECT_ID}"

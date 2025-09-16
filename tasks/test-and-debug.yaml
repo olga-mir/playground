@@ -98,7 +98,7 @@ tasks:
     cmds:
       - |
         gh api repos/:owner/:repo/dispatches -X POST \
-          -f event_type=Kustomization/{{.CLUSTER}}-cluster.flux-system \
+          -f event_type=Kustomization/clusters.flux-system \
           -F client_payload[metadata][cluster]={{.CLUSTER}} \
           -F client_payload[metadata][project]="$PROJECT_ID" \
           -F client_payload[metadata][location]={{.LOCATION}} \
@@ -119,5 +119,5 @@ tasks:
       - echo "kubectl --context kind-kind-test-cluster annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=\$(date '+%Y-%m-%dT%H:%M:%S%z') --overwrite"
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge"
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge"
-      - echo "gh api repos/:owner/:repo/dispatches -X POST -f event_type='Kustomization/control-plane-cluster.flux-system'"
+      - echo "gh api repos/:owner/:repo/dispatches -X POST -f event_type='Kustomization/clusters.flux-system'"
       - echo "gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId' --logs"
