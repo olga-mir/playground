@@ -88,6 +88,7 @@ kubectl wait --for=condition=ready pod -l app=helm-controller -n flux-system --t
 kubectl wait --for=condition=ready pod -l app=notification-controller -n flux-system --timeout=100s
 
 echo "FluxCD is ready!"
+sleep 45
 
 # Create crossplane-system namespace (needed for GCP credentials)
 kubectl create namespace crossplane-system --dry-run=client -o yaml | kubectl apply -f -
@@ -101,9 +102,13 @@ kubectl create secret generic gcp-creds \
 echo "Waiting for Flux to sync all resources..."
 flux get all -A
 
+sleep 90
+
 echo "Waiting for Crossplane to be ready..."
 kubectl wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=600s
 kubectl wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=600s
+#kubectl wait --for=condition=healthy providers --all -n crossplane-system --timeout=600s
+#kubectl wait --for=condition=healthy functions --all -n crossplane-system --timeout=600s
 kubectl wait --for=condition=established xrd --all --timeout=180s
 
 # Function to wait for a cluster to be ready using Composite Resources
