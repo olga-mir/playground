@@ -1,0 +1,22 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: clusters
+  namespace: flux-system
+spec:
+  interval: 10m
+  timeout: 30m
+  path: ./kubernetes/namespaces/overlays/kind-clusters
+  prune: true
+  wait: false
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: platform-config
+  # Depend on Crossplane components to ensure XRDs are available
+  dependsOn:
+    - name: platform
+    - name: crossplane-compositions

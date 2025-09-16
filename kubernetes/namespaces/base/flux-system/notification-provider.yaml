@@ -1,0 +1,33 @@
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: github-dispatch
+  namespace: flux-system
+spec:
+  type: githubdispatch
+  address: https://github.com/olga-mir/playground
+  secretRef:
+    name: github-webhook-token
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: github-dispatch-cluster-created
+  namespace: flux-system
+spec:
+  providerRef:
+    name: github-dispatch
+  eventSeverity: info
+  eventSources:
+    - kind: Kustomization
+      name: clusters
+      namespace: flux-system
+  inclusionList:
+    - "GKECluster"
+
+  # TODO - in theory this should support any cluster dynamically via flux annotation.
+  eventMetadata:
+    cluster: "control-plane"
+    location: "australia-southeast1-a"
+    project: "${PROJECT_ID}"

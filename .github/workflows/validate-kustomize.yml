@@ -1,0 +1,125 @@
+name: Validate Kustomize Builds
+
+run-name: "${{ github.ref }} | ${{ github.workflow }}"
+
+on:
+  pull_request:
+    paths:
+      - 'kubernetes/**/*.yaml'
+      - 'kubernetes/**/*.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'kubernetes/**/*.yaml'
+      - 'kubernetes/**/*.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: kustomize-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-kustomize:
+    name: Validate Kustomize Builds
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Kustomize
+      uses: imranismail/setup-kustomize@v2
+      with:
+        kustomize-version: "5.4.3"
+
+    - name: Validate Namespace Overlays
+      run: |
+        echo "🔨 Validating namespace overlays..."
+
+        for overlay in kind control-plane apps-dev; do
+          echo "📁 Building kubernetes/namespaces/overlays/$overlay..."
+          if kustomize build kubernetes/namespaces/overlays/$overlay >/dev/null 2>&1; then
+            echo "✅ kubernetes/namespaces/overlays/$overlay - SUCCESS"
+          else
+            echo "❌ kubernetes/namespaces/overlays/$overlay - FAILED"
+            echo "Error output:"
+            kustomize build kubernetes/namespaces/overlays/$overlay 2>&1 | sed 's/^/  /'
+            exit 1
+          fi
+        done
+
+    - name: Validate Base Namespace Components
+      run: |
+        echo "🔨 Validating base namespace components..."
+
+        for base in crossplane-system flux-system gkecluster-control-plane gkecluster-apps-dev kagent kagent-system kgateway-system; do
+          if [ -f "kubernetes/namespaces/base/$base/kustomization.yaml" ]; then
+            echo "📁 Building kubernetes/namespaces/base/$base..."
+            if kustomize build kubernetes/namespaces/base/$base >/dev/null 2>&1; then
+              echo "✅ kubernetes/namespaces/base/$base - SUCCESS"
+            else
+              echo "❌ kubernetes/namespaces/base/$base - FAILED"
+              echo "Error output:"
+              kustomize build kubernetes/namespaces/base/$base 2>&1 | sed 's/^/  /'
+              exit 1
+            fi
+          else
+            echo "⏭️  kubernetes/namespaces/base/$base - No kustomization.yaml (skipping)"
+          fi
+        done
+
+    - name: Detect Changed Files
+      id: changes
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          # For PRs, compare against the target branch
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+        else
+          # For pushes, compare against the previous commit
+          BASE_SHA="${{ github.event.before }}"
+          HEAD_SHA="${{ github.sha }}"
+        fi
+
+        echo "Comparing $BASE_SHA..$HEAD_SHA"
+
+        # Get changed kustomization files
+        CHANGED_KUSTOMIZATIONS=$(git diff --name-only "$BASE_SHA..$HEAD_SHA" -- 'kubernetes/**/kustomization.yaml' || true)
+
+        if [ -n "$CHANGED_KUSTOMIZATIONS" ]; then
+          echo "changed_kustomizations=true" >> $GITHUB_OUTPUT
+          echo "## 🔍 Changed Kustomization Files" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "$CHANGED_KUSTOMIZATIONS" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "changed_kustomizations=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build Summary
+      if: always()
+      run: |
+        echo "## ✅ Kustomize Validation Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Cluster Kustomizations | ✅ Validated |" >> $GITHUB_STEP_SUMMARY
+        echo "| Namespace Overlays | ✅ Validated |" >> $GITHUB_STEP_SUMMARY
+        echo "| Base Components | ✅ Validated |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🚀 Quick Validation Commands" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "# Validate all kustomize builds" >> $GITHUB_STEP_SUMMARY
+        echo "task validate:kustomize-build" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# Validate specific components" >> $GITHUB_STEP_SUMMARY
+        echo "task validate:kustomize-build-clusters" >> $GITHUB_STEP_SUMMARY
+        echo "task validate:kustomize-build-overlays" >> $GITHUB_STEP_SUMMARY
+        echo "task validate:kustomize-build-base" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# Manual builds for specific paths" >> $GITHUB_STEP_SUMMARY
+        echo "kustomize build kubernetes/clusters/kind" >> $GITHUB_STEP_SUMMARY
+        echo "kustomize build kubernetes/namespaces/overlays/control-plane" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

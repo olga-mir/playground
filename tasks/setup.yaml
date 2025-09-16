@@ -75,8 +75,7 @@ tasks:
       CLAUDE_MCP_CONFIG_FILE: "{{.CLAUDE_MCP_CONFIG_FILE}}"
       PINECONE_API_KEY: "{{.PINECONE_API_KEY}}"
     cmds:
-      - "{{.ROOT_DIR}}/bootstrap/scripts/02-create-and-setup-kind.sh"
-      - "{{.ROOT_DIR}}/bootstrap/scripts/03-setup-creds-on-control-plane-cluster.sh"
+      - "{{.ROOT_DIR}}/bootstrap/scripts/setup-kind-cluster.sh"
 
   cleanup:
     desc: "Cleanup infrastructure (forcefull)"

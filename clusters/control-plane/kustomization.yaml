@@ -1,9 +1,0 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - crossplane-install.yaml
-  - crossplane-functions.yaml
-  - gke-cluster-compositions.yaml
-  - crossplane-source.yaml
-  - apps-dev-flux-kustomization.yaml
-  - apps-dev-alert.yaml

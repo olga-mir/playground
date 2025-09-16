@@ -4,7 +4,8 @@ run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || '
 
 on:
   repository_dispatch:
-    types: [Kustomization/*-cluster.flux-system]
+    types:
+      - Kustomization/clusters.flux-system
 
 concurrency:
   group: fluxcd-bootstrap-${{ github.event.client_payload.metadata.cluster }}
@@ -76,10 +77,15 @@ jobs:
       run: |
         echo "::add-mask::$PROJECT_ID"
         echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
-        echo "🕒 Waiting 7 minutes for cluster ${{ steps.cluster-info.outputs.cluster }} to be provisioned..."
 
-        # Initial 7-minute wait for cluster provisioning
-        sleep 420
+        IMMEDIATE="${{ github.event.client_payload.metadata.immediate }}"
+        if [ "$IMMEDIATE" = "true" ]; then
+          echo "🚀 Immediate mode enabled - skipping initial wait"
+        else
+          echo "🕒 Waiting 7 minutes for cluster ${{ steps.cluster-info.outputs.cluster }} to be provisioned..."
+          # Initial 7-minute wait for cluster provisioning
+          sleep 420
+        fi
 
         echo "⏳ Now polling for cluster readiness (max 15 minutes at 30s intervals)..."
 
@@ -184,7 +190,7 @@ jobs:
           --owner="${{ github.repository_owner }}" \
           --repository="${{ github.event.repository.name }}" \
           --branch="develop" \
-          --path="./clusters/${CLUSTER_NAME}" \
+          --path="./kubernetes/clusters/${CLUSTER_NAME}" \
           --personal \
           --network-policy=true \
           --components-extra=image-reflector-controller,image-automation-controller \
