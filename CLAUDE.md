@@ -11,7 +11,7 @@
 * ALWAYS place newline at the end of the file
 * when updating Taskfiles, validate resulting files, by running through yq
 * one command deploy task: `bootstrap/scripts/setup-kind-cluster.sh` (combines cluster creation and credential setup)
-* run "validate:kustomize-build-clusters" task to validate any changes made to clusters and setup
+* run "validate:kustomize-build" task to validate any changes made to clusters and setup
 * Use `kubectl wait --for=condition=Established providers.pkg.crossplane.io` for proper resource types in setup scripts
 
 # architecture-context
@@ -103,6 +103,169 @@ kubernetes
 - **Updated workflow triggers**: Support for new cluster kustomization event patterns
 - **GitRepository creation**: Automatic creation of flux-system GitRepository if missing after bootstrap
 - **Simplified event handling**: Removed unnecessary GitRepository duplication logic
+
+### Simplified Cluster Provisioning
+- **Direct base references**: Flux Kustomizations now point directly to base directories for cluster provisioning
+- **Removed overlay indirection**: Eliminated unnecessary `kind-clusters` and `control-plane-clusters` overlay layers
+- **Cleaner architecture**: Reduced complexity while maintaining same functionality
+
+## Detailed Architecture and File Structure
+
+### Top-Level Directory Structure
+
+```
+kubernetes/
+├── clusters/           # Flux Kustomization entry points for each cluster
+├── namespaces/         # Kubernetes namespace-scoped resources
+├── components/         # Reusable Kustomize components (e.g., Crossplane compositions)
+└── tenants/           # Tenant application configurations
+
+bootstrap/
+└── scripts/           # Setup and deployment scripts
+
+tasks/                 # Taskfile.yml tasks for validation and operations
+```
+
+### kubernetes/clusters/ - Flux Entry Points
+
+Each subdirectory contains Flux Kustomization resources that define what gets deployed to each cluster type:
+
+```
+clusters/
+├── kind/              # Bootstrap cluster (local kind)
+│   ├── flux-system/   # Auto-generated Flux bootstrap files
+│   ├── platform.yaml  # Points to namespaces/overlays/kind (Crossplane + platform services)
+│   └── clusters.yaml  # Points to namespaces/base/gkecluster-control-plane/clusters (GKE control-plane provisioning)
+├── control-plane/     # GKE control-plane cluster
+│   ├── flux-system/   # Auto-generated Flux bootstrap files
+│   ├── platform.yaml  # Points to namespaces/overlays/control-plane (Crossplane + platform services)
+│   └── clusters.yaml  # Points to namespaces/base/gkecluster-apps-dev (GKE workload cluster provisioning)
+└── apps-dev/          # GKE workload cluster
+    ├── flux-system/   # Auto-generated Flux bootstrap files
+    └── platform.yaml  # Points to namespaces/overlays/apps-dev (applications only, no Crossplane)
+```
+
+**Key Pattern**: Each cluster's Flux Kustomizations point to either:
+- `namespaces/overlays/{cluster-type}` for platform services and infrastructure
+- `namespaces/base/{specific-namespace}` for targeted deployments (like cluster provisioning)
+
+### kubernetes/namespaces/ - Namespace-Scoped Resources
+
+Organized using Kustomize base/overlay pattern:
+
+```
+namespaces/
+├── base/                          # Base namespace configurations
+│   ├── crossplane-system/        # Crossplane core installation and configuration
+│   │   ├── install/               # Crossplane Helm chart and CRDs
+│   │   ├── providers/             # Crossplane providers (GCP, GitHub)
+│   │   ├── provider-configs/      # Provider authentication configurations
+│   │   ├── functions/             # Crossplane composition functions
+│   │   └── environment-configs/   # Environment-specific configurations
+│   ├── flux-system/               # Flux notification providers and alerts
+│   ├── platform-services/        # GitHub org/repo/team configurations and compositions
+│   ├── gkecluster-control-plane/  # Control-plane cluster composite resources
+│   │   └── clusters/              # Specific cluster definitions
+│   ├── gkecluster-apps-dev/       # Apps-dev cluster composite resources
+│   ├── kagent/                    # AI agent platform components
+│   ├── kagent-system/             # AI agent system configurations
+│   └── kgateway-system/           # AI gateway networking components
+└── overlays/                      # Cluster-specific compositions
+    ├── kind/                      # Bootstrap cluster overlay
+    ├── control-plane/             # Control-plane cluster overlay
+    └── apps-dev/                  # Workload cluster overlay
+```
+
+**Base Pattern**: Each base directory contains:
+- `kustomization.yaml` - Lists all resources to include
+- Resource YAML files for that namespace
+- Subdirectories for logical grouping (e.g., `install/`, `providers/`)
+
+**Overlay Pattern**: Each overlay composes multiple base directories for a cluster type:
+```yaml
+# Example: namespaces/overlays/control-plane/kustomization.yaml
+resources:
+  - ../../base/crossplane-system
+  - ../../base/flux-system
+  - ../../base/platform-services
+  - ../../base/kagent
+  - ../../base/kagent-system
+  - ../../base/kgateway-system
+  - ../../../components/crossplane-compositions/overlays/control-plane
+```
+
+### kubernetes/components/ - Reusable Components
+
+Components are Kustomize resources that can be included in multiple places:
+
+```
+components/
+└── crossplane-compositions/       # Crossplane XRDs and Compositions
+    ├── base/
+    │   ├── gke-cluster/           # GKE cluster composition and XRD
+    │   └── cloudrun/              # CloudRun composition and XRD
+    └── overlays/
+        ├── kind/                  # Only includes GKE cluster composition
+        └── control-plane/         # Includes both GKE cluster and CloudRun compositions
+```
+
+**Composition Separation Strategy**:
+- **Kind cluster**: Only needs GKE cluster composition (for control-plane provisioning)
+- **Control-plane cluster**: Needs GKE cluster + CloudRun compositions (for workload cluster + services)
+- **GitHub compositions**: Located in `platform-services` base (org/repo/team management)
+
+### What Goes in flux-system/
+
+The `flux-system` namespace in each cluster contains:
+
+1. **Auto-generated by Flux bootstrap**:
+   - `gotk-sync.yaml` - GitRepository and root Kustomization pointing to `clusters/{cluster-type}/`
+   - `gotk-components.yaml` - Flux controller deployments
+   - Flux secrets for GitHub authentication
+
+2. **Manually managed** (in `namespaces/base/flux-system/`):
+   - `notification-provider.yaml` - GitHub webhook provider for cluster-ready notifications
+   - Alert configurations for monitoring Flux health
+
+**Important**: Flux bootstrap creates the GitRepository and root Kustomization automatically. Our manual `flux-system` base only adds notification providers and alerts.
+
+### Base vs Overlays Pattern
+
+**Base Directories** (`namespaces/base/`):
+- Contain the actual Kubernetes resource YAML files
+- Include a `kustomization.yaml` that lists all resources in that namespace
+- Are environment-agnostic (use Flux PostBuild substitution for environment-specific values)
+- Can be referenced directly by Flux Kustomizations for targeted deployments
+
+**Overlay Directories** (`namespaces/overlays/`):
+- Compose multiple base directories to create a complete cluster configuration
+- Use `resources:` list to include bases and components
+- Can add patches, transformations, or additional resources
+- Represent the complete "bill of materials" for a cluster type
+
+**Direct Base References**:
+For targeted deployments (like cluster provisioning), Flux Kustomizations can point directly to base directories:
+```yaml
+# clusters/kind/clusters.yaml points directly to:
+path: ./kubernetes/namespaces/base/gkecluster-control-plane/clusters
+```
+
+This pattern eliminates unnecessary overlay indirection when you only need resources from a single namespace.
+
+### Cluster Provisioning Flow
+
+1. **Kind cluster** (`clusters/kind/`):
+   - `platform.yaml` → `namespaces/overlays/kind` → Crossplane + compositions
+   - `clusters.yaml` → `namespaces/base/gkecluster-control-plane/clusters` → Creates control-plane GKE cluster
+
+2. **Control-plane cluster** (`clusters/control-plane/`):
+   - `platform.yaml` → `namespaces/overlays/control-plane` → Crossplane + platform services
+   - `clusters.yaml` → `namespaces/base/gkecluster-apps-dev` → Creates apps-dev GKE cluster
+
+3. **Apps-dev cluster** (`clusters/apps-dev/`):
+   - `platform.yaml` → `namespaces/overlays/apps-dev` → Applications only (no Crossplane)
+
+This architecture provides clear separation of concerns while maintaining flexibility and avoiding circular dependencies.
 
 ## VARIABLES
 * Some of the variables won't be available to you terminal where you are running.
