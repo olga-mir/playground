@@ -8,7 +8,9 @@ metadata:
     tornado-demo.io/cluster-type: workload
     tornado-demo.io/cluster-env: dev
   annotations:
-    event.toolkit.fluxcd.io/cluster: "apps-dev"
+    event.toolkit.fluxcd.io/cluster: "control-plane"
+    event.toolkit.fluxcd.io/location: "australia-southeast1-a"
+    event.toolkit.fluxcd.io/project: "${PROJECT_ID}"
 spec:
   interval: 10m
   timeout: 30m

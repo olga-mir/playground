@@ -19,12 +19,6 @@ jobs:
   bootstrap-flux:
     name: Bootstrap Flux on GKE Cluster
     runs-on: ubuntu-latest
-    env:
-      CLOUDSDK_CORE_PROJECT: ${{ github.event.client_payload.metadata.project }}
-      CLOUDSDK_PROJECT: ${{ github.event.client_payload.metadata.project }}
-      GCLOUD_PROJECT: ${{ github.event.client_payload.metadata.project }}
-      GCP_PROJECT: ${{ github.event.client_payload.metadata.project }}
-      GOOGLE_CLOUD_PROJECT: ${{ github.event.client_payload.metadata.project }}
 
     steps:
     - name: Checkout repository
@@ -32,28 +26,20 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Mask sensitive variables
-      run: |
-        echo "::add-mask::${{ env.CLOUDSDK_CORE_PROJECT }}"
-        echo "::add-mask::${{ env.CLOUDSDK_PROJECT }}"
-        echo "::add-mask::${{ env.GCLOUD_PROJECT }}"
-        echo "::add-mask::${{ env.GCP_PROJECT }}"
-        echo "::add-mask::${{ env.GOOGLE_CLOUD_PROJECT }}"
-
-    - name: Extract cluster info from payload and print event message
+    - name: Extract cluster info from payload and mask sensitive data
       id: cluster-info
       run: |
         PROJECT_ID="${{ github.event.client_payload.metadata.project }}"
         LOCATION="${{ github.event.client_payload.metadata.location }}"
         CLUSTER="${{ github.event.client_payload.metadata.cluster }}"
 
+        # Mask sensitive information FIRST before any output
+        echo "::add-mask::${PROJECT_ID}"
+
         # Print the event message from the payload
         echo "📨 Event message: ${{ github.event.client_payload.message || 'No message in payload' }}"
 
-        # Mask sensitive information immediately
-        echo "::add-mask::${PROJECT_ID}"
         echo "projectID=${PROJECT_ID}" >> $GITHUB_OUTPUT
-
         echo "cluster=${CLUSTER}" >> $GITHUB_OUTPUT
         echo "location=${LOCATION}" >> $GITHUB_OUTPUT
         echo "should_proceed=true" >> $GITHUB_OUTPUT
@@ -74,9 +60,9 @@ jobs:
 
     - name: Wait for cluster provisioning and readiness
       if: steps.cluster-info.outputs.should_proceed == 'true'
+      env:
+        PROJECT_ID: ${{ steps.cluster-info.outputs.projectID }}
       run: |
-        echo "::add-mask::$PROJECT_ID"
-        echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
 
         IMMEDIATE="${{ github.event.client_payload.metadata.immediate }}"
         if [ "$IMMEDIATE" = "true" ]; then

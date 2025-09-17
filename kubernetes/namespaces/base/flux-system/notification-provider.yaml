@@ -26,8 +26,5 @@ spec:
   inclusionList:
     - "GKECluster"
 
-  # TODO - in theory this should support any cluster dynamically via flux annotation.
-  eventMetadata:
-    cluster: "control-plane"
-    location: "australia-southeast1-a"
-    project: "${PROJECT_ID}"
+  # Dynamic metadata now comes from event.toolkit.fluxcd.io/ annotations on Kustomizations
+  # No static eventMetadata needed - RFC-0008 handles this automatically

@@ -3,10 +3,8 @@ kind: Kustomization
 
 # Control-plane cluster overlay - platform services only
 # GKE cluster resources are handled by the clusters kustomization
+# Crossplane components are handled by separate kustomizations with proper dependencies
 resources:
-  - ../../base/crossplane-system
-  - ../../../components/crossplane-compositions/overlays/control-plane
-
   - ../../base/flux-system
   - ../../base/platform-services
   - ../../base/kagent
