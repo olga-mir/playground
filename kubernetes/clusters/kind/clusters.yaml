@@ -12,7 +12,7 @@ metadata:
 spec:
   interval: 10m
   timeout: 30m
-  path: ./kubernetes/namespaces/overlays/kind-clusters
+  path: ./kubernetes/namespaces/base/gkecluster-control-plane/clusters
   prune: true
   wait: false
   sourceRef:

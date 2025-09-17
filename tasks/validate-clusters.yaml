@@ -24,7 +24,7 @@ tasks:
     cmds:
       - echo "📁 Validating namespace overlays..."
       - |
-        for overlay in kind kind-clusters control-plane control-plane-clusters apps-dev; do
+        for overlay in kind control-plane apps-dev; do
           echo "  🔍 Building kubernetes/namespaces/overlays/$overlay..."
           if kustomize build kubernetes/namespaces/overlays/$overlay >/dev/null 2>&1; then
             echo "  ✅ kubernetes/namespaces/overlays/$overlay - OK"
