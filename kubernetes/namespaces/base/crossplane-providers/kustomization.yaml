@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Crossplane providers and configurations (without install)
+resources:
+  - ../crossplane-system/environment-configs
+  - ../crossplane-system/functions  
+  - ../crossplane-system/providerconfigs
+  - ../crossplane-system/providers
