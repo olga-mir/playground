@@ -4,7 +4,6 @@ kind: Kustomization
 # Full crossplane system - base components
 resources:
   - install
-  - compositions
   - environment-configs
   - functions
   - providerconfigs
