@@ -109,7 +109,16 @@ kubectl wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout
 kubectl wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=600s
 #kubectl wait --for=condition=healthy providers --all -n crossplane-system --timeout=600s
 #kubectl wait --for=condition=healthy functions --all -n crossplane-system --timeout=600s
-kubectl wait --for=condition=established xrd --all --timeout=180s
+
+echo "Waiting for Flux to deploy Crossplane compositions..."
+# Wait for compositions kustomization to be ready before checking XRDs
+if kubectl wait --for=condition=ready kustomization/crossplane-compositions -n flux-system --timeout=300s; then
+  echo "Compositions deployed, waiting for XRDs to be established..."
+  kubectl wait --for=condition=established xrd --all --timeout=180s
+else
+  echo "⚠️  Compositions kustomization not ready yet - XRDs will be available once Flux completes the dependency chain"
+  echo "   You can check progress with: flux get kustomizations -A"
+fi
 
 # Function to wait for a cluster to be ready using Composite Resources
 wait_for_cluster_ready() {
