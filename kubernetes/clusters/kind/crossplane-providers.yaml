@@ -6,7 +6,7 @@ metadata:
 spec:
   interval: 10m
   timeout: 15m
-  path: ./kubernetes/namespaces/base/crossplane-providers
+  path: ./kubernetes/namespaces/base/crossplane-core
   prune: true
   wait: true  # Wait for providers to be ready
   sourceRef:

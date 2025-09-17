@@ -17,4 +17,4 @@ spec:
       - kind: ConfigMap
         name: platform-config
   dependsOn:
-    - name: crossplane-providers  # Wait for providers to be ready first
+    - name: crossplane-configs  # Wait for provider configs to be ready first

@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Crossplane providers and functions only (no configs that depend on provider CRDs)
+resources:
+  - ../crossplane-system/providers
+  - ../crossplane-system/functions
