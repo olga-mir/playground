@@ -9,8 +9,10 @@
 * NEVER commit project ID or other semi-sensitve information
 * be aware if files are versioned, use "git mv" over "mv" commands when working with files.
 * ALWAYS place newline at the end of the file
-* when updating Taskfiles, validate resulting files by running "task --list" or yq on modified file
+* when updating Taskfiles, validate resulting files, by running through yq
+* one command deploy task: `bootstrap/scripts/setup-kind-cluster.sh` (combines cluster creation and credential setup)
 * run "validate:kustomize-build-clusters" task to validate any changes made to clusters and setup
+* Use `kubectl wait --for=condition=Established providers.pkg.crossplane.io` for proper resource types in setup scripts
 
 # architecture-context
 This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure provisioning and FluxCD for GitOps:
@@ -75,6 +77,32 @@ kubernetes
 * Multi-cluster Flux setup with hub-and-spoke pattern
 * Automated cluster bootstrap via GitHub Actions and Workload Identity Federation
 * Cluster-specific configurations in dedicated namespaces (gkecluster-*)
+
+## Recent Architecture Updates (2025)
+
+### Namespace Structure Reorganization
+- **Platform services moved**: Relocated from `flux-system` to `kubernetes/namespaces/base/platform-services/`
+- **Proper base/overlay separation**: All namespace-scoped components now in `namespaces/base/`
+- **Cluster-specific overlays**: Each cluster type has dedicated overlay in `namespaces/overlays/`
+
+### Script Consolidation
+- **Combined setup script**: `bootstrap/scripts/setup-kind-cluster.sh` replaces separate scripts
+- **Fixed timing issues**: ConfigMaps created before Flux bootstrap to prevent dependency failures
+- **Proper resource types**: Updated `kubectl wait` commands to use full resource names (e.g., `providers.pkg.crossplane.io`)
+
+### Flux Kustomization Separation
+- **GKE cluster resources**: Separated into dedicated Flux Kustomizations for clean alerts
+- **Control-plane clusters**: Now managed via `kubernetes/clusters/kind/clusters.yaml`
+- **Workload clusters**: Managed via `kubernetes/clusters/control-plane/clusters.yaml`
+
+### GitRepository Consistency
+- **Single GitRepository per cluster**: All clusters use consistent `flux-system` GitRepository
+- **No duplicate repositories**: Eliminated `crossplane-config` GitRepository, unified on `flux-system`
+
+### GitHub Actions Improvements
+- **Updated workflow triggers**: Support for new cluster kustomization event patterns
+- **GitRepository creation**: Automatic creation of flux-system GitRepository if missing after bootstrap
+- **Simplified event handling**: Removed unnecessary GitRepository duplication logic
 
 ## VARIABLES
 * Some of the variables won't be available to you terminal where you are running.
