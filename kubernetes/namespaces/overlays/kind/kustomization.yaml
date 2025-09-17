@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ../../base/crossplane-system
   - ../../base/flux-system
+  - ../../../components/crossplane-compositions/overlays/kind
