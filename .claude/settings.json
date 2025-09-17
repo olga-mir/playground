@@ -6,6 +6,8 @@
       "Bash(kubectl get:*)",
       "Bash(kubectl logs:*)",
       "Bash(kubectl describe:*)",
+      "Bash(kubectl annotate kustomization:*)",
+      "Bash(kustomize build:*)",
       "Bash(find:*)",
       "Bash(rg:*)",
       "Bash(ls:*)",

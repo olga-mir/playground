@@ -8,7 +8,7 @@ spec:
   timeout: 30m
   path: ./kubernetes/namespaces/base/crossplane-system/providers
   prune: true
-  wait: true
+  wait: false
   sourceRef:
     kind: GitRepository
     name: flux-system
