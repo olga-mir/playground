@@ -8,7 +8,7 @@ metadata:
     tornado-demo.io/cluster-type: control-plane
   annotations:
     event.toolkit.fluxcd.io/cluster: "apps-dev"
-    event.toolkit.fluxcd.io/location: "australia-southeast1-a"  
+    event.toolkit.fluxcd.io/location: "australia-southeast1-a"
     event.toolkit.fluxcd.io/project: "${PROJECT_ID}"
 spec:
   interval: 10m

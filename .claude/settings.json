@@ -16,14 +16,12 @@
       "Bash(flux get:*)",
       "Bash(flux reconcile source git:*)",
       "Bash(flux reconcile kustomization:*)",
-      "Bash(kubectl:*)",
       "Bash(echo:*)",
       "Bash(diff:*)",
       "Bash(tree:*)",
       "Bash(task:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:kagent.dev)",
-      "Bash(kustomize build:*)",
       "Bash(git checkout:*)"
     ],
     "deny": [
