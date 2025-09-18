@@ -1,5 +1,6 @@
 name: Flux Bootstrap GKE Clusters
 
+# Requires repository secret: PROJECT_ID (GCP Project ID)
 run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || 'Unknown Cluster' }} 🚀"
 
 on:
@@ -26,10 +27,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Extract cluster info from payload and mask sensitive data
+    - name: Extract cluster info from payload and set project from secret
       id: cluster-info
+      env:
+        PROJECT_ID: ${{ secrets.PROJECT_ID }}
       run: |
-        PROJECT_ID="${{ github.event.client_payload.metadata.project }}"
         LOCATION="${{ github.event.client_payload.metadata.location }}"
         CLUSTER="${{ github.event.client_payload.metadata.cluster }}"
 
@@ -56,7 +58,7 @@ jobs:
         token_format: access_token
         workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-        project_id: ${{ steps.cluster-info.outputs.projectID }}
+        project_id: ${{ secrets.PROJECT_ID }}
 
     - name: Wait for cluster provisioning and readiness
       if: steps.cluster-info.outputs.should_proceed == 'true'
