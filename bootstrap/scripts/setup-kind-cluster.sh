@@ -88,7 +88,7 @@ kubectl wait --for=condition=ready pod -l app=helm-controller -n flux-system --t
 kubectl wait --for=condition=ready pod -l app=notification-controller -n flux-system --timeout=100s
 
 echo "FluxCD is ready!"
-sleep 45
+kubectl wait --for=condition=Ready kustomization/flux-system -n flux-system --timeout=300s
 
 # Create crossplane-system namespace (needed for GCP credentials)
 kubectl create namespace crossplane-system --dry-run=client -o yaml | kubectl apply -f -
