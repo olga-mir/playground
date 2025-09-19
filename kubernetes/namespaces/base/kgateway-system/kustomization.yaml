@@ -3,6 +3,5 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - gateway-class.yaml
-  - gateway-parameters.yaml
   - gateway.yaml
   - httproute-xlistener.yaml
