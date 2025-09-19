@@ -52,27 +52,7 @@ tasks:
       - kubectl --context={{.CONTEXT}} get providerconfigs.helm.crossplane.io -o wide 2>/dev/null || echo "No helm provider configs found"
       - kubectl --context={{.CONTEXT}} get pod -n crossplane-system 2>/dev/null || echo "No providers found"
 
-  get-gke-credentials:
-    desc: "Get credentials for GKE clusters"
-    vars:
-      CLUSTER: '{{default "control-plane" .CLUSTER}}'
-      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
-    cmds:
-      - gcloud container clusters get-credentials {{.CLUSTER}} --zone={{.ZONE}} --project={{.PROJECT_ID}}
-      - echo "Credentials configured for cluster {{.CLUSTER}}"
-      - kubectl config current-context
-
-  get-all-gke-credentials:
-    desc: "Get credentials for all GKE clusters"
-    vars:
-      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
-    cmds:
-      - gcloud container clusters get-credentials control-plane --zone={{.ZONE}} --project={{.PROJECT_ID}}
-      - gcloud container clusters get-credentials apps-dev --zone={{.ZONE}} --project={{.PROJECT_ID}}
-      - echo "Credentials configured for all clusters"
-      - kubectl config get-contexts
-
-  latest-flux-bootstrap-logs:
+  get-latest-flux-bootstrap-workflow-logs:
     desc: "Download logs from latest Flux Bootstrap workflow or provide URL if logs not available"
     cmds:
       - |
@@ -113,11 +93,7 @@ tasks:
       - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"
       - echo "while :; do flux get all -A && sleep 5; done"
       - echo "while :; do k get gkeclusters.platform.tornado-demo.io && kubectl --context=kind-kind-test-cluster describe gkeclusters.platform.tornado-demo.io control-plane-cluster | tail -2 && sleep 5; done"
-      - echo "kubectl --context kind-kind-test-cluster annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=\$(date '+%Y-%m-%dT')"
       # re-trigger Composite Resource sync status
-      - echo "kubectl --context kind-kind-test-cluster annotate composite apps-dev-cluster test-webhook-trigger="$(date)" --overwrite"
-      - echo "kubectl --context kind-kind-test-cluster annotate kustomization crossplane-composite-resources -n flux-system reconcile.fluxcd.io/requestedAt=\$(date '+%Y-%m-%dT%H:%M:%S%z') --overwrite"
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge"
-      - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":false}}' --type=merge"
       - echo "gh api repos/:owner/:repo/dispatches -X POST -f event_type='Kustomization/clusters.flux-system'"
       - echo "gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId' --logs"
