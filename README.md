@@ -113,7 +113,7 @@ Refer to [./bootstrap/README.md](./bootstrap/README.md) for detailed explanation
 - **Platform Tenants**: End-user applications and team-specific workloads
 - **Flux GitOps**: Automatically syncs both platform services and tenant applications to appropriate clusters
 
-## Connect MCP Servers
+## MCP Servers
 
 ```
 % task --list | grep mcp
@@ -121,8 +121,6 @@ Refer to [./bootstrap/README.md](./bootstrap/README.md) for detailed explanation
 
 Also https://github.com/olga-mir/playground/wiki/ArgoCD-MCP-%E2%80%90-The-Networking-Aspects
 
-
-## Tasks
 
 ## 🚀 Quick Start
 
