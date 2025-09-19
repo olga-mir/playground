@@ -24,7 +24,6 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: platform-config
-  # Depend on Crossplane components to ensure XRDs are available
+  # Depend on Crossplane compositions to ensure XRDs are available for cluster provisioning
   dependsOn:
-    - name: platform
     - name: crossplane-compositions
