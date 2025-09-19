@@ -3,10 +3,18 @@ kind: Kustomization
 metadata:
   name: clusters
   namespace: flux-system
+  labels:
+    tornado-demo.io/cluster: apps-dev
+    tornado-demo.io/cluster-type: workload
+    tornado-demo.io/cluster-env: dev
+  annotations:
+    event.toolkit.fluxcd.io/cluster: "control-plane"
+    event.toolkit.fluxcd.io/location: "australia-southeast1-a"
+    event.toolkit.fluxcd.io/project: "${PROJECT_ID}"
 spec:
   interval: 10m
   timeout: 30m
-  path: ./kubernetes/namespaces/overlays/kind-clusters
+  path: ./kubernetes/namespaces/base/gkecluster-control-plane/clusters
   prune: true
   wait: false
   sourceRef:

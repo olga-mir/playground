@@ -69,13 +69,19 @@ kubectl create secret generic github-webhook-token \
     --dry-run=client -o yaml | kubectl apply -f -
 unset BASE64_ENCODED_GCP_CREDS
 
+# let config map and secret to be ready before bootstraping flux
+# otherwise kustomization is not ready and waits for next sync.
+# this should fix the wait in this state:
+# ProviderConfig/crossplane-system/crossplane-provider-gcp dry-run failed: no matches for kind "ProviderConfig" in version "gcp-beta.upbound.io/v1beta1"
+sleep 15
+
 echo "Bootstrapping FluxCD..."
 GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
-  --owner=${GITHUB_DEMO_REPO_OWNER} \
-  --repository=${GITHUB_DEMO_REPO_NAME} \
-  --branch=develop \
-  --path=./kubernetes/clusters/kind \
-  --personal
+    --owner=${GITHUB_DEMO_REPO_OWNER} \
+    --repository=${GITHUB_DEMO_REPO_NAME} \
+    --branch=develop \
+    --path=./kubernetes/clusters/kind \
+    --personal
 set -x
 
 echo "FluxCD bootstrap completed successfully!"
@@ -88,6 +94,7 @@ kubectl wait --for=condition=ready pod -l app=helm-controller -n flux-system --t
 kubectl wait --for=condition=ready pod -l app=notification-controller -n flux-system --timeout=100s
 
 echo "FluxCD is ready!"
+kubectl wait --for=condition=Ready kustomization/flux-system -n flux-system --timeout=300s
 
 # Create crossplane-system namespace (needed for GCP credentials)
 kubectl create namespace crossplane-system --dry-run=client -o yaml | kubectl apply -f -
@@ -101,10 +108,24 @@ kubectl create secret generic gcp-creds \
 echo "Waiting for Flux to sync all resources..."
 flux get all -A
 
+echo "Waiting for Crossplane kustomizations to be applied by Flux..."
+kubectl wait --for=condition=Ready kustomization/crossplane-install -n flux-system --timeout=5m
+kubectl wait --for=condition=Ready kustomization/crossplane-providers -n flux-system --timeout=5m
+kubectl wait --for=condition=Ready kustomization/crossplane-configs -n flux-system --timeout=5m
+
 echo "Waiting for Crossplane to be ready..."
 kubectl wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=600s
 kubectl wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout=600s
-kubectl wait --for=condition=established xrd --all --timeout=180s
+
+echo "Waiting for Flux to deploy Crossplane compositions..."
+# Wait for compositions kustomization to be ready before checking XRDs
+if kubectl wait --for=condition=ready kustomization/crossplane-compositions -n flux-system --timeout=300s; then
+  echo "Compositions deployed, waiting for XRDs to be established..."
+  kubectl wait --for=condition=established xrd --all --timeout=180s
+else
+  echo "⚠️  Compositions kustomization not ready yet - XRDs will be available once Flux completes the dependency chain"
+  echo "   You can check progress with: flux get kustomizations -A"
+fi
 
 # Function to wait for a cluster to be ready using Composite Resources
 wait_for_cluster_ready() {
@@ -122,7 +143,6 @@ wait_for_cluster_ready() {
         echo "⏳ Waiting for cluster $composite_name to be ready... (${retry_count}/${max_retries})"
         retry_count=$((retry_count+1))
 
-        # Handle interruption properly
         if ! sleep 45; then
             echo "❌ Interrupted waiting for cluster $composite_name"
             return 1

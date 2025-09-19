@@ -16,3 +16,5 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: platform-config
+  dependsOn:
+    - name: crossplane-compositions

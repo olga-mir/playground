@@ -77,12 +77,30 @@ tasks:
     cmds:
       - "{{.ROOT_DIR}}/bootstrap/scripts/setup-kind-cluster.sh"
 
+  get-cluster-credentials:
+    desc: "Get credentials for specified GKE cluster (usage: task debug:get-cluster-credentials CLUSTER=control-plane|apps-dev)"
+    vars:
+      CLUSTER: '{{.CLUSTER | default "control-plane"}}'
+      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    requires:
+      vars: [CLUSTER]
+    cmds:
+      - |
+        if [[ "{{.CLUSTER}}" != "control-plane" && "{{.CLUSTER}}" != "apps-dev" ]]; then
+          echo "❌ Error: CLUSTER must be either 'control-plane' or 'apps-dev'"
+          echo "Usage: task debug:get-cluster-credentials CLUSTER=control-plane"
+          echo "       task debug:get-cluster-credentials CLUSTER=apps-dev"
+          exit 1
+        fi
+      - echo "🔑 Getting credentials for {{.CLUSTER}} cluster..."
+      - gcloud container clusters get-credentials {{.CLUSTER}} --zone={{.ZONE}} --project={{.PROJECT_ID}}
+
   cleanup:
     desc: "Cleanup infrastructure (forcefull)"
     cmds:
       - "{{.ROOT_DIR}}/bootstrap/scripts/00-cleanup.sh"
 
   delete-kind:
-    desc: "I never get this right :/"
+    desc: "Delete kind cluster"
     cmds:
       - kind delete cluster --name kind-test-cluster

@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(kubectl annotate kustomization:*)",
+      "Bash(kustomize build:*)",
+      "Bash(find:*)",
+      "Bash(rg:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(grep:*)",
+      "Bash(flux get:*)",
+      "Bash(flux reconcile source git:*)",
+      "Bash(flux reconcile kustomization:*)",
+      "Bash(echo:*)",
+      "Bash(diff:*)",
+      "Bash(tree:*)",
+      "Bash(task:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:kagent.dev)",
+      "Bash(git checkout:*)"
+    ],
+    "deny": [
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(git add:*)"
+    ],
+    "defaultMode": "acceptEdits"
+  }
+}

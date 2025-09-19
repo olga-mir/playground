@@ -1,0 +1,23 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: crossplane-install
+  namespace: flux-system
+spec:
+  interval: 10m
+  timeout: 10m
+  path: ./kubernetes/namespaces/base/crossplane-system/install
+  prune: true
+  wait: true  # Wait for Crossplane to be ready before proceeding
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: platform-config
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: crossplane
+      namespace: crossplane-system

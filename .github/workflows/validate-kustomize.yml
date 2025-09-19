@@ -1,7 +1,5 @@
 name: Validate Kustomize Builds
 
-run-name: "${{ github.ref }} | ${{ github.workflow }}"
-
 on:
   pull_request:
     paths:

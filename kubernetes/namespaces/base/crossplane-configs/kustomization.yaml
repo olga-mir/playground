@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Crossplane configurations that depend on provider CRDs being available
+resources:
+  - ../crossplane-system/environment-configs
+  - ../crossplane-system/providerconfigs
