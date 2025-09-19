@@ -18,3 +18,4 @@ spec:
         name: platform-config
   dependsOn:
     - name: crossplane-compositions
+    - name: kgateway-crds
