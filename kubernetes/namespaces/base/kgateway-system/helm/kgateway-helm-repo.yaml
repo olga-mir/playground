@@ -7,4 +7,4 @@ metadata:
 spec:
   interval: 5m
   type: oci
-  url: cr.kgateway.dev/kgateway-dev/charts
+  url: oci://cr.kgateway.dev/kgateway-dev/charts
