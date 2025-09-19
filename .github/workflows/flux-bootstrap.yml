@@ -189,3 +189,36 @@ jobs:
       run: |
         flux check
         echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster }}"
+
+    - name: Wait for Flux reconciliation and trigger stalled kustomizations
+      if: steps.cluster-info.outputs.should_proceed == 'true' && steps.cluster-ready.outputs.cluster_ready == 'true'
+      run: |
+        echo "🕒 Waiting 2 minutes for initial Flux reconciliation..."
+        sleep 120
+
+        echo "📋 Checking Flux kustomizations status:"
+        flux get all -A
+
+        echo ""
+        echo "🔄 Triggering reconciliation for any non-Ready kustomizations..."
+
+        # Get list of kustomizations that are not Ready (excluding those with empty READY column)
+        NOT_READY=$(kubectl get kustomizations.kustomize.toolkit.fluxcd.io -A --no-headers | \
+          awk '$6 != "True" && $6 != "" {print $1":"$2}' | grep -v '^$' || true)
+
+        if [ -n "$NOT_READY" ]; then
+          echo "Found non-Ready kustomizations, triggering reconciliation:"
+          echo "$NOT_READY" | while IFS=':' read -r namespace name; do
+            echo "  🔄 Reconciling kustomization $name in namespace $namespace"
+            flux reconcile kustomization "$name" -n "$namespace" --timeout=3s || echo "    ⚠️ Failed to reconcile $name"
+          done
+        else
+          echo "✅ All kustomizations are Ready, no action needed"
+        fi
+
+        echo ""
+        echo "🕒 Waiting 30 seconds for reconciliation to complete..."
+        sleep 30
+
+        echo "📋 Final Flux status after reconciliation:"
+        flux get all -A
