@@ -10,7 +10,9 @@
 * be aware if files are versioned, use "git mv" over "mv" commands when working with files.
 * ALWAYS place newline at the end of the file
 * when updating Taskfiles, validate resulting files, by running through yq
-* This project relies on environment variables, they are not available to you in the terminal you run in. Assume they are always set in working terminal
+* one command deploy task: `bootstrap/scripts/setup-kind-cluster.sh` (combines cluster creation and credential setup)
+* run "validate:kustomize-build" task to validate any changes made to clusters and setup
+* Use `kubectl wait --for=condition=Established providers.pkg.crossplane.io` for proper resource types in setup scripts
 
 # architecture-context
 This is a multi-cluster Kubernetes setup using Crossplane v2 for infrastructure provisioning and FluxCD for GitOps:
@@ -41,68 +43,229 @@ In Crossplane v2, the concept of "claims" is removed. Key changes:
 - **Separation of concerns** avoids circular dependencies and readiness issues
 - **Namespace-scoped resources** for proper multi-tenancy (v2 default)
 
-## File Structure (Simplified)
+## File Structure
 ```
-├── .github/workflows/     # GitHub Actions for Flux bootstrap
-├── bootstrap/             # Bootstrap scripts and kind cluster configuration
-│   ├── scripts/           # Bootstrap scripts (setup, cleanup)
-│   └── kind/              # Kind cluster configs
-│       ├── crossplane/    # Simplified flat structure (no base/ nesting)
-│       │   ├── install/   # Crossplane installation
-│       │   ├── providers/ # Providers (GCP, Helm)
-│       │   ├── functions/ # Composition functions
-│       │   ├── compositions/ # GKE cluster XRD + composition (unified)
-│       │   ├── providerconfigs/ # Provider configurations
-│       │   └── clusters/  # Control-plane cluster + namespace
-│       └── flux/          # Flux configuration + alerts
-├── clusters/              # Target cluster configurations
-│   └── control-plane/     # Control plane cluster: Crossplane + platform services
-├── control-plane-crossplane/  # Crossplane configs for control-plane cluster
-│   ├── providers/         # Providers for workload cluster provisioning
-│   ├── compositions/      # (Empty - uses unified composition from bootstrap)
-│   └── workload-clusters/ # Per-cluster folders with dedicated namespaces
-│       └── apps-dev/      # Apps-dev cluster in its own namespace + folder
-├── platform-products/    # Platform services (AI stack, networking)
-├── platform-tenants/     # Tenant application deployments
-├── tasks/                 # Taskfile supporting tasks
-└── local/                 # Local development experiments
+kubernetes
+├── clusters     # flux and kustomizations pointing to "namespaces/overlays" to compose the cluster applications
+│   ├── apps-dev
+│   ├── control-plane
+│   └── kind
+├── namespaces
+│   ├── base # we need to fix this now. content of two folders inside needs to go into each individual namespace
+│   ├── crossplane-system # all folders from here below need to be moved inside "base"
+│   ├── flux-system
+│   ├── gkecluster-apps-dev
+│   ├── gkecluster-control-plane
+│   ├── kagent
+│   ├── kagent-system
+│   ├── kgateway-system
+│   └── overlays # This is where the content for each cluster is assembled. It needs to contain folder for each cluster, and inside there is a kustomization that collects required resources
+└── tenants
+    ├── base
+    └── overlays
 ```
-
-## Key Improvements Made
-### Unified GKE Cluster Composition
-- **Before**: Separate `control-plane-composition` and `workload-composition` (nearly identical)
-- **After**: Single `gke-cluster-composition` with `clusterType` parameter (`control-plane` or `workload`)
-- **XRD**: Combined features from both XRDs (connectionSecrets, writeConnectionSecretsToNamespace, crossplane config)
-
-### Simplified Bootstrap Structure
-- **Before**: Convoluted `base/` + peer folders, single-file directories
-- **After**: Clean flat structure in `bootstrap/kind/crossplane/` with logical grouping
-- **Removed**: Unnecessary nesting, duplicate kustomizations, unused directories
-
-### Namespace-Per-Workload-Cluster
-- **Before**: Shared `workload-clusters` namespace for all workload clusters
-- **After**: Each workload cluster gets dedicated namespace (e.g., `apps-dev-cluster`)
-- **Structure**: `control-plane-crossplane/workload-clusters/apps-dev/` folder per cluster
-
-### FluxCD Integration for Alerts
-- **Per-cluster FluxCD Kustomizations**: Each cluster has dedicated Flux Kustomization with healthChecks
-- **Control-plane**: `control-plane-cluster` Kustomization (KIND cluster)
-- **Apps-dev**: `apps-dev-cluster` Kustomization (control-plane cluster)
-- **Alerts**: GitHub webhook notifications tied to specific Flux objects for granular monitoring
 
 ### Key Features
 
 #### AI Platform Stack
-* **kagent**: Custom agent for Crossplane composition management
+* **kagent**: platform for building custom agents
 * **kgateway**: AI-specific networking gateway
 * MCP server integration for agent workflows
-* Platform services deployed via Flux to mgmt cluster
+* Platform services deployed via Flux
 
 #### GitOps with Flux
 * Multi-cluster Flux setup with hub-and-spoke pattern
 * Automated cluster bootstrap via GitHub Actions and Workload Identity Federation
 * Cluster-specific configurations in dedicated namespaces (gkecluster-*)
-* Platform-products vs platform-tenants separation
+
+## Recent Architecture Updates (2025)
+
+### Namespace Structure Reorganization
+- **Platform services moved**: Relocated from `flux-system` to `kubernetes/namespaces/base/platform-services/`
+- **Proper base/overlay separation**: All namespace-scoped components now in `namespaces/base/`
+- **Cluster-specific overlays**: Each cluster type has dedicated overlay in `namespaces/overlays/`
+
+### Script Consolidation
+- **Combined setup script**: `bootstrap/scripts/setup-kind-cluster.sh` replaces separate scripts
+- **Fixed timing issues**: ConfigMaps created before Flux bootstrap to prevent dependency failures
+- **Proper resource types**: Updated `kubectl wait` commands to use full resource names (e.g., `providers.pkg.crossplane.io`)
+
+### Flux Kustomization Separation
+- **GKE cluster resources**: Separated into dedicated Flux Kustomizations for clean alerts
+- **Control-plane clusters**: Now managed via `kubernetes/clusters/kind/clusters.yaml`
+- **Workload clusters**: Managed via `kubernetes/clusters/control-plane/clusters.yaml`
+
+### GitRepository Consistency
+- **Single GitRepository per cluster**: All clusters use consistent `flux-system` GitRepository
+- **No duplicate repositories**: Eliminated `crossplane-config` GitRepository, unified on `flux-system`
+
+### GitHub Actions Improvements
+- **Updated workflow triggers**: Support for new cluster kustomization event patterns
+- **GitRepository creation**: Automatic creation of flux-system GitRepository if missing after bootstrap
+- **Simplified event handling**: Removed unnecessary GitRepository duplication logic
+
+### Simplified Cluster Provisioning
+- **Direct base references**: Flux Kustomizations now point directly to base directories for cluster provisioning
+- **Removed overlay indirection**: Eliminated unnecessary `kind-clusters` and `control-plane-clusters` overlay layers
+- **Cleaner architecture**: Reduced complexity while maintaining same functionality
+
+## Detailed Architecture and File Structure
+
+### Top-Level Directory Structure
+
+```
+kubernetes/
+├── clusters/           # Flux Kustomization entry points for each cluster
+├── namespaces/         # Kubernetes namespace-scoped resources
+├── components/         # Reusable Kustomize components (e.g., Crossplane compositions)
+└── tenants/           # Tenant application configurations
+
+bootstrap/
+└── scripts/           # Setup and deployment scripts
+
+tasks/                 # Taskfile.yml tasks for validation and operations
+```
+
+### kubernetes/clusters/ - Flux Entry Points
+
+Each subdirectory contains Flux Kustomization resources that define what gets deployed to each cluster type:
+
+```
+clusters/
+├── kind/              # Bootstrap cluster (local kind)
+│   ├── flux-system/   # Auto-generated Flux bootstrap files
+│   ├── platform.yaml  # Points to namespaces/overlays/kind (Crossplane + platform services)
+│   └── clusters.yaml  # Points to namespaces/base/gkecluster-control-plane/clusters (GKE control-plane provisioning)
+├── control-plane/     # GKE control-plane cluster
+│   ├── flux-system/   # Auto-generated Flux bootstrap files
+│   ├── platform.yaml  # Points to namespaces/overlays/control-plane (Crossplane + platform services)
+│   └── clusters.yaml  # Points to namespaces/base/gkecluster-apps-dev (GKE workload cluster provisioning)
+└── apps-dev/          # GKE workload cluster
+    ├── flux-system/   # Auto-generated Flux bootstrap files
+    └── platform.yaml  # Points to namespaces/overlays/apps-dev (applications only, no Crossplane)
+```
+
+**Key Pattern**: Each cluster's Flux Kustomizations point to either:
+- `namespaces/overlays/{cluster-type}` for platform services and infrastructure
+- `namespaces/base/{specific-namespace}` for targeted deployments (like cluster provisioning)
+
+### kubernetes/namespaces/ - Namespace-Scoped Resources
+
+Organized using Kustomize base/overlay pattern:
+
+```
+namespaces/
+├── base/                          # Base namespace configurations
+│   ├── crossplane-system/        # Crossplane core installation and configuration
+│   │   ├── install/               # Crossplane Helm chart and CRDs
+│   │   ├── providers/             # Crossplane providers (GCP, GitHub)
+│   │   ├── provider-configs/      # Provider authentication configurations
+│   │   ├── functions/             # Crossplane composition functions
+│   │   └── environment-configs/   # Environment-specific configurations
+│   ├── flux-system/               # Flux notification providers and alerts
+│   ├── platform-services/        # GitHub org/repo/team configurations and compositions
+│   ├── gkecluster-control-plane/  # Control-plane cluster composite resources
+│   │   └── clusters/              # Specific cluster definitions
+│   ├── gkecluster-apps-dev/       # Apps-dev cluster composite resources
+│   ├── kagent/                    # AI agent platform components
+│   ├── kagent-system/             # AI agent system configurations
+│   └── kgateway-system/           # AI gateway networking components
+└── overlays/                      # Cluster-specific compositions
+    ├── kind/                      # Bootstrap cluster overlay
+    ├── control-plane/             # Control-plane cluster overlay
+    └── apps-dev/                  # Workload cluster overlay
+```
+
+**Base Pattern**: Each base directory contains:
+- `kustomization.yaml` - Lists all resources to include
+- Resource YAML files for that namespace
+- Subdirectories for logical grouping (e.g., `install/`, `providers/`)
+
+**Overlay Pattern**: Each overlay composes multiple base directories for a cluster type:
+```yaml
+# Example: namespaces/overlays/control-plane/kustomization.yaml
+resources:
+  - ../../base/crossplane-system
+  - ../../base/flux-system
+  - ../../base/platform-services
+  - ../../base/kagent
+  - ../../base/kagent-system
+  - ../../base/kgateway-system
+  - ../../../components/crossplane-compositions/overlays/control-plane
+```
+
+### kubernetes/components/ - Reusable Components
+
+Components are Kustomize resources that can be included in multiple places:
+
+```
+components/
+└── crossplane-compositions/       # Crossplane XRDs and Compositions
+    ├── base/
+    │   ├── gke-cluster/           # GKE cluster composition and XRD
+    │   └── cloudrun/              # CloudRun composition and XRD
+    └── overlays/
+        ├── kind/                  # Only includes GKE cluster composition
+        └── control-plane/         # Includes both GKE cluster and CloudRun compositions
+```
+
+**Composition Separation Strategy**:
+- **Kind cluster**: Only needs GKE cluster composition (for control-plane provisioning)
+- **Control-plane cluster**: Needs GKE cluster + CloudRun compositions (for workload cluster + services)
+- **GitHub compositions**: Located in `platform-services` base (org/repo/team management)
+
+### What Goes in flux-system/
+
+The `flux-system` namespace in each cluster contains:
+
+1. **Auto-generated by Flux bootstrap**:
+   - `gotk-sync.yaml` - GitRepository and root Kustomization pointing to `clusters/{cluster-type}/`
+   - `gotk-components.yaml` - Flux controller deployments
+   - Flux secrets for GitHub authentication
+
+2. **Manually managed** (in `namespaces/base/flux-system/`):
+   - `notification-provider.yaml` - GitHub webhook provider for cluster-ready notifications
+   - Alert configurations for monitoring Flux health
+
+**Important**: Flux bootstrap creates the GitRepository and root Kustomization automatically. Our manual `flux-system` base only adds notification providers and alerts.
+
+### Base vs Overlays Pattern
+
+**Base Directories** (`namespaces/base/`):
+- Contain the actual Kubernetes resource YAML files
+- Include a `kustomization.yaml` that lists all resources in that namespace
+- Are environment-agnostic (use Flux PostBuild substitution for environment-specific values)
+- Can be referenced directly by Flux Kustomizations for targeted deployments
+
+**Overlay Directories** (`namespaces/overlays/`):
+- Compose multiple base directories to create a complete cluster configuration
+- Use `resources:` list to include bases and components
+- Can add patches, transformations, or additional resources
+- Represent the complete "bill of materials" for a cluster type
+
+**Direct Base References**:
+For targeted deployments (like cluster provisioning), Flux Kustomizations can point directly to base directories:
+```yaml
+# clusters/kind/clusters.yaml points directly to:
+path: ./kubernetes/namespaces/base/gkecluster-control-plane/clusters
+```
+
+This pattern eliminates unnecessary overlay indirection when you only need resources from a single namespace.
+
+### Cluster Provisioning Flow
+
+1. **Kind cluster** (`clusters/kind/`):
+   - `platform.yaml` → `namespaces/overlays/kind` → Crossplane + compositions
+   - `clusters.yaml` → `namespaces/base/gkecluster-control-plane/clusters` → Creates control-plane GKE cluster
+
+2. **Control-plane cluster** (`clusters/control-plane/`):
+   - `platform.yaml` → `namespaces/overlays/control-plane` → Crossplane + platform services
+   - `clusters.yaml` → `namespaces/base/gkecluster-apps-dev` → Creates apps-dev GKE cluster
+
+3. **Apps-dev cluster** (`clusters/apps-dev/`):
+   - `platform.yaml` → `namespaces/overlays/apps-dev` → Applications only (no Crossplane)
+
+This architecture provides clear separation of concerns while maintaining flexibility and avoiding circular dependencies.
 
 ## VARIABLES
 * Some of the variables won't be available to you terminal where you are running.
@@ -192,36 +355,3 @@ Note that 'postBuild' is available on certain Flux resources like 'Kustomization
    kubectl describe provider github-webhook -n flux-system
    kubectl describe alert cluster-ready-alert -n flux-system
    ```
-
-### Flux Notification Configuration Best Practices
-
-**Avoid Over-Filtering in Alerts**:
-- Complex inclusion/exclusion regex filters in Alert specs can be unreliable and hard to debug
-- **Better approach**: Remove filters from alerts and implement logic in GitHub Actions workflows
-- This makes the system more transparent and easier to troubleshoot
-
-**Use Modern API Fields**:
-- **Deprecated**: `spec.summary` field in Alert resources
-- **Current**: `spec.eventMetadata.summary` field
-- Mixing both causes conflicts and can prevent alerts from firing properly
-
-**Alert Configuration Issues**:
-1. **Configuration Conflicts**: Having both deprecated `summary` and new `eventMetadata` fields
-2. **Filter Complexity**: Inclusion filters like `.*GKECluster.*created.*` may not match as expected
-3. **Event Processing**: Alerts process events differently than expected - test with actual payloads
-
-**Debugging Event Payloads**:
-- Capture webhook payloads from GitHub Actions logs to understand actual event structure
-- Event messages may not match expected patterns due to formatting differences
-- Use simple test alerts without filters to verify basic webhook functionality
-
-**Workflow Design**:
-- GitHub workflows only read from the default branch (usually `main`)
-- Both workflows listening to same `repository_dispatch` type will both trigger
-- Implement cluster readiness checks in workflows rather than relying on alert filters
-- Add conditional execution to skip irrelevant events (non-cluster events)
-
-**Provider vs Alert Separation**:
-- Multiple alerts can share the same provider (webhook endpoint)
-- Each alert processes events independently based on its configuration
-- Provider issues affect all alerts using that provider

@@ -1,14 +1,14 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: platform
+  name: crossplane-functions
   namespace: flux-system
 spec:
   interval: 10m
   timeout: 30m
-  path: ./kubernetes/namespaces/overlays/control-plane
+  path: ./kubernetes/namespaces/base/crossplane-system/functions
   prune: true
-  wait: false
+  wait: true
   sourceRef:
     kind: GitRepository
     name: flux-system
@@ -16,7 +16,6 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: platform-config
+  # Functions need to be installed after Crossplane core
   dependsOn:
-    - name: crossplane-compositions
-    - name: kgateway-crds
-    - name: kagent-crds
+    - name: crossplane-core

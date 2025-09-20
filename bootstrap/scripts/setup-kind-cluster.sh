@@ -69,12 +69,6 @@ kubectl create secret generic github-webhook-token \
     --dry-run=client -o yaml | kubectl apply -f -
 unset BASE64_ENCODED_GCP_CREDS
 
-# let config map and secret to be ready before bootstraping flux
-# otherwise kustomization is not ready and waits for next sync.
-# this should fix the wait in this state:
-# ProviderConfig/crossplane-system/crossplane-provider-gcp dry-run failed: no matches for kind "ProviderConfig" in version "gcp-beta.upbound.io/v1beta1"
-sleep 15
-
 echo "Bootstrapping FluxCD..."
 GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
     --owner=${GITHUB_DEMO_REPO_OWNER} \
@@ -111,6 +105,13 @@ flux get all -A
 echo "Waiting for Crossplane kustomizations to be applied by Flux..."
 kubectl wait --for=condition=Ready kustomization/crossplane-install -n flux-system --timeout=5m
 kubectl wait --for=condition=Ready kustomization/crossplane-providers -n flux-system --timeout=5m
+
+# Seems to be timing issue with this kustomization and it waits for next cycle after hitting
+# "dependency not ready" on the first attempt. Not sure what is going on here, but this kustomization needs a kick in a right time. (TODO)
+sleep 5
+flux reconcile ks crossplane-configs -n flux-system --timeout=2m
+flux reconcile ks crossplane-configs -n flux-system --timeout=2m
+flux reconcile ks crossplane-configs -n flux-system --timeout=2m
 kubectl wait --for=condition=Ready kustomization/crossplane-configs -n flux-system --timeout=5m
 
 echo "Waiting for Crossplane to be ready..."
@@ -120,11 +121,11 @@ kubectl wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout
 echo "Waiting for Flux to deploy Crossplane compositions..."
 # Wait for compositions kustomization to be ready before checking XRDs
 if kubectl wait --for=condition=ready kustomization/crossplane-compositions -n flux-system --timeout=300s; then
-  echo "Compositions deployed, waiting for XRDs to be established..."
-  kubectl wait --for=condition=established xrd --all --timeout=180s
+    echo "Compositions deployed, waiting for XRDs to be established..."
+    kubectl wait --for=condition=established xrd --all --timeout=180s
 else
-  echo "⚠️  Compositions kustomization not ready yet - XRDs will be available once Flux completes the dependency chain"
-  echo "   You can check progress with: flux get kustomizations -A"
+    echo "⚠️  Compositions kustomization not ready yet - XRDs will be available once Flux completes the dependency chain"
+    echo "   You can check progress with: flux get kustomizations -A"
 fi
 
 # Function to wait for a cluster to be ready using Composite Resources

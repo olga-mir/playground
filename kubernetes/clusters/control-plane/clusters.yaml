@@ -23,6 +23,7 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: platform-config
-  # Depend on platform to ensure Crossplane is ready first
+  # Depend on both compositions and platform (for alerts) to ensure everything is ready
   dependsOn:
+    - name: crossplane-compositions
     - name: platform

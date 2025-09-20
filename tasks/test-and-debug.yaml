@@ -69,18 +69,18 @@ tasks:
           fi
         fi
 
+  # task debug:trigger-flux-bootstrap-workflow CLUSTER=apps-dev
   trigger-flux-bootstrap-workflow:
     desc: "Manually trigger the Flux bootstrap workflow for debugging"
     vars:
       CLUSTER: '{{default "control-plane" .CLUSTER}}'
       LOCATION: '{{default "australia-southeast1-a" .LOCATION}}'
-      IMMEDIATE: '{{default "false" .IMMEDIATE}}'
+      IMMEDIATE: '{{default "true" .IMMEDIATE}}'
     cmds:
       - |
         gh api repos/:owner/:repo/dispatches -X POST \
           -f event_type=Kustomization/clusters.flux-system \
           -F client_payload[metadata][cluster]={{.CLUSTER}} \
-          -F client_payload[metadata][project]="$PROJECT_ID" \
           -F client_payload[metadata][location]={{.LOCATION}} \
           -F client_payload[metadata][immediate]={{.IMMEDIATE}} \
           -F 'client_payload[message]=Namespace/gkecluster-{{.CLUSTER}} created'

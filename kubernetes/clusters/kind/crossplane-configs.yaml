@@ -4,8 +4,8 @@ metadata:
   name: crossplane-configs
   namespace: flux-system
 spec:
-  interval: 10m
-  timeout: 10m
+  interval: 5m
+  timeout: 5m
   path: ./kubernetes/namespaces/base/crossplane-configs
   prune: true
   wait: true
@@ -17,4 +17,4 @@ spec:
       - kind: ConfigMap
         name: platform-config
   dependsOn:
-    - name: crossplane-providers  # Wait for providers to install and create CRDs
+    - name: crossplane-providers
