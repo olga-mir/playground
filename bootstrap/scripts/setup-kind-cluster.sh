@@ -107,9 +107,11 @@ kubectl wait --for=condition=Ready kustomization/crossplane-install -n flux-syst
 kubectl wait --for=condition=Ready kustomization/crossplane-providers -n flux-system --timeout=5m
 
 # Seems to be timing issue with this kustomization and it waits for next cycle after hitting
-# "dependency not ready" on the first attempt.
+# "dependency not ready" on the first attempt. Not sure what is going on here, but this kustomization needs a kick in a right time. (TODO)
 sleep 5
-flux reconcile ks crossplane-configs -n flux-system
+flux reconcile ks crossplane-configs -n flux-system --timeout=2m
+flux reconcile ks crossplane-configs -n flux-system --timeout=2m
+flux reconcile ks crossplane-configs -n flux-system --timeout=2m
 kubectl wait --for=condition=Ready kustomization/crossplane-configs -n flux-system --timeout=5m
 
 echo "Waiting for Crossplane to be ready..."
@@ -119,11 +121,11 @@ kubectl wait --for=condition=healthy functions.pkg.crossplane.io --all --timeout
 echo "Waiting for Flux to deploy Crossplane compositions..."
 # Wait for compositions kustomization to be ready before checking XRDs
 if kubectl wait --for=condition=ready kustomization/crossplane-compositions -n flux-system --timeout=300s; then
-  echo "Compositions deployed, waiting for XRDs to be established..."
-  kubectl wait --for=condition=established xrd --all --timeout=180s
+    echo "Compositions deployed, waiting for XRDs to be established..."
+    kubectl wait --for=condition=established xrd --all --timeout=180s
 else
-  echo "⚠️  Compositions kustomization not ready yet - XRDs will be available once Flux completes the dependency chain"
-  echo "   You can check progress with: flux get kustomizations -A"
+    echo "⚠️  Compositions kustomization not ready yet - XRDs will be available once Flux completes the dependency chain"
+    echo "   You can check progress with: flux get kustomizations -A"
 fi
 
 # Function to wait for a cluster to be ready using Composite Resources
