@@ -51,7 +51,6 @@ kubectl create configmap platform-config \
     --from-literal=GKE_VPC="${GKE_VPC}" \
     --from-literal=CONTROL_PLANE_SUBNET_NAME="${CONTROL_PLANE_SUBNET_NAME}" \
     --from-literal=APPS_DEV_SUBNET_NAME="${APPS_DEV_SUBNET_NAME}" \
-    --from-literal=GITHUB_DEMO_REPO_OWNER="${GITHUB_DEMO_REPO_OWNER}" \
     --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Creating platform secrets for Flux substituteFrom..."
@@ -109,10 +108,12 @@ kubectl wait --for=condition=Ready kustomization/crossplane-providers -n flux-sy
 # Seems to be timing issue with this kustomization and it waits for next cycle after hitting
 # "dependency not ready" on the first attempt. Not sure what is going on here, but this kustomization needs a kick in a right time. (TODO)
 sleep 5
+set +e
 flux reconcile ks crossplane-configs -n flux-system --timeout=2m
 flux reconcile ks crossplane-configs -n flux-system --timeout=2m
 flux reconcile ks crossplane-configs -n flux-system --timeout=2m
 kubectl wait --for=condition=Ready kustomization/crossplane-configs -n flux-system --timeout=5m
+set -e
 
 echo "Waiting for Crossplane to be ready..."
 kubectl wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=600s

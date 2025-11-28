@@ -4,9 +4,6 @@ kind: Kustomization
 resources:
   # XRDs (Composite Resource Definitions)
   - vs-landing-zone-xrd.yaml
-  - github-org-config.yaml
-  - github-repo-config.yaml
-  - github-team-config.yaml
-  
+
   # Compositions
   - vs-landing-zone.yaml

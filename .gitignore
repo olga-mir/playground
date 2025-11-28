@@ -4,3 +4,4 @@
 .vscode
 
 .claude/settings.local.json
+local-stash/**
