@@ -68,8 +68,16 @@ kubernetes
 ### Key Features
 
 #### AI Platform Stack
-* **kagent**: platform for building custom agents
-* **kgateway**: AI-specific networking gateway
+
+Core components and versions:
+
+| Component | Description | Project Version | Latest Version |
+|-----------|-------------|-----------------|----------------|
+| **Crossplane** | Infrastructure control plane | [v2.0.0-rc.1](https://github.com/crossplane/crossplane/releases/tag/v2.0.0-rc.1) | [v2.0.1](https://github.com/crossplane/crossplane/releases/latest) |
+| **FluxCD** | GitOps toolkit | [v2.7.5](https://github.com/fluxcd/flux2/releases/tag/v2.7.5) | [v2.7.5](https://github.com/fluxcd/flux2/releases/latest) |
+| **kagent** | AI agent framework | [v0.7.5](https://github.com/kagent-dev/kagent/releases/tag/v0.7.5) | [v0.7.5](https://github.com/kagent-dev/kagent/releases/latest) |
+| **kgateway** | AI networking gateway | [v2.1.1](https://github.com/Kong/kgateway/releases/tag/v2.1.1) | [v2.1.1](https://github.com/Kong/kgateway/releases/latest) |
+
 * MCP server integration for agent workflows
 * Platform services deployed via Flux
 

@@ -5,7 +5,7 @@ set -eoux pipefail
 KIND_TEST_CLUSTER_NAME=kind-test-cluster
 REPO_ROOT=$(git rev-parse --show-toplevel)
 CROSSPLANE_VERSION="v2.0.0-rc.1"
-FLUX_VERSION="v2.6.4"
+FLUX_VERSION="v2.7.5"
 KIND_CLUSTER_CONTEXT="kind-${KIND_TEST_CLUSTER_NAME}"
 
 # Create kind cluster if it doesn't exist
