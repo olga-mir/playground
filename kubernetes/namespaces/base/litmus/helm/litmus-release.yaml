@@ -1,0 +1,39 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: litmus
+  namespace: litmus
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: litmus
+      version: "3.23.1"
+      sourceRef:
+        kind: HelmRepository
+        name: litmuschaos
+        namespace: litmus
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # Portal frontend service configuration
+    portal:
+      frontend:
+        service:
+          type: ClusterIP  # Use ClusterIP for GKE, access via port-forward or ingress
+
+    # MongoDB persistence configuration
+    mongodb:
+      persistence:
+        enabled: true
+        size: 20Gi  # As recommended in docs
+
+    # Enable core components
+    chaosCenter:
+      enabled: true

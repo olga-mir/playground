@@ -6,3 +6,4 @@ resources:
   # Add tenant workloads and basic platform services as needed
   - ../../base/kagent
   - ../../base/kgateway-system
+  - ../../base/litmus
