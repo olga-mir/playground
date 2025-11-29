@@ -1,9 +1,0 @@
-apiVersion: platform.tornado-demo.io/v1alpha1
-kind: TeamConfig
-metadata:
-  name: team-charlie
-spec:
-  teamName: team-charlie
-  description: "Charlie Team - managed by Crossplane"
-  privacy: closed
-  # repositoryAccess: TODO

@@ -4,6 +4,4 @@ kind: Kustomization
 resources:
   - provider-configs.yaml
   - gcp.yaml
-  - github-org-lvl.yaml
-  - github-repo-lvl.yaml
   - kubernetes.yaml
