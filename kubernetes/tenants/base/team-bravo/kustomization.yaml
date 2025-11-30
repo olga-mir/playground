@@ -5,5 +5,4 @@ kind: Kustomization
 # Running: fortio echo server (simulating real-world workload)
 
 resources:
-  - tornado-repo.yaml
   - fortio-echo-deployment.yaml

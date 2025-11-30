@@ -5,7 +5,5 @@ kind: Kustomization
 # Running: kagent AI agents for platform automation
 
 resources:
-  - tornado-repo-abc.yaml
-  - tornado-repo-xyz.yaml
   - namespace.yaml
   - kagent-agents.yaml

@@ -91,26 +91,8 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - "actions.github.upbound.io"
-  - "enterprise.github.upbound.io"
-  - "github.upbound.io"
-  - "repo.github.upbound.io"
-  - "team.github.upbound.io"
-  - "user.github.upbound.io"
-  resources:
-  - "*"
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
   - "platform.tornado-demo.io"
   resources:
-  - "tornadorepos"
   - "valuestreamlandingzones"
   verbs:
   - get
