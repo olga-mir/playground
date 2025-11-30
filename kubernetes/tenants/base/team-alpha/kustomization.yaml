@@ -5,5 +5,4 @@ kind: Kustomization
 # Running: whereami application for service location testing
 
 resources:
-  - landing-zone.yaml
   - whereami-deployment.yaml
