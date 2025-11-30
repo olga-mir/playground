@@ -6,7 +6,7 @@ Features cutting-edge AI projects including `kgateway` and `kagent` - Kubernetes
 
 **Architecture**: Hierarchical 3-tier cluster setup with automated "batteries included" provisioning using Crossplane compositions and GitOps deployment via Flux notifications triggering GitHub Actions.
 
-This AI Assisted project, leveraging Claude Sonnet, `gemini-cli` and whatnot!
+This AI Assisted project, leveraging Claude Sonnet, `gemini-cli`, and other AI tools.
 
 # Tech Stack
 
