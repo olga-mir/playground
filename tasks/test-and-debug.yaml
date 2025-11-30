@@ -3,6 +3,7 @@ version: "3"
 tasks:
   kind-create-sandbox:
     desc: "Create a vanilla Kind cluster (latest k8s, 2 nodes, name 'sandbox-cluster')"
+    internal: true
     cmds:
       - |
         cat <<EOF | kind create cluster --name sandbox-cluster --config=-
@@ -15,6 +16,7 @@ tasks:
 
   kind-delete-sandbox:
     desc: "Delete the 'sandbox-cluster' Kind cluster"
+    internal: true
     cmds:
       - kind delete cluster --name sandbox-cluster
 

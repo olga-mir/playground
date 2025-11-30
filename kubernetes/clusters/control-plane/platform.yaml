@@ -19,4 +19,3 @@ spec:
   dependsOn:
     - name: crossplane-compositions
     - name: kgateway-crds
-    - name: kagent-crds
