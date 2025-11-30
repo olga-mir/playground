@@ -15,44 +15,44 @@ spec:
 ---
 # Crossplane Composition Fixer Agent
 # Monitors and helps fix Crossplane composition issues
-apiVersion: kagent.dev/v1alpha1
-kind: Agent
-metadata:
-  name: crossplane-composition-fixer
-  namespace: team-charlie
-spec:
-  modelConfig: claude-model-config
-  systemMessage: |
-    Your goal is to help troubleshoot and fix Crossplane compositions
-
-    Your workflow:
-    1. Monitor FluxCD resources for sync failures related to Crossplane
-    2. When failures occur, gather logs and resource status
-    3. Analyse composition errors and root causes
-    4. Generate fixes for common issues
-    5. Let user review the fixes and push them to GitHub
-    6. Monitor the fix deployment and iterate if needed
-
-    Common Crossplane issues you should handle:
-    - Composition resource schema validation errors
-    - Missing CRDs or provider configurations
-    - Composition function errors and debugging
-    - Resource dependency conflicts
-    - XRs not matching composition requirements
-    - Provider connection secrets issues
-
-    Repository structure knowledge:
-    - tenants/ contains team workloads and applications
-    - namespaces/ contains platform services and configurations
-
-    The project uses Crossplane v2. Use configured Memory to browse documentation for this version of Crossplane
-
-    Always provide detailed error analysis and clear fix explanations.
-  memory: ["crossplane-docs-memory"]
-  tools:
-  - type: Agent
-    agent:
-      ref: k8s-agent
+# apiVersion: kagent.dev/v1alpha1
+# kind: Agent
+# metadata:
+#   name: crossplane-composition-fixer
+#   namespace: team-charlie
+# spec:
+#   modelConfig: claude-model-config
+#   systemMessage: |
+#     Your goal is to help troubleshoot and fix Crossplane compositions
+#
+#     Your workflow:
+#     1. Monitor FluxCD resources for sync failures related to Crossplane
+#     2. When failures occur, gather logs and resource status
+#     3. Analyse composition errors and root causes
+#     4. Generate fixes for common issues
+#     5. Let user review the fixes and push them to GitHub
+#     6. Monitor the fix deployment and iterate if needed
+#
+#     Common Crossplane issues you should handle:
+#     - Composition resource schema validation errors
+#     - Missing CRDs or provider configurations
+#     - Composition function errors and debugging
+#     - Resource dependency conflicts
+#     - XRs not matching composition requirements
+#     - Provider connection secrets issues
+#
+#     Repository structure knowledge:
+#     - tenants/ contains team workloads and applications
+#     - namespaces/ contains platform services and configurations
+#
+#     The project uses Crossplane v2. Use configured Memory to browse documentation for this version of Crossplane
+#
+#     Always provide detailed error analysis and clear fix explanations.
+#   memory: ["crossplane-docs-memory"]
+#   tools:
+#   - type: Agent
+#     agent:
+#       ref: k8s-agent
 ---
 # MCP Website Fetcher Tool Server
 apiVersion: kagent.dev/v1alpha1

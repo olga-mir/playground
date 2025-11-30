@@ -6,9 +6,7 @@ Features cutting-edge AI projects including `kgateway` and `kagent` - Kubernetes
 
 **Architecture**: Hierarchical 3-tier cluster setup with automated "batteries included" provisioning using Crossplane compositions and GitOps deployment via Flux notifications triggering GitHub Actions.
 
-🎯 **Latest Update**: Complete refactor from bash scripts to GitOps with comprehensive validation framework and automated cluster lifecycle management.
-
-This AI Assisted project, leveraging Claude Sonnet, Github Copilot, and Gemini Code Assist.
+This AI Assisted project, leveraging Claude Sonnet, `gemini-cli` and whatnot!
 
 # Tech Stack
 
@@ -24,9 +22,6 @@ This AI Assisted project, leveraging Claude Sonnet, Github Copilot, and Gemini C
 | <img src="https://raw.githubusercontent.com/cncf/artwork/refs/heads/main/projects/litmus/icon/color/litmus-icon-color.svg" width="30"> | LitmusChaos | Cloud-native chaos engineering framework for Kubernetes that helps teams find weaknesses in their deployments through controlled chaos experiments. | [v3.23.1](https://github.com/litmuschaos/litmus-helm/releases/tag/litmus-3.23.1) | [v3.23.1](https://github.com/litmuschaos/litmus-helm/releases/latest) |
 | <img src="https://argo-cd.readthedocs.io/en/stable/assets/logo.png" width="10"> | ~~ArgoCD~~ | :kill-with-fire: This project was using ArgoCD until release TBC | - | - |
 
-# Demos
-
-"Demo" is an end-to-end installation or an implementation of an idea. It is similar to a tutorial in concept but typically is a deep-dive and a more detailed view of particular piece of technology.
 These demos are found in [Wiki](https://github.com/olga-mir/playground/wiki)
 
 # Infrastructure
@@ -38,22 +33,6 @@ This project implements a **hierarchical 3-tier architecture** with fully automa
 1. **Bootstrap cluster (kind)**: Local cluster running Crossplane v2 + FluxCD. Provisions control-plane cluster.
 2. **Control-plane cluster (GKE)**: Management cluster with Crossplane, platform services, and AI stack. Provisions workload clusters.
 3. **Workload clusters (GKE)**: Isolated clusters for tenant applications (apps-dev, staging, prod).
-
-## 🔄 "Batteries Included" GitOps Flow
-
-```mermaid
-graph LR
-    A[Developer commits] --> B[Crossplane provisions cluster]
-    B --> C[Flux notification]
-    C --> D[GitHub Actions trigger]
-    D --> E[Flux bootstrap on target]
-    E --> F[Platform services deployed]
-```
-
-1. **Crossplane compositions** → create GKE infrastructure (clusters, nodes, secrets)
-2. **Flux notifications** → detect cluster readiness → trigger GitHub workflow
-3. **GitHub Actions** → bootstrap Flux on new cluster → point to `/clusters/{cluster-type}/`
-4. **Target cluster Flux** → deploy platform services + applications automatically
 
 ## ✅ Validation & Management
 
@@ -74,9 +53,9 @@ task validate:architecture          # Architectural constraints
 Configure these secrets in your GitHub repository settings (Settings → Secrets and variables → Actions):
 
 ```bash
-# Workload Identity Federation for GitHub Actions
-WIF_PROVIDER=projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-WIF_SERVICE_ACCOUNT=github-actions-sa@PROJECT_ID.iam.gserviceaccount.com
+# Workload Identity Federation for GitHub Actions (replase vars with your values)
+WIF_PROVIDER=projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_NAME/providers/$PROVIDER_NAME
+WIF_SERVICE_ACCOUNT=github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com
 
 # GitHub token for Flux bootstrap (needs repo:write permissions)
 FLUX_GITHUB_TOKEN=ghp_your_personal_access_token_here
@@ -114,15 +93,6 @@ Refer to [./bootstrap/README.md](./bootstrap/README.md) for detailed explanation
 - **Platform Tenants**: End-user applications and team-specific workloads
 - **Flux GitOps**: Automatically syncs both platform services and tenant applications to appropriate clusters
 
-## MCP Servers
-
-```
-% task --list | grep mcp
-```
-
-Also https://github.com/olga-mir/playground/wiki/ArgoCD-MCP-%E2%80%90-The-Networking-Aspects
-
-
 ## 🚀 Quick Start
 
 **Deploy complete infrastructure**:
@@ -143,4 +113,20 @@ task setup:cleanup
 **Available commands**:
 ```bash
 task --list
+```
+
+## Additional Diagnostics and Experimentation
+
+```
+# Test whereami (team-alpha)
+kubectl exec -n team-platform deploy/fortio-diagnostic -- \
+  fortio load -c 10 -qps 100 -t 30s http://whereami.team-alpha/
+
+# Test fortio-echo (team-bravo)
+kubectl exec -n team-platform deploy/fortio-diagnostic -- \
+  fortio load -c 10 -qps 100 -t 30s http://fortio-echo.team-bravo/
+
+# High load test
+kubectl exec -n team-platform deploy/fortio-diagnostic -- \
+  fortio load -c 50 -qps 1000 -t 60s http://whereami.team-alpha/
 ```
