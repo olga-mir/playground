@@ -53,7 +53,7 @@ task validate:architecture          # Architectural constraints
 Configure these secrets in your GitHub repository settings (Settings → Secrets and variables → Actions):
 
 ```bash
-# Workload Identity Federation for GitHub Actions (replase vars with your values)
+# Workload Identity Federation for GitHub Actions (replace vars with your values)
 WIF_PROVIDER=projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_NAME/providers/$PROVIDER_NAME
 WIF_SERVICE_ACCOUNT=github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com
 
