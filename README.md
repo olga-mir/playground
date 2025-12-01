@@ -6,7 +6,7 @@ Features cutting-edge AI projects including `kgateway` and `kagent` - Kubernetes
 
 **Architecture**: Hierarchical 3-tier cluster setup with automated "batteries included" provisioning using Crossplane compositions and GitOps deployment via Flux notifications triggering GitHub Actions.
 
-This AI Assisted project, leveraging Claude Sonnet, `gemini-cli` and whatnot!
+This AI Assisted project, leveraging Claude Sonnet, `gemini-cli`, and other AI tools.
 
 # Tech Stack
 
@@ -53,7 +53,7 @@ task validate:architecture          # Architectural constraints
 Configure these secrets in your GitHub repository settings (Settings → Secrets and variables → Actions):
 
 ```bash
-# Workload Identity Federation for GitHub Actions (replase vars with your values)
+# Workload Identity Federation for GitHub Actions (replace vars with your values)
 WIF_PROVIDER=projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_NAME/providers/$PROVIDER_NAME
 WIF_SERVICE_ACCOUNT=github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com
 
