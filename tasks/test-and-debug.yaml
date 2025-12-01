@@ -91,11 +91,13 @@ tasks:
   helper-commands:
     desc: "Collection of troubleshooting commands"
     cmds:
-      - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml"
+      - echo "kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/experimental-install.yaml"
       - echo "helm template test oci://ghcr.io/kagent-dev/kagent/helm/kagent --namespace kagent --values test-values.yaml"
       - echo "while :; do flux get all -A && sleep 5; done"
       - echo "while :; do k get gkeclusters.platform.tornado-demo.io && kubectl --context=kind-kind-test-cluster describe gkeclusters.platform.tornado-demo.io control-plane-cluster | tail -2 && sleep 5; done"
       # re-trigger Composite Resource sync status
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge"
+      - echo "flux --context {{.CONTEXT}} suspend helmrelease kgateway -n kgateway-system"
+      - echo "flux --context {{.CONTEXT}} resume helmrelease kgateway -n kgateway-system"
       - echo "gh api repos/:owner/:repo/dispatches -X POST -f event_type='Kustomization/clusters.flux-system'"
       - echo "gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId' --logs"
