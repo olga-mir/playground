@@ -16,6 +16,7 @@ else
   echo "Cluster $KIND_TEST_CLUSTER_NAME already exists."
 fi
 
+# TODO no setting context - must use explicit context in each command that interacts with kube API Server.
 kubectl config use-context "${KIND_CLUSTER_CONTEXT}"
 
 # Upgrade FluxCD CLI using brew if installed via brew
@@ -165,6 +166,7 @@ echo "Monitor detailed progress with: kubectl get gkeclusters -w"
 echo "🔑 Setting up local cluster credentials..."
 gcloud container clusters get-credentials "${GKE_CONTROL_PLANE_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
 
+set +x
 echo ""
 echo "🎉 Cluster provisioning complete!"
 echo ""
@@ -174,4 +176,4 @@ echo "2. GitHub Actions will bootstrap Flux on the new GKE clusters"
 echo "3. Flux will deploy applications to the clusters"
 echo ""
 echo "Monitor GitHub Actions: https://github.com/${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}/actions"
-echo "Check cluster status: kubectl get gkeclusters -A"
+echo "Check cluster status: kubectl --context ${KIND_CLUSTER_CONTEXT} get gkeclusters -A"
