@@ -1,0 +1,139 @@
+---
+# Fortio Diagnostic Tool
+# Used by platform team to send requests and troubleshoot services
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fortio-diagnostic
+  namespace: team-platform
+  labels:
+    app: fortio-diagnostic
+    team: platform
+    purpose: diagnostics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fortio-diagnostic
+  template:
+    metadata:
+      labels:
+        app: fortio-diagnostic
+        team: platform
+        purpose: diagnostics
+    spec:
+      containers:
+      - name: fortio
+        image: fortio/fortio:latest_release
+        args:
+        - server
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8079
+          name: grpc
+        env:
+        - name: FORTIO_NAME
+          value: "platform-diagnostics"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /fortio/
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /fortio/
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Service for accessing fortio diagnostic UI
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortio-diagnostic
+  namespace: team-platform
+  labels:
+    app: fortio-diagnostic
+    team: platform
+spec:
+  type: ClusterIP
+  selector:
+    app: fortio-diagnostic
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: grpc
+    port: 8079
+    targetPort: 8079
+    protocol: TCP
+---
+# ConfigMap with usage instructions
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fortio-diagnostic-guide
+  namespace: team-platform
+data:
+  README.md: |
+    # Fortio Diagnostic Tool
+
+    ## Purpose
+    Platform team tool for sending requests to other services and troubleshooting
+    network connectivity, performance, and resilience.
+
+    ## Usage
+
+    ### Access the Fortio UI
+    ```bash
+    kubectl port-forward -n team-platform svc/fortio-diagnostic 8080:80
+    # Open browser to http://localhost:8080
+    ```
+
+    ### Send test requests to team services
+
+    #### Test whereami (team-alpha)
+    ```bash
+    kubectl exec -n team-platform deploy/fortio-diagnostic -- \
+      fortio load -c 10 -qps 100 -t 30s http://whereami.team-alpha/
+    ```
+
+    #### Test fortio-echo (team-bravo)
+    ```bash
+    kubectl exec -n team-platform deploy/fortio-diagnostic -- \
+      fortio load -c 10 -qps 100 -t 30s http://fortio-echo.team-bravo/
+    ```
+
+    #### Run performance tests
+    ```bash
+    # High load test
+    kubectl exec -n team-platform deploy/fortio-diagnostic -- \
+      fortio load -c 50 -qps 1000 -t 60s http://whereami.team-alpha/
+
+    # Latency percentiles
+    kubectl exec -n team-platform deploy/fortio-diagnostic -- \
+      fortio load -c 10 -qps 100 -t 30s -json - http://whereami.team-alpha/ | jq .
+    ```
+
+    ### Interactive shell access
+    ```bash
+    kubectl exec -it -n team-platform deploy/fortio-diagnostic -- sh
+    ```
+
+    ## Features
+
+    - **Load testing**: Generate controlled traffic to test service performance
+    - **Health checks**: Verify service availability and response times
+    - **Network debugging**: Test connectivity between namespaces
+    - **Performance profiling**: Measure latency percentiles and throughput
+    - **Chaos testing**: Combine with Litmus for resilience testing

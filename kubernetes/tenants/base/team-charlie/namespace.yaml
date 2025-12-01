@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-charlie
+  labels:
+    team: charlie
+    workload-type: ai-agents

@@ -1,0 +1,15 @@
+---
+# Gateway API Experimental CRDs
+# Required for GRPCRoute and other experimental features
+# See: https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-api-experimental-install
+  namespace: kgateway-system
+  annotations:
+    kustomize.toolkit.fluxcd.io/ssa: merge
+data:
+  install.yaml: |
+    # This will be fetched from upstream
+    # kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/experimental-install.yaml
