@@ -3,4 +3,5 @@ kind: Kustomization
 
 resources:
   - pod-delete-rbac.yaml
+  - pod-delete-chaosexperiment.yaml
   - aggressive-pod-delete-experiment.yaml
