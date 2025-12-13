@@ -15,10 +15,10 @@ spec:
 
   # Application to target
   appinfo:
-    # Target namespace - CONFIGURE THIS
-    appns: "default"
-    # Target label selector - CONFIGURE THIS
-    applabel: "app=nginx"
+    # Target namespace
+    appns: "team-alpha"
+    # Target label selector
+    applabel: "app=whereami"
     # Application kind
     appkind: "deployment"
 
