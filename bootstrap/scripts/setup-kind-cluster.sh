@@ -138,7 +138,7 @@ wait_for_cluster_ready() {
     local retry_count=0
 
     while [ $retry_count -lt $max_retries ]; do
-        if kubectl get gkeclusters.platform.tornado-demo.io "${composite_name}" -n "${composite_namespace}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
+        if kubectl --context "${KIND_CLUSTER_CONTEXT}" get gkeclusters.platform.tornado-demo.io "${composite_name}" -n "${composite_namespace}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
             echo "✅ Cluster $composite_name is ready!"
             return 0
         fi
@@ -160,7 +160,7 @@ wait_for_cluster_ready() {
 wait_for_cluster_ready "control-plane-cluster" "gkecluster-control-plane"
 
 echo "✅ Control-plane cluster is ready!"
-echo "Monitor detailed progress with: kubectl get gkeclusters -w"
+echo "Monitor detailed progress with: kubectl --context ${KIND_CLUSTER_CONTEXT} get gkeclusters -w"
 
 # Get cluster credentials for local kubectl access
 echo "🔑 Setting up local cluster credentials..."
