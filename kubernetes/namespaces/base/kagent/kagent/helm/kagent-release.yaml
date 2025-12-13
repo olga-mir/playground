@@ -26,10 +26,5 @@ spec:
       retries: 3
   values:
     providers:
-      default: openAI
-      openAI:
-        provider: OpenAI
-        model: "gpt-4.1-mini"
-        apiKeySecretRef: kagent-openai
-        apiKeySecretKey: OPENAI_API_KEY
-        config: {}
+      # No default provider - agents will use their own ModelConfig
+      default: ""

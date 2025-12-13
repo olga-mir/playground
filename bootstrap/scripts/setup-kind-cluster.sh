@@ -16,6 +16,7 @@ else
   echo "Cluster $KIND_TEST_CLUSTER_NAME already exists."
 fi
 
+# TODO no setting context - must use explicit context in each command that interacts with kube API Server.
 kubectl config use-context "${KIND_CLUSTER_CONTEXT}"
 
 # Upgrade FluxCD CLI using brew if installed via brew
@@ -137,7 +138,7 @@ wait_for_cluster_ready() {
     local retry_count=0
 
     while [ $retry_count -lt $max_retries ]; do
-        if kubectl get gkeclusters.platform.tornado-demo.io "${composite_name}" -n "${composite_namespace}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
+        if kubectl --context "${KIND_CLUSTER_CONTEXT}" get gkeclusters.platform.tornado-demo.io "${composite_name}" -n "${composite_namespace}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
             echo "✅ Cluster $composite_name is ready!"
             return 0
         fi
@@ -159,12 +160,13 @@ wait_for_cluster_ready() {
 wait_for_cluster_ready "control-plane-cluster" "gkecluster-control-plane"
 
 echo "✅ Control-plane cluster is ready!"
-echo "Monitor detailed progress with: kubectl get gkeclusters -w"
+echo "Monitor detailed progress with: kubectl --context ${KIND_CLUSTER_CONTEXT} get gkeclusters -w"
 
 # Get cluster credentials for local kubectl access
 echo "🔑 Setting up local cluster credentials..."
 gcloud container clusters get-credentials "${GKE_CONTROL_PLANE_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
 
+set +x
 echo ""
 echo "🎉 Cluster provisioning complete!"
 echo ""
@@ -174,4 +176,4 @@ echo "2. GitHub Actions will bootstrap Flux on the new GKE clusters"
 echo "3. Flux will deploy applications to the clusters"
 echo ""
 echo "Monitor GitHub Actions: https://github.com/${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}/actions"
-echo "Check cluster status: kubectl get gkeclusters -A"
+echo "Check cluster status: kubectl --context ${KIND_CLUSTER_CONTEXT} get gkeclusters -A"

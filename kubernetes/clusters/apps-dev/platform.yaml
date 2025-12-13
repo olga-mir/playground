@@ -16,3 +16,7 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: platform-config
+  dependsOn:
+    - name: kagent-crds
+    - name: kgateway-crds
+    - name: litmus-crds

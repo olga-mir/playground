@@ -6,7 +6,4 @@ kind: Kustomization
 # Crossplane components are handled by separate kustomizations with proper dependencies
 resources:
   - ../../base/flux-system
-  - ../../base/platform-services
-  - ../../base/kagent
-  - ../../base/kagent-system
   - ../../base/kgateway-system

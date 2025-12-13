@@ -4,3 +4,4 @@ resources:
   - namespace.yaml
   - kagent/config
   - tutorial-mcp-tool.yaml
+  - httproute-xlistener.yaml

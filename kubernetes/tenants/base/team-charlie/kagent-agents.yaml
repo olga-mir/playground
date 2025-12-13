@@ -1,0 +1,105 @@
+---
+# ModelConfig for team-charlie agents
+# References the kagent-system secret for API key
+apiVersion: kagent.dev/v1alpha1
+kind: ModelConfig
+metadata:
+  name: claude-model-config
+  namespace: team-charlie
+spec:
+  apiKeySecretRef: kagent-anthropic
+  apiKeySecretKey: ANTHROPIC_API_KEY
+  model: claude-3-7-sonnet-20250219
+  provider: Anthropic
+  anthropic: {}
+---
+# Crossplane Composition Fixer Agent
+# Monitors and helps fix Crossplane composition issues
+# apiVersion: kagent.dev/v1alpha1
+# kind: Agent
+# metadata:
+#   name: crossplane-composition-fixer
+#   namespace: team-charlie
+# spec:
+#   modelConfig: claude-model-config
+#   systemMessage: |
+#     Your goal is to help troubleshoot and fix Crossplane compositions
+#
+#     Your workflow:
+#     1. Monitor FluxCD resources for sync failures related to Crossplane
+#     2. When failures occur, gather logs and resource status
+#     3. Analyse composition errors and root causes
+#     4. Generate fixes for common issues
+#     5. Let user review the fixes and push them to GitHub
+#     6. Monitor the fix deployment and iterate if needed
+#
+#     Common Crossplane issues you should handle:
+#     - Composition resource schema validation errors
+#     - Missing CRDs or provider configurations
+#     - Composition function errors and debugging
+#     - Resource dependency conflicts
+#     - XRs not matching composition requirements
+#     - Provider connection secrets issues
+#
+#     Repository structure knowledge:
+#     - tenants/ contains team workloads and applications
+#     - namespaces/ contains platform services and configurations
+#
+#     The project uses Crossplane v2. Use configured Memory to browse documentation for this version of Crossplane
+#
+#     Always provide detailed error analysis and clear fix explanations.
+#   memory: ["crossplane-docs-memory"]
+#   tools:
+#   - type: Agent
+#     agent:
+#       ref: k8s-agent
+---
+# MCP Website Fetcher Tool Server
+apiVersion: kagent.dev/v1alpha1
+kind: ToolServer
+metadata:
+  name: mcp-website-fetcher
+  namespace: team-charlie
+spec:
+  description: "website fetcher for agent tooling"
+  config:
+    sse:
+      url: http://mcp-website-fetcher.kagent.svc.cluster.local/sse
+---
+# RBAC for team-charlie agents to access Crossplane and GitHub resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kagent-team-charlie-access
+rules:
+- apiGroups:
+  - "apiextensions.crossplane.io"
+  - "pkg.crossplane.io"
+  - "environmentconfigs.fn.crossplane.io"
+  - "gotemplating.fn.crossplane.io"
+  - "kubernetes.crossplane.io"
+  - "protection.crossplane.io"
+  - "pt.fn.crossplane.io"
+  resources:
+  - "*"
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kagent-team-charlie-access-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kagent-team-charlie-access
+subjects:
+- kind: ServiceAccount
+  name: kagent
+  namespace: team-charlie

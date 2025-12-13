@@ -1,0 +1,153 @@
+---
+# Aggressive Pod Delete Chaos Experiment
+# This experiment aggressively kills pods matching specified labels
+# Configure target namespace and labels before running
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: aggressive-pod-delete
+  namespace: litmus
+  annotations:
+    description: "Aggressive pod deletion experiment for resilience testing"
+spec:
+  # Experiment state: 'active' to run, 'stop' to halt
+  engineState: "active"  # Set to 'active' when ready to run
+
+  # Application to target
+  appinfo:
+    # Target namespace
+    appns: "team-alpha"
+    # Target label selector
+    applabel: "app=whereami"
+    # Application kind
+    appkind: "deployment"
+
+  # Service account with chaos permissions
+  chaosServiceAccount: pod-delete-sa
+
+  # Monitor chaos using annotations
+  annotationCheck: "false"
+
+  # Experiment configurations
+  experiments:
+    - name: pod-delete
+      spec:
+        components:
+          env:
+            # AGGRESSIVE SETTINGS - kills pods forcefully and frequently
+
+            # Forceful deletion (no grace period)
+            - name: FORCE
+              value: "true"
+
+            # Total chaos duration (5 minutes)
+            - name: TOTAL_CHAOS_DURATION
+              value: "300"
+
+            # Kill pods every 10 seconds (very aggressive)
+            - name: CHAOS_INTERVAL
+              value: "10"
+
+            # Affect 50% of matching pods each interval
+            - name: PODS_AFFECTED_PERC
+              value: "50"
+
+            # Randomize which pods get killed
+            - name: RANDOMNESS
+              value: "true"
+
+            # Sequence of chaos: parallel kills all at once, serial one by one
+            - name: SEQUENCE
+              value: "parallel"
+
+            # Target container - leave empty to target all containers
+            - name: TARGET_CONTAINER
+              value: ""
+
+            # Specific pod names (comma-separated) - empty means use percentage
+            - name: TARGET_PODS
+              value: ""
+
+            # Node label selector - empty means any node
+            - name: NODE_LABEL
+              value: ""
+
+---
+# ConfigMap with experiment instructions
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-delete-experiment-guide
+  namespace: litmus
+data:
+  README.md: |
+    # Aggressive Pod Delete Chaos Experiment
+
+    ## Purpose
+    This experiment aggressively kills pods to test application resilience,
+    auto-scaling, and recovery capabilities.
+
+    ## Configuration Steps
+
+    1. **Set Target Application**
+       Edit `aggressive-pod-delete-experiment.yaml`:
+       - `appns`: Target namespace (e.g., "kagent-system")
+       - `applabel`: Label selector (e.g., "app=kagent")
+       - `appkind`: Resource type (deployment, statefulset, daemonset)
+
+    2. **Adjust Chaos Parameters** (if needed)
+       - `TOTAL_CHAOS_DURATION`: How long to run chaos (seconds)
+       - `CHAOS_INTERVAL`: Time between pod kills (seconds)
+       - `PODS_AFFECTED_PERC`: Percentage of pods to kill each interval
+       - `FORCE`: true = immediate kill, false = graceful shutdown
+
+    3. **Enable the Experiment**
+       Change `engineState: "stop"` to `engineState: "active"`
+
+    4. **Apply Configuration**
+       ```bash
+       kubectl apply -f aggressive-pod-delete-experiment.yaml
+       ```
+
+    5. **Monitor Experiment**
+       ```bash
+       # Watch pods being deleted
+       kubectl get pods -n <target-namespace> -w
+
+       # Check chaos engine status
+       kubectl get chaosengine -n litmus
+
+       # View chaos results
+       kubectl get chaosresult -n litmus
+
+       # Check experiment logs
+       kubectl logs -n litmus -l name=pod-delete
+       ```
+
+    6. **Stop Experiment**
+       Change `engineState: "active"` to `engineState: "stop"` and reapply
+
+    ## Example Configurations
+
+    ### Target kagent pods in kagent-system namespace
+    ```yaml
+    appinfo:
+      appns: "kagent-system"
+      applabel: "app.kubernetes.io/name=kagent"
+      appkind: "deployment"
+    ```
+
+    ### Target all pods with app=api label in production namespace
+    ```yaml
+    appinfo:
+      appns: "production"
+      applabel: "app=api"
+      appkind: "deployment"
+    ```
+
+    ## Safety Notes
+
+    - Start with `engineState: "stop"` and test in non-production first
+    - Verify your target selectors before activating
+    - Monitor cluster resources during chaos experiments
+    - Ensure applications have proper health checks and auto-scaling configured

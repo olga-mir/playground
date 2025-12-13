@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Team Platform - Platform Operations Team
+# Running: diagnostic and troubleshooting utilities
+
+resources:
+  - namespace.yaml
+  - fortio-diagnostic.yaml
