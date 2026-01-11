@@ -12,4 +12,5 @@ metadata:
 data:
   install.yaml: |
     # This will be fetched from upstream
+    # TODO - does this mean we can avoid manual install
     # kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/experimental-install.yaml
