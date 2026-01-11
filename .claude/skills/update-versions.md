@@ -4,12 +4,7 @@ This skill updates component versions in the project by checking GitHub releases
 
 ## Components to Update
 
-Based on the README.md tech stack table, update versions for:
-
-1. **FluxCD**
-2. **kagent**
-3. **kgateway**
-4. **LitmusChaos**
+Based on the README.md tech stack table, update versions for all components listed in the README Tech Stack table
 
 **IMPORTANT**: Do NOT update Crossplane - it requires special attention and is handled separately.
 
@@ -44,7 +39,6 @@ Prompt: "What is the latest stable version number?"
 Edit the tech stack table in `README.md`:
 
 - Update the "Project Version" column for each component
-- **Remove the entire "Latest Version" column** from the table (user no longer wants to maintain it)
 - Update the version links in the "Project Version" column to point to the new version tag
 
 Example row format after update:
