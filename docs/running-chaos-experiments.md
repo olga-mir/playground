@@ -2,6 +2,36 @@
 
 This guide explains how to run chaos engineering experiments using LitmusChaos in the apps-dev cluster.
 
+## GitOps and Chaos Management
+
+**Important**: The ChaosEngine resources are managed by GitOps (Flux), but the `engineState` field controls when chaos runs.
+
+### How engineState Works
+
+- **In Git**: Default state is `engineState: "stop"` (experiment ready but not active)
+- **To run chaos**: Suspend Flux reconciliation and manually patch the ChaosEngine
+- **After completion**: The experiment runs once and stops (does NOT automatically restart)
+- **Flux behavior**: When resumed, Flux will restore the "stop" state from Git
+
+### Quick Start - Running an Experiment
+
+```bash
+# 1. Suspend Flux to prevent it from reverting your changes
+flux suspend kustomization platform -n flux-system
+
+# 2. Activate the experiment (see examples below for targeting different apps)
+kubectl --context $CONTEXT patch chaosengine aggressive-pod-delete -n litmus \
+  --type='json' -p='[{"op": "replace", "path": "/spec/engineState", "value": "active"}]'
+
+# 3. Wait for experiment to complete (default: 5 minutes)
+# Monitor progress with: kubectl get pods -n <target-namespace> -w
+
+# 4. Resume Flux (restores "stop" state)
+flux resume kustomization platform -n flux-system
+```
+
+**Alternative**: To make changes permanent, commit `engineState: "active"` to Git. The experiment will run once on deployment, then you must toggle it to run again.
+
 ## Prerequisites
 
 - LitmusChaos installed (via `litmus-core` Helm chart)

@@ -11,7 +11,8 @@ metadata:
     description: "Aggressive pod deletion experiment for resilience testing"
 spec:
   # Experiment state: 'active' to run, 'stop' to halt
-  engineState: "active"  # Set to 'active' when ready to run
+  # Default to 'stop' - activate manually when needed by suspending Flux and patching
+  engineState: "stop"
 
   # Application to target
   appinfo:
