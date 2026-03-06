@@ -1,3 +1,9 @@
+---
+name: upgrade-versions
+description: Upgrade component versions in the project by checking GitHub releases and updating README and Helm manifests. Use when asked to bump, upgrade, update, or check versions of project components.
+allowed-tools: Read, Edit, WebFetch, Bash, Glob, Grep
+---
+
 # Update Component Versions
 
 This skill updates component versions in the project by checking GitHub releases and updating both documentation and manifests.
