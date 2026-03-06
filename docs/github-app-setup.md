@@ -61,9 +61,9 @@ The `flux-bootstrap.yml` workflow bootstraps Flux on new GKE clusters. It needs:
 
 | Secret name | Value |
 |---|---|
-| `GITHUB_APP_ID` | App ID from the App settings page |
-| `GITHUB_APP_INSTALLATION_ID` | Installation ID from the install URL |
-| `GITHUB_APP_PRIVATE_KEY` | Full PEM content of the private key file |
+| `GH_APP_ID` | App ID from the App settings page |
+| `GH_APP_INSTALLATION_ID` | Installation ID from the install URL |
+| `GH_APP_PRIVATE_KEY` | Full PEM content of the private key file |
 
 Set them at: **playground repo → Settings → Secrets and variables → Actions → New repository secret**
 

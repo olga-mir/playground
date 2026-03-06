@@ -272,12 +272,12 @@ Flux uses a **GitHub App** (not SSH deploy keys) for all GitRepository authentic
 deploy key accumulation across cluster rebuilds. See `docs/github-app-setup.md` for one-time setup.
 
 Required env vars in `.setup-env`:
-* `GITHUB_APP_ID` - GitHub App ID
-* `GITHUB_APP_INSTALLATION_ID` - Installation ID (from install URL)
+* `GH_APP_ID` - GitHub App ID
+* `GH_APP_INSTALLATION_ID` - Installation ID (from install URL)
 * `GITHUB_APP_PRIVATE_KEY_FILE` - path to the downloaded PEM file
 * `GITHUB_FLUX_PLAYGROUND_PAT` - fine-grained PAT for Flux notification provider (repository dispatch only)
 
-Required GitHub Actions secrets: `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`
+Required GitHub Actions secrets: `GH_APP_ID`, `GH_APP_INSTALLATION_ID`, `GH_APP_PRIVATE_KEY`
 
 ## VARIABLES
 * Some of the variables won't be available to you terminal where you are running.

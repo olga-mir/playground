@@ -1,6 +1,6 @@
 name: Flux Bootstrap GKE Clusters
 
-# Requires repository secrets: PROJECT_ID, GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_PRIVATE_KEY
+# Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY
 # See docs/github-app-setup.md for setup instructions.
 run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || 'Unknown Cluster' }} 🚀"
 
@@ -156,8 +156,8 @@ jobs:
       id: app-token
       uses: actions/create-github-app-token@v1
       with:
-        app-id: ${{ secrets.GITHUB_APP_ID }}
-        private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+        app-id: ${{ secrets.GH_APP_ID }}
+        private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 
     - name: Run Flux pre-installation checks
       run: |
@@ -183,15 +183,15 @@ jobs:
 
     - name: Replace flux-system secret with GitHub App credentials
       env:
-        GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+        GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
       run: |
         # flux bootstrap --token-auth stores a short-lived token in the flux-system secret.
         # Replace it with the App credentials so source-controller handles token refresh.
-        echo "${GITHUB_APP_PRIVATE_KEY}" > /tmp/github-app-private-key.pem
+        echo "${GH_APP_PRIVATE_KEY}" > /tmp/github-app-private-key.pem
         kubectl create secret generic flux-system \
           -n flux-system \
-          --from-literal=githubAppID="${{ secrets.GITHUB_APP_ID }}" \
-          --from-literal=githubAppInstallationID="${{ secrets.GITHUB_APP_INSTALLATION_ID }}" \
+          --from-literal=githubAppID="${{ secrets.GH_APP_ID }}" \
+          --from-literal=githubAppInstallationID="${{ secrets.GH_APP_INSTALLATION_ID }}" \
           --from-file=githubAppPrivateKey=/tmp/github-app-private-key.pem \
           --dry-run=client -o yaml | kubectl apply -f -
         rm /tmp/github-app-private-key.pem

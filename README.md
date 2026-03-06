@@ -57,8 +57,10 @@ Configure these secrets in your GitHub repository settings (Settings → Secrets
 WIF_PROVIDER=projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_NAME/providers/$PROVIDER_NAME
 WIF_SERVICE_ACCOUNT=github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com
 
-# GitHub token for Flux bootstrap (needs repo:write permissions)
-FLUX_GITHUB_TOKEN=ghp_your_personal_access_token_here
+# GitHub App for Flux bootstrap — see docs/github-app-setup.md
+GH_APP_ID=your_app_id
+GH_APP_INSTALLATION_ID=your_installation_id
+GH_APP_PRIVATE_KEY=<path-to-private-key.pem>
 ```
 
 ### Enviroment Variables
