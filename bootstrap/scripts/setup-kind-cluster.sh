@@ -68,7 +68,7 @@ unset BASE64_ENCODED_GCP_CREDS
 
 
 echo "Bootstrapping FluxCD..."
-flux bootstrap github \
+GITHUB_TOKEN="${GITHUB_FLUX_PLAYGROUND_PAT}" flux bootstrap github \
     --token-auth \
     --owner=${GITHUB_DEMO_REPO_OWNER} \
     --repository=${GITHUB_DEMO_REPO_NAME} \
