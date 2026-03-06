@@ -5,7 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m
-  url: ssh://git@github.com/olga-mir/playground-sre
+  url: https://github.com/olga-mir/playground-sre
   ref:
     branch: main
   secretRef:

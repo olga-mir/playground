@@ -77,3 +77,16 @@ tasks:
       - echo "flux --context {{.CONTEXT}} resume helmrelease kgateway -n kgateway-system"
       - echo "gh api repos/:owner/:repo/dispatches -X POST -f event_type='Kustomization/clusters.flux-system'"
       - echo "gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId' --logs"
+
+  pr-comments:
+    desc: "Show inline review comments on a PR. Auto-detects PR for current branch (usage: task debug:pr-comments [PR=48])"
+    vars:
+      PR:
+        sh: '[ -n "{{.PR}}" ] && echo "{{.PR}}" || gh pr view --json number -q .number 2>/dev/null'
+    preconditions:
+      - sh: '[ -n "{{.PR}}" ]'
+        msg: "No PR number provided and no open PR found for the current branch"
+    cmds:
+      - |
+        gh api repos/:owner/:repo/pulls/{{.PR}}/comments \
+          --jq '.[] | "[\(.path):\(.line // .original_line)]\n\(.user.login): \(.body)\n---"'

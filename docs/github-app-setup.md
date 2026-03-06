@@ -29,7 +29,7 @@ access tokens automatically.
 ### 2. Generate a private key
 
 On the App settings page, scroll to **Private keys** → **Generate a private key**.
-A `.pem` file downloads. Store the key material in secert manager service
+A `.pem` file downloads. Store the key material in a secret manager service
 
 ### 3. Install the App on your repos
 
@@ -51,7 +51,7 @@ export GITHUB_APP_INSTALLATION_ID="..."
 export GITHUB_APP_PRIVATE_KEY_FILE="wherever-it-is-when-fetched"
 ```
 
-**Repository permissions → Contents: Read** and the ability to send dispatches is sufficient.
+`GITHUB_FLUX_PLAYGROUND_PAT` is still used for the Flux notification provider (repository dispatch). A fine-grained PAT with **Contents: Read-only** is sufficient for that purpose.
 
 ---
 
