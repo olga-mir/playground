@@ -267,6 +267,18 @@ This pattern eliminates unnecessary overlay indirection when you only need resou
 
 This architecture provides clear separation of concerns while maintaining flexibility and avoiding circular dependencies.
 
+## GitHub Authentication
+Flux uses a **GitHub App** (not SSH deploy keys) for all GitRepository authentication. This prevents
+deploy key accumulation across cluster rebuilds. See `docs/github-app-setup.md` for one-time setup.
+
+Required env vars in `.setup-env`:
+* `GITHUB_APP_ID` - GitHub App ID
+* `GITHUB_APP_INSTALLATION_ID` - Installation ID (from install URL)
+* `GITHUB_APP_PRIVATE_KEY_FILE` - path to the downloaded PEM file
+* `GITHUB_FLUX_PLAYGROUND_PAT` - fine-grained PAT for Flux notification provider (repository dispatch only)
+
+Required GitHub Actions secrets: `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`
+
 ## VARIABLES
 * Some of the variables won't be available to you terminal where you are running.
 * Env variables listed in task `deploy` in `env` section are always sourced in working terminal, but are not accessible to agents.

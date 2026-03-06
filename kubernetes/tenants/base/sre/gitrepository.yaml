@@ -9,4 +9,4 @@ spec:
   ref:
     branch: main
   secretRef:
-    name: playground-sre-deploy-key
+    name: flux-system

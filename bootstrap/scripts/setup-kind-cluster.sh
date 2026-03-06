@@ -66,13 +66,51 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic github-webhook
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
 unset BASE64_ENCODED_GCP_CREDS
 
+# Generate a short-lived GitHub App installation token for bootstrap.
+# After bootstrap the flux-system secret is replaced with the App credentials so that
+# source-controller handles token refresh automatically going forward.
+generate_github_app_token() {
+    local header payload signature jwt
+    header=$(echo -n '{"alg":"RS256","typ":"JWT"}' | base64 | tr -d '=' | tr '+/' '-_' | tr -d '\n')
+    local now exp
+    now=$(date +%s)
+    exp=$((now + 540))
+    payload=$(echo -n "{\"iat\":${now},\"exp\":${exp},\"iss\":\"${GITHUB_APP_ID}\"}" | base64 | tr -d '=' | tr '+/' '-_' | tr -d '\n')
+    signature=$(echo -n "${header}.${payload}" | openssl dgst -sha256 -sign "${GITHUB_APP_PRIVATE_KEY_FILE}" -binary | base64 | tr -d '=' | tr '+/' '-_' | tr -d '\n')
+    jwt="${header}.${payload}.${signature}"
+
+    curl -s -X POST \
+        -H "Authorization: Bearer ${jwt}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        "https://api.github.com/app/installations/${GITHUB_APP_INSTALLATION_ID}/access_tokens" \
+        | jq -r '.token'
+}
+
+echo "Generating GitHub App installation token for Flux bootstrap..."
+GITHUB_APP_TOKEN=$(generate_github_app_token)
+
 echo "Bootstrapping FluxCD..."
-GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
+GITHUB_TOKEN="${GITHUB_APP_TOKEN}" flux bootstrap github \
+    --token-auth \
     --owner=${GITHUB_DEMO_REPO_OWNER} \
     --repository=${GITHUB_DEMO_REPO_NAME} \
     --branch=develop \
     --path=./kubernetes/clusters/kind \
-    --personal
+    --personal \
+    --components-extra=image-reflector-controller,image-automation-controller
+unset GITHUB_APP_TOKEN
+
+# Replace the bootstrap token secret with permanent GitHub App credentials.
+# source-controller natively handles App token refresh using these fields.
+echo "Replacing flux-system secret with GitHub App credentials..."
+kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic flux-system \
+    --namespace flux-system \
+    --from-literal=githubAppID="${GITHUB_APP_ID}" \
+    --from-literal=githubAppInstallationID="${GITHUB_APP_INSTALLATION_ID}" \
+    --from-file=githubAppPrivateKey="${GITHUB_APP_PRIVATE_KEY_FILE}" \
+    --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+
 set -x
 
 echo "FluxCD bootstrap completed successfully!"
