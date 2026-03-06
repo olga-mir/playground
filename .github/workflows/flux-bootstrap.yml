@@ -1,6 +1,8 @@
 name: Flux Bootstrap GKE Clusters
 
 # Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY
+# bootstrap uses built-in GITHUB_TOKEN (contents: write) to run flux bootstrap;
+# App secrets are used to replace the flux-system secret so source-controller handles token refresh
 # See docs/github-app-setup.md for setup instructions.
 run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || 'Unknown Cluster' }} 🚀"
 
@@ -14,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -152,12 +154,6 @@ jobs:
           --from-literal=REPO_NAME="${{ github.event.repository.name }}" \
           --dry-run=client -o yaml | kubectl apply -f -
 
-    - name: Generate GitHub App installation token
-      id: app-token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.GH_APP_ID }}
-        private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 
     - name: Run Flux pre-installation checks
       run: |
@@ -165,8 +161,6 @@ jobs:
 
     - name: Bootstrap Flux
       id: bootstrap
-      env:
-        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
       run: |
         CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
 
@@ -185,8 +179,9 @@ jobs:
       env:
         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
       run: |
-        # flux bootstrap --token-auth stores a short-lived token in the flux-system secret.
-        # Replace it with the App credentials so source-controller handles token refresh.
+        # flux bootstrap --token-auth writes the flux-system secret with the workflow's
+        # GITHUB_TOKEN. Replace it immediately with GitHub App credentials so
+        # source-controller handles token refresh automatically going forward.
         echo "${GH_APP_PRIVATE_KEY}" > /tmp/github-app-private-key.pem
         kubectl create secret generic flux-system \
           -n flux-system \

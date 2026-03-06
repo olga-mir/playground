@@ -71,12 +71,10 @@ Set them at: **playground repo → Settings → Secrets and variables → Action
 
 ## How it works at bootstrap time
 
-1. The bootstrap script (or GitHub Actions) generates a short-lived installation access token by
-   signing a JWT with the App's private key and calling the GitHub API
-2. `flux bootstrap github --token-auth` uses that token to push the initial Flux manifests via HTTPS
-3. The script then replaces the `flux-system` K8s secret with the App credentials:
+1. `flux bootstrap github --token-auth` runs using the workflow's built-in `GITHUB_TOKEN` (which has `contents: write`). No App token needed — bootstrap only pushes files to the repo.
+2. The script then replaces the `flux-system` K8s secret with the App credentials:
    `githubAppID`, `githubAppInstallationID`, `githubAppPrivateKey`
-4. Flux source-controller picks up the App secret and handles all subsequent token refresh
+3. Flux source-controller picks up the App secret and handles all subsequent token refresh
    automatically — tokens are rotated before expiry with no manual intervention
 
 The same `flux-system` secret is also used by the `playground-sre` GitRepository (which Flux
