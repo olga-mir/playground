@@ -161,6 +161,8 @@ jobs:
 
     - name: Bootstrap Flux
       id: bootstrap
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
 
