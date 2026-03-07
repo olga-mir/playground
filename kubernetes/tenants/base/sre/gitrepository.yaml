@@ -8,5 +8,6 @@ spec:
   url: https://github.com/olga-mir/playground-sre
   ref:
     branch: main
+  provider: github
   secretRef:
     name: flux-system
