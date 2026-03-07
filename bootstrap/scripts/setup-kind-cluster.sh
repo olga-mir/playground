@@ -89,6 +89,16 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic flux-system \
 
 set -x
 
+# flux bootstrap regenerates gotk-sync.yaml without the provider field.
+# Patch all GitRepositories referencing flux-system secret to set provider: github
+# so source-controller uses the GitHub App credentials correctly.
+for repo in $(kubectl --context "${KIND_CLUSTER_CONTEXT}" get gitrepository -n flux-system -o name); do
+    secret=$(kubectl --context "${KIND_CLUSTER_CONTEXT}" get -n flux-system "${repo}" -o jsonpath='{.spec.secretRef.name}' 2>/dev/null || true)
+    if [ "${secret}" = "flux-system" ]; then
+        kubectl --context "${KIND_CLUSTER_CONTEXT}" patch -n flux-system "${repo}" --type=merge -p '{"spec":{"provider":"github"}}'
+    fi
+done
+
 echo "FluxCD bootstrap completed successfully!"
 
 # Wait for FluxCD to be ready

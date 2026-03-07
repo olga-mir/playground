@@ -1,8 +1,9 @@
 name: Flux Bootstrap GKE Clusters
 
-# Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY
+# Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY, GH_FLUX_PAT
 # bootstrap uses built-in GITHUB_TOKEN (contents: write) to run flux bootstrap;
-# App secrets are used to replace the flux-system secret so source-controller handles token refresh
+# App secrets are used to replace the flux-system secret so source-controller handles token refresh.
+# GH_FLUX_PAT is a PAT with repo scope used for the Flux notification provider (github-webhook-token secret).
 # See docs/github-app-setup.md for setup instructions.
 run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || 'Unknown Cluster' }} 🚀"
 
@@ -192,6 +193,29 @@ jobs:
           --from-file=githubAppPrivateKey=/tmp/github-app-private-key.pem \
           --dry-run=client -o yaml | kubectl apply -f -
         rm /tmp/github-app-private-key.pem
+
+    - name: Create github-webhook-token secret for Flux notification provider
+      run: |
+        # The notification provider uses this secret to dispatch repository_dispatch events
+        # to trigger downstream cluster bootstrapping (e.g. apps-dev after control-plane).
+        # Must be created before Flux reconciles the notification alert, otherwise the first
+        # GKECluster-ready event will fail to dispatch and won't fire again.
+        kubectl create secret generic github-webhook-token \
+          -n flux-system \
+          --from-literal=token="${{ secrets.GH_FLUX_PAT }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Set provider on GitRepository resources
+      run: |
+        # flux bootstrap regenerates gotk-sync.yaml without the provider field.
+        # Patch all GitRepositories that reference the flux-system secret to use
+        # the github provider so source-controller can use the GitHub App credentials.
+        for repo in $(kubectl get gitrepository -n flux-system -o name); do
+          secret=$(kubectl get -n flux-system "${repo}" -o jsonpath='{.spec.secretRef.name}' 2>/dev/null || true)
+          if [ "${secret}" = "flux-system" ]; then
+            kubectl patch -n flux-system "${repo}" --type=merge -p '{"spec":{"provider":"github"}}'
+          fi
+        done
 
     - name: Run Flux installation checks
       run: |
