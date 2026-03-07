@@ -33,6 +33,7 @@ fi
 # Verify FluxCD CLI installation
 set +x
 flux version --client
+
 echo "Pre-creating required secrets and configmaps before Flux bootstrap..."
 
 # Create flux-system namespace if it doesn't exist (needed for secrets/configmaps)
