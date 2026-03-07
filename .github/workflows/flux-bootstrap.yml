@@ -1,8 +1,9 @@
 name: Flux Bootstrap GKE Clusters
 
-# Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY
+# Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY, GH_FLUX_PAT
 # bootstrap uses built-in GITHUB_TOKEN (contents: write) to run flux bootstrap;
-# App secrets are used to replace the flux-system secret so source-controller handles token refresh
+# App secrets are used to replace the flux-system secret so source-controller handles token refresh.
+# GH_FLUX_PAT is a PAT with repo scope used for the Flux notification provider (github-webhook-token secret).
 # See docs/github-app-setup.md for setup instructions.
 run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || 'Unknown Cluster' }} 🚀"
 
@@ -192,6 +193,46 @@ jobs:
           --from-file=githubAppPrivateKey=/tmp/github-app-private-key.pem \
           --dry-run=client -o yaml | kubectl apply -f -
         rm /tmp/github-app-private-key.pem
+
+    - name: Create github-webhook-token secret for Flux notification provider
+      run: |
+        # The notification provider uses this secret to dispatch repository_dispatch events
+        # to trigger downstream cluster bootstrapping (e.g. apps-dev after control-plane).
+        # Must be created before Flux reconciles the notification alert, otherwise the first
+        # GKECluster-ready event will fail to dispatch and won't fire again.
+        kubectl create secret generic github-webhook-token \
+          -n flux-system \
+          --from-literal=token="${{ secrets.GH_FLUX_PAT }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Set provider on GitRepository resources
+      run: |
+        # flux bootstrap regenerates gotk-sync.yaml without the provider field,
+        # which breaks GitHub App auth. Patch it live and also fix it in git so
+        # kustomize-controller doesn't revert the live patch on the next reconciliation.
+        CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
+        SYNC_FILE="./kubernetes/clusters/${CLUSTER_NAME}/flux-system/gotk-sync.yaml"
+
+        # Patch live resource
+        for repo in $(kubectl get gitrepository -n flux-system -o name); do
+          secret=$(kubectl get -n flux-system "${repo}" -o jsonpath='{.spec.secretRef.name}' 2>/dev/null || true)
+          if [ "${secret}" = "flux-system" ]; then
+            kubectl patch -n flux-system "${repo}" --type=merge -p '{"spec":{"provider":"github"}}'
+          fi
+        done
+
+        # Fix the file in git so kustomize-controller doesn't revert the live patch
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git pull --rebase origin develop
+        if grep -q 'provider: github' "${SYNC_FILE}"; then
+          echo "provider: github already present in ${SYNC_FILE}, no commit needed"
+        else
+          sed -i 's|  secretRef:|  provider: github\n  secretRef:|' "${SYNC_FILE}"
+          git add "${SYNC_FILE}"
+          git commit -m "fix: restore provider: github in ${CLUSTER_NAME} gotk-sync.yaml after flux bootstrap"
+          git push origin develop
+        fi
 
     - name: Run Flux installation checks
       run: |
