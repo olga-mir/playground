@@ -1,6 +1,9 @@
 name: Flux Bootstrap GKE Clusters
 
-# Requires repository secret: PROJECT_ID (GCP Project ID)
+# Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY
+# bootstrap uses built-in GITHUB_TOKEN (contents: write) to run flux bootstrap;
+# App secrets are used to replace the flux-system secret so source-controller handles token refresh
+# See docs/github-app-setup.md for setup instructions.
 run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || 'Unknown Cluster' }} 🚀"
 
 on:
@@ -13,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -158,12 +161,11 @@ jobs:
 
     - name: Bootstrap Flux
       id: bootstrap
-      env:
-        GITHUB_TOKEN: ${{ secrets.FLUX_GITHUB_TOKEN }}
       run: |
         CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
 
         flux bootstrap github \
+          --token-auth \
           --owner="${{ github.repository_owner }}" \
           --repository="${{ github.event.repository.name }}" \
           --branch="develop" \
@@ -172,6 +174,22 @@ jobs:
           --network-policy=true \
           --components-extra=image-reflector-controller,image-automation-controller \
           --timeout=10m0s
+
+    - name: Replace flux-system secret with GitHub App credentials
+      env:
+        GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+      run: |
+        # flux bootstrap --token-auth writes the flux-system secret with the workflow's
+        # GITHUB_TOKEN. Replace it immediately with GitHub App credentials so
+        # source-controller handles token refresh automatically going forward.
+        echo "${GH_APP_PRIVATE_KEY}" > /tmp/github-app-private-key.pem
+        kubectl create secret generic flux-system \
+          -n flux-system \
+          --from-literal=githubAppID="${{ secrets.GH_APP_ID }}" \
+          --from-literal=githubAppInstallationID="${{ secrets.GH_APP_INSTALLATION_ID }}" \
+          --from-file=githubAppPrivateKey=/tmp/github-app-private-key.pem \
+          --dry-run=client -o yaml | kubectl apply -f -
+        rm /tmp/github-app-private-key.pem
 
     - name: Run Flux installation checks
       run: |

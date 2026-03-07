@@ -1,0 +1,42 @@
+name: Upgrade Component Versions
+
+# Runs weekly to bump versions in README and Helm manifests.
+# Creates a PR against develop for review — the validate-kustomize workflow
+# will run automatically on the PR to catch any issues.
+#
+# Required secret: ANTHROPIC_API_KEY
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Every Monday at 09:00 UTC
+  workflow_dispatch:       # Allow manual trigger from GitHub UI
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  upgrade-versions:
+    name: Upgrade component versions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run upgrade-versions skill
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Use the upgrade-versions skill to check and upgrade all component versions in this project.
+
+            After the skill completes:
+            - If any versions were updated, create a new branch named `chore/upgrade-versions-YYYY-MM-DD`
+              (using today's date), commit the changes with message `chore: upgrade component versions`,
+              push the branch, and open a pull request targeting the `develop` branch.
+              The PR title should be "chore: upgrade component versions <date>" and the body should
+              include the summary table from the skill (component, old version, new version, files changed).
+            - If no versions needed updating, just report that everything is already up to date and exit.

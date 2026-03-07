@@ -66,13 +66,26 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic github-webhook
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
 unset BASE64_ENCODED_GCP_CREDS
 
+
 echo "Bootstrapping FluxCD..."
-GITHUB_TOKEN=${GITHUB_FLUX_PLAYGROUND_PAT} flux bootstrap github \
+GITHUB_TOKEN="${GITHUB_FLUX_PLAYGROUND_PAT}" flux bootstrap github \
+    --token-auth \
     --owner=${GITHUB_DEMO_REPO_OWNER} \
     --repository=${GITHUB_DEMO_REPO_NAME} \
     --branch=develop \
     --path=./kubernetes/clusters/kind \
-    --personal
+    --personal \
+    --components-extra=image-reflector-controller,image-automation-controller
+# Replace the bootstrap token secret with permanent GitHub App credentials.
+# source-controller natively handles App token refresh using these fields.
+echo "Replacing flux-system secret with GitHub App credentials..."
+kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic flux-system \
+    --namespace flux-system \
+    --from-literal=githubAppID="${GITHUB_APP_ID}" \
+    --from-literal=githubAppInstallationID="${GITHUB_APP_INSTALLATION_ID}" \
+    --from-file=githubAppPrivateKey="${GITHUB_APP_PRIVATE_KEY_FILE}" \
+    --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+
 set -x
 
 echo "FluxCD bootstrap completed successfully!"
