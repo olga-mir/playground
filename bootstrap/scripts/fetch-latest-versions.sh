@@ -23,9 +23,19 @@ fetch_github() {
   local repo="$1"
   [[ -n "${github_latest[$repo]+_}" ]] && return  # already fetched
 
-  tag=$(gh api "repos/${repo}/releases/latest" --jq '.tag_name' 2>/dev/null || true)
+  # Pipe through jq explicitly so 404 bodies (no .tag_name) yield empty string
+  # rather than the raw error JSON leaking into the "latest" field.
+  local body
+  body=$(gh api "repos/${repo}/releases/latest" 2>/dev/null || true)
+  tag=$(echo "$body" | jq -r '.tag_name // empty' 2>/dev/null || true)
+
   if [[ -z "$tag" ]]; then
-    tag=$(gh api "repos/${repo}/tags" --jq '.[0].name' 2>/dev/null || true)
+    body=$(gh api "repos/${repo}/tags" 2>/dev/null || true)
+    tag=$(echo "$body" | jq -r '.[0].name // empty' 2>/dev/null || true)
+  fi
+
+  if [[ -z "$tag" ]]; then
+    warn "No releases or tags found for ${repo} (repo may not exist or have no releases)"
   fi
   github_latest["$repo"]="${tag:-unknown}"
   info "github ${repo} → ${github_latest[$repo]}"

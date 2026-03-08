@@ -49,6 +49,7 @@ Deep-dive context for specific areas — read the relevant doc when working in t
 - **[Flux & GitOps](docs/flux-gitops.md)** — Kustomize structure, known Flux quirks, debugging, image automation
 - **[GitHub Integration](docs/github-integration.md)** — GitHub App auth, Actions workflows, notifications
 - **[Tenants](docs/tenants.md)** — Tenant onboarding, multi-repo GitOps, image promotion
+- **[Version Upgrades](docs/upgrade-versions.md)** — Weekly automated upgrades: how the scan works, adding new components, known quirks
 
 # Variables
 

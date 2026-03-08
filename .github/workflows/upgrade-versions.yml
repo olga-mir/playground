@@ -1,10 +1,11 @@
 name: Upgrade Component Versions
 
 # Runs weekly to bump versions in Helm manifests, Crossplane packages, and README.
-# Bash scripts handle version discovery and GitHub API calls (cheap).
-# Claude handles applying the diffs and opening the PR (smart but expensive).
+# Bash scripts handle version discovery and GitHub API calls (cheap, no LLM tokens).
+# Claude reads the pre-computed report and applies targeted edits (fast, low token cost).
 #
 # Required secrets: ANTHROPIC_API_KEY, GCS_LOG_BUCKET, WIF_PROVIDER, WIF_SERVICE_ACCOUNT
+# See docs/upgrade-versions.md for full process documentation.
 
 on:
   schedule:
@@ -27,7 +28,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Scan current versions and fetch latest from GitHub
+      - name: Scan current versions and fetch latest
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -41,35 +42,17 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          display_report: "true"
-          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep"
-          prompt: |
-            Read `.version-report.md`. It contains a table of all versioned components,
-            their current versions, latest GitHub releases, and whether an update is needed.
-
-            For each row marked **YES** in the "Update?" column:
-            1. Update the version in the specified file:
-               - type=helm: update `spec.chart.spec.version`
-               - type=crossplane: update the version tag at the end of `spec.package` (e.g. `:v0.5.1` → `:v0.6.0`)
-               - type=readme: update the version link in README.md tech-stack table
-                 (change both the link text and the URL, e.g.
-                  `[v2.8.1](https://github.com/fluxcd/flux2/releases/tag/v2.8.1)` →
-                  `[v2.9.0](https://github.com/fluxcd/flux2/releases/tag/v2.9.0)`)
-            2. For each helm or crossplane update, also update the matching entry in
-               README.md tech-stack table if that component appears there.
-            3. Do NOT modify `gotk-components.yaml` — Flux manages its own component manifests.
-            4. If the same component version appears in multiple files (e.g. providers-bootstrap),
-               update ALL of them.
-
-            After applying all updates:
-            - If any files were changed:
-              - Create branch `chore/upgrade-versions-YYYY-MM-DD` (today's date)
-              - Commit with message `chore: upgrade component versions`
-              - Push the branch
-              - Open a pull request targeting the `main` branch with:
-                - Title: `chore: upgrade component versions <date>`
-                - Body: summary table of what changed (component, old version, new version, files)
-            - If nothing needed updating, just report that everything is up to date.
+          # Use current v1 parameters (allowed_tools and direct_prompt are deprecated)
+          claude_args: >-
+            --allowedTools "Bash,Read,Edit,Glob,Grep"
+            --max-turns 20
+          settings: |
+            {
+              "permissions": {
+                "defaultMode": "acceptEdits"
+              }
+            }
+          prompt: "/upgrade-versions"
 
       - name: Mask sensitive values
         if: always()
