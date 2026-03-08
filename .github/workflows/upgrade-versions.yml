@@ -1,7 +1,8 @@
 name: Upgrade Component Versions
 
-# Runs weekly to bump versions in README and Helm manifests.
-# Uploads a run log to GCS after completion.
+# Runs weekly to bump versions in Helm manifests, Crossplane packages, and README.
+# Bash scripts handle version discovery and GitHub API calls (cheap).
+# Claude handles applying the diffs and opening the PR (smart but expensive).
 #
 # Required secrets: ANTHROPIC_API_KEY, GCS_LOG_BUCKET, WIF_PROVIDER, WIF_SERVICE_ACCOUNT
 
@@ -26,22 +27,58 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run upgrade-versions skill
-        id: upgrade
+      - name: Scan current versions and fetch latest from GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash bootstrap/scripts/scan-versions.sh \
+            | bash bootstrap/scripts/fetch-latest-versions.sh \
+            > .version-report.md
+          echo "=== Version report ==="
+          cat .version-report.md
+
+      - name: Apply version updates
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           display_report: "true"
+          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep"
           prompt: |
-            Use the upgrade-versions skill to check and upgrade all component versions in this project.
+            Read `.version-report.md`. It contains a table of all versioned components,
+            their current versions, latest GitHub releases, and whether an update is needed.
 
-            After the skill completes:
-            - If any versions were updated, create a new branch named `chore/upgrade-versions-YYYY-MM-DD`
-              (using today's date), commit the changes with message `chore: upgrade component versions`,
-              push the branch, and open a pull request targeting the `main` branch.
-              The PR title should be "chore: upgrade component versions <date>" and the body should
-              include the summary table from the skill (component, old version, new version, files changed).
-            - If no versions needed updating, just report that everything is already up to date and exit.
+            For each row marked **YES** in the "Update?" column:
+            1. Update the version in the specified file:
+               - type=helm: update `spec.chart.spec.version`
+               - type=crossplane: update the version tag at the end of `spec.package` (e.g. `:v0.5.1` → `:v0.6.0`)
+               - type=readme: update the version link in README.md tech-stack table
+                 (change both the link text and the URL, e.g.
+                  `[v2.8.1](https://github.com/fluxcd/flux2/releases/tag/v2.8.1)` →
+                  `[v2.9.0](https://github.com/fluxcd/flux2/releases/tag/v2.9.0)`)
+            2. For each helm or crossplane update, also update the matching entry in
+               README.md tech-stack table if that component appears there.
+            3. Do NOT modify `gotk-components.yaml` — Flux manages its own component manifests.
+            4. If the same component version appears in multiple files (e.g. providers-bootstrap),
+               update ALL of them.
+
+            After applying all updates:
+            - If any files were changed:
+              - Create branch `chore/upgrade-versions-YYYY-MM-DD` (today's date)
+              - Commit with message `chore: upgrade component versions`
+              - Push the branch
+              - Open a pull request targeting the `main` branch with:
+                - Title: `chore: upgrade component versions <date>`
+                - Body: summary table of what changed (component, old version, new version, files)
+            - If nothing needed updating, just report that everything is up to date.
+
+      - name: Mask sensitive values
+        if: always()
+        env:
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
+          GCS_LOG_BUCKET: ${{ secrets.GCS_LOG_BUCKET }}
+        run: |
+          echo "::add-mask::${PROJECT_ID}"
+          echo "::add-mask::${GCS_LOG_BUCKET}"
 
       - name: Authenticate to Google Cloud
         if: always()
@@ -52,8 +89,11 @@ jobs:
 
       - name: Upload run log to GCS
         if: always()
+        env:
+          GCS_LOG_BUCKET: ${{ secrets.GCS_LOG_BUCKET }}
         run: |
-          DEST="gs://${{ secrets.GCS_LOG_BUCKET }}/$(date -u +%Y-%m-%d)_run${{ github.run_number }}_claude-execution-output.json"
-          gcloud storage cp /home/runner/work/_temp/claude-execution-output.json "${DEST}"
-          DEST_PROMPT="gs://${{ secrets.GCS_LOG_BUCKET }}/$(date -u +%Y-%m-%d)_run${{ github.run_number }}_claude-prompt.txt"
-          gcloud storage cp /home/runner/work/_temp/claude-prompts/claude-prompt.txt "${DEST_PROMPT}"
+          # Strip gs:// prefix if included in the secret value
+          BUCKET="${GCS_LOG_BUCKET#gs://}"
+          PREFIX="${BUCKET}/$(date -u +%Y-%m-%d)_run${{ github.run_number }}"
+          gcloud storage cp /home/runner/work/_temp/claude-execution-output.json "gs://${PREFIX}_claude-execution-output.json" || true
+          gcloud storage cp /home/runner/work/_temp/claude-prompts/claude-prompt.txt "gs://${PREFIX}_claude-prompt.txt" || true

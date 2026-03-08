@@ -1,0 +1,23 @@
+# Maps component identifiers to GitHub release repos.
+# Used by scan-versions.sh for components where the GitHub repo can't be auto-derived.
+#
+# When adding a new Helm chart or Crossplane provider/function, add it here.
+
+# Helm chart name → GitHub org/repo
+helm:
+  crossplane: crossplane/crossplane
+  kagent: kagent-dev/kagent
+  kagent-crds: kagent-dev/kagent
+  kgateway: kgateway-dev/kgateway
+  kgateway-crds: kgateway-dev/kgateway
+  litmus-core: litmuschaos/litmus-helm
+
+# Crossplane xpkg package name overrides (when package org/name != GitHub org/repo).
+# crossplane-contrib/* packages are auto-derived from the package URL — no entry needed.
+xpkg:
+  provider-gcp-beta-container: upbound/provider-gcp-beta-container
+
+# Components tracked in README.md only (no YAML version file in kubernetes/).
+# scan-versions.sh reads these and extracts the current version from README.md.
+readme_only:
+  FluxCD: fluxcd/flux2
