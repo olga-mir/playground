@@ -109,3 +109,8 @@ echo "  - Pods Range: 10.1.4.0/22"
 echo "Apps Dev Subnet: "${APPS_DEV_SUBNET_NAME}" (10.2.0.0/24)"
 echo "  - Services Range: 10.2.1.0/24"
 echo "  - Pods Range: 10.2.4.0/22"
+
+# bucket for logs storage
+gcloud storage buckets add-iam-policy-binding gs://${LOG_BUCKET_NAME} \
+  --member="serviceAccount:${WIF_SERVICE_ACCOUNT}" \
+  --role="roles/storage.objectCreator"
