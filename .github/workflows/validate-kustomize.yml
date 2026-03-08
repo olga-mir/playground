@@ -1,10 +1,6 @@
 name: Validate Kustomize Builds
 
 on:
-  pull_request:
-    paths:
-      - 'kubernetes/**/*.yaml'
-      - 'kubernetes/**/*.yml'
   push:
     branches: [main]
     paths:
