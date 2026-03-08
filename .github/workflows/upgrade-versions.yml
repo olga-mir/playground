@@ -44,8 +44,8 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Use current v1 parameters (allowed_tools and direct_prompt are deprecated)
           claude_args: >-
-            --allowedTools "Bash,Read,Edit,Glob,Grep"
-            --max-turns 20
+            --allowedTools "Bash,Read,Glob,Grep,Skill"
+            --max-turns 30
           settings: |
             {
               "permissions": {
