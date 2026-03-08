@@ -4,10 +4,6 @@ A monorepo showcasing modern cloud-native and AI-powered workflows. Built on **C
 
 Features cutting-edge AI projects including `kgateway` and `kagent` - Kubernetes-native projects designed to enable agentic AI workflows within cloud infrastructure. This repository serves as a playground for exploring the intersection of infrastructure-as-code, AI agents, and Kubernetes-native tooling.
 
-**Architecture**: Hierarchical 3-tier cluster setup with automated "batteries included" provisioning using Crossplane compositions and GitOps deployment via Flux notifications triggering GitHub Actions.
-
-This AI Assisted project, leveraging Claude Sonnet, `gemini-cli`, and other AI tools.
-
 # Tech Stack
 
 | Logo | Name | Description | Project Version |
@@ -20,33 +16,31 @@ This AI Assisted project, leveraging Claude Sonnet, `gemini-cli`, and other AI t
 | <img src="https://raw.githubusercontent.com/kagent-dev/kagent/33a48ede61be68c84f6adcfddde09db41aeb1ea7/img/icon-dark.svg" width="30"> | kagent | Kubernetes-native AI agent framework that enables the deployment and management of AI agents within Kubernetes clusters. | [v0.7.23](https://github.com/kagent-dev/kagent/releases/tag/v0.7.23) |
 | <img src="https://raw.githubusercontent.com/cncf/artwork/88fa3f88ea2e4bf3e4941be8dc797b6d860c9ade/projects/flux/icon/color/flux-icon-color.svg" width="30"> | FluxCD | GitOps toolkit for Kubernetes that keeps clusters in sync with configuration sources and automates deployments. | [v2.8.1](https://github.com/fluxcd/flux2/releases/tag/v2.8.1) |
 | <img src="https://raw.githubusercontent.com/cncf/artwork/refs/heads/main/projects/litmus/icon/color/litmus-icon-color.svg" width="30"> | LitmusChaos | Cloud-native chaos engineering framework for Kubernetes that helps teams find weaknesses in their deployments through controlled chaos experiments. | [v3.26.0](https://github.com/litmuschaos/litmus-helm/releases/tag/litmus-3.26.0) |
-| <img src="https://argo-cd.readthedocs.io/en/stable/assets/logo.png" width="10"> | ~~ArgoCD~~ | :kill-with-fire: This project was using ArgoCD until release TBC | - |
 
-These demos are found in [Wiki](https://github.com/olga-mir/playground/wiki)
+Explore [Wiki](https://github.com/olga-mir/playground/wiki) for demos and tutorials based on this repo.
 
 # Infrastructure
 
-This project implements a **hierarchical 3-tier architecture** with fully automated cluster provisioning and GitOps deployment:
+This project implements a **hierarchical architecture** with fully automated cluster provisioning and GitOps deployment:
 
 ## 🏗️ Cluster Architecture
 
-1. **Bootstrap cluster (kind)**: Local cluster running Crossplane v2 + FluxCD. Provisions control-plane cluster.
+1. **Temporary Bootstrap cluster (kind)**: Local cluster running Crossplane v2 + FluxCD. Provisions permanent `control-plane` cluster in the cloud.
 2. **Control-plane cluster (GKE)**: Management cluster with Crossplane, platform services, and AI stack. Provisions workload clusters.
 3. **Workload clusters (GKE)**: Isolated clusters for tenant applications (apps-dev, staging, prod).
 
-## ✅ Validation & Management
-
-**Comprehensive validation framework**:
-```bash
-task validate:all                   # Full infrastructure validation
-task validate:architecture          # Architectural constraints
-```
-
-**Key benefits**: Zero circular dependencies, clean separation of concerns, automated failure detection.
+In this project the temporary bootstrap cluster currently stays for the lifetime of the setup.
+In Cluster API (not used in this project) there is bootstrap-and-pivot concept allowing moving configuration from oneplace to another
+without breaking the connection. In this way the config for permanent control-plane cluster lives in the cluster itself.
+It is not entirely clear right how Day-2 for control-plane cluster should look like in Crossplane.
 
 # Deployment
 
 ## Prerequisites
+
+* Access to GCP account with sufficient permissions
+* tools: gcloud, flux, kubectl, task
+* Access to GitHub organisation or personal account
 
 ### GitHub Repository Secrets
 
@@ -131,4 +125,26 @@ kubectl exec -n team-platform deploy/fortio-diagnostic -- \
 # High load test
 kubectl exec -n team-platform deploy/fortio-diagnostic -- \
   fortio load -c 50 -qps 1000 -t 60s http://whereami.team-alpha/
+```
+
+### Performance Experimentation
+
+This project integrates "tenant" application which is developed in another repository: https://github.com/olga-mir/playground-sre.
+This repo has source code, GitHub Actions workflows to build and push image and k8s manifests that are deployed from this repo.
+
+```
+# Baseline — sleep 50ms, 10 concurrent connections, 30s
+kubectl exec -n team-bravo deploy/fortio-echo -- \
+  fortio load -c 10 -qps 100 -t 30s \
+  'http://perf-lab.sre.svc.cluster.local/v1/scenarios/sleep?duration=50ms'
+
+# CPU — 2 goroutines, 1s per request, 4 concurrent
+kubectl exec -n team-bravo deploy/fortio-echo -- \
+  fortio load -c 4 -qps 0 -t 30s \
+  'http://perf-lab.sre.svc.cluster.local/v1/scenarios/cpu?duration=1s&goroutines=2'
+
+# Fanout — 50 workers, watch goroutine scheduling overhead
+kubectl exec -n team-bravo deploy/fortio-echo -- \
+  fortio load -c 5 -qps 2 -t 30s \
+  'http://perf-lab.sre.svc.cluster.local/v1/scenarios/fanout?workers=50&task_duration=200ms'
 ```
