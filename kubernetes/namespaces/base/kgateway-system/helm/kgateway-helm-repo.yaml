@@ -4,6 +4,8 @@ kind: HelmRepository
 metadata:
   name: kgateway-helm-repo
   namespace: kgateway-system
+  annotations:
+    upgrade.playground/github-repo: kgateway-dev/kgateway
 spec:
   interval: 5m
   type: oci
