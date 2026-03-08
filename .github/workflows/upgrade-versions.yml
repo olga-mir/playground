@@ -43,6 +43,15 @@ jobs:
               include the summary table from the skill (component, old version, new version, files changed).
             - If no versions needed updating, just report that everything is already up to date and exit.
 
+      - name: Mask sensitive values
+        if: always()
+        env:
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
+          GCS_LOG_BUCKET: ${{ secrets.GCS_LOG_BUCKET }}
+        run: |
+          echo "::add-mask::${PROJECT_ID}"
+          echo "::add-mask::${GCS_LOG_BUCKET}"
+
       - name: Authenticate to Google Cloud
         if: always()
         uses: google-github-actions/auth@v2
@@ -52,8 +61,11 @@ jobs:
 
       - name: Upload run log to GCS
         if: always()
+        env:
+          GCS_LOG_BUCKET: ${{ secrets.GCS_LOG_BUCKET }}
         run: |
-          DEST="gs://${{ secrets.GCS_LOG_BUCKET }}/$(date -u +%Y-%m-%d)_run${{ github.run_number }}_claude-execution-output.json"
-          gcloud storage cp /home/runner/work/_temp/claude-execution-output.json "${DEST}"
-          DEST_PROMPT="gs://${{ secrets.GCS_LOG_BUCKET }}/$(date -u +%Y-%m-%d)_run${{ github.run_number }}_claude-prompt.txt"
-          gcloud storage cp /home/runner/work/_temp/claude-prompts/claude-prompt.txt "${DEST_PROMPT}"
+          # Strip gs:// prefix if included in the secret value
+          BUCKET="${GCS_LOG_BUCKET#gs://}"
+          PREFIX="${BUCKET}/$(date -u +%Y-%m-%d)_run${{ github.run_number }}"
+          gcloud storage cp /home/runner/work/_temp/claude-execution-output.json "gs://${PREFIX}_claude-execution-output.json"
+          gcloud storage cp /home/runner/work/_temp/claude-prompts/claude-prompt.txt "gs://${PREFIX}_claude-prompt.txt"
