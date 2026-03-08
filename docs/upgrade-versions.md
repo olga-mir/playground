@@ -6,13 +6,16 @@ Versions are upgraded automatically every Wednesday via the `upgrade-versions` w
 (`.github/workflows/upgrade-versions.yml`). It uses a hybrid approach:
 
 1. **Bash** discovers all versioned components and fetches latest releases (cheap, deterministic)
-2. **Claude** reads the pre-computed diff and applies `sed` changes + opens the PR (no discovery)
+2. **Claude** (via the `upgrade-versions` skill) reads the pre-computed report and applies edits + opens the PR
 
 ## How it works
 
 ```
-scan-versions.sh → fetch-latest-versions.sh → .version-report.md → Claude applies diffs
+scan-versions.sh → fetch-latest-versions.sh → .version-report.md → Claude (/upgrade-versions skill) applies edits
 ```
+
+The Claude step uses `defaultMode: "acceptEdits"` (set in the workflow `settings`) so file edits
+are auto-approved without interactive prompts. The skill is at `.claude/skills/upgrade-versions/SKILL.md`.
 
 ### scan-versions.sh
 
@@ -86,9 +89,10 @@ Check the workflow run log for a WARN message; update the package manually if ne
 
 ### Edit tool in GitHub Actions
 
-The `Edit` and `Write` tools require interactive file-permission approval in the GHA
-environment even when listed in `allowed_tools`. The workflow therefore instructs Claude
-to use `Bash` with `sed -i` for all file modifications, which bypasses this restriction.
+File edits work via `defaultMode: "acceptEdits"` in the workflow's `settings` block.
+This auto-approves all Edit calls without interactive prompts, which is correct for
+an automated workflow. The deprecated `allowed_tools` parameter is not used; tools are
+configured via `claude_args: '--allowedTools ...'` per the current claude-code-action v1 API.
 
 ### Crossplane chart version is an RC
 
