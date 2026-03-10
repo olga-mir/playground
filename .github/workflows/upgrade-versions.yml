@@ -53,6 +53,7 @@ jobs:
               }
             }
           prompt: "/upgrade-versions"
+          display_report: "true"
 
       - name: Mask sensitive values
         if: always()
