@@ -7,7 +7,7 @@
 > [!NOTE]
 > The goal this workflow achieves is not necessarily best suited for an AI. But this is a good example to experiment and understand LLM-based workflows.
 
-Abridged execution log is available in this folder. Random uuids, session ids, though signatures were removed and outputs trancated for brevity. Additionally workflows have Summary available, example: https://github.com/olga-mir/playground/actions/runs/22926261398
+Abridged execution log is available in this folder. Random uuids, session ids, though signatures were removed and outputs truncated for brevity. Additionally workflows have Summary available, example: https://github.com/olga-mir/playground/actions/runs/22926261398
 
 ## Architecture
 
