@@ -187,4 +187,4 @@ Shortly after, the workflow started crashing at init with exit code 1 and an AJV
 
 The action installs the latest Claude Code binary at runtime. A version bump broke AJV schema validation during SDK initialization, affecting all configurations. Earlier runs (9, 10) happened to use a working version.
 
-Downgarding to `@anthropic-ai/claude-code@2.1.18` did not help.
+Downgrading to `@anthropic-ai/claude-code@2.1.18` did not help.
