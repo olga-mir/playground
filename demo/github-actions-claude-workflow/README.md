@@ -24,6 +24,33 @@ In this write-up, runs are referred to by a number, which corresponds to the run
 
 **Cached tokens** — tokens whose KV vectors were pre-computed and stored. On cache hit the model still attends over them (they're still in the context window), but at 10× lower cost than fresh input. Cache hit ≠ free — it means 90% cheaper.
 
+**cc, cr** - shorthands for `context_creation`, context_read - fields seen in the execution log.
+
+For example in run9 **one API call** returned 9 content blocks (`thinking` × 2, `tool_use` × 7). The SDK logged each block as a separate assistant item — all sharing cc=3007, cr=20774. Then 7 separate user items carry the results back, all empty because sed -i has no stdout.
+
+```
+  ONE API CALL (items 12-20, all cc=3007 cr=20774):
+    item 12: assistant / thinking  "Good. kagent helm files use 0.7.21 without v prefix…"
+    item 13: assistant / text      "Good - no v prefix. Now I'll apply all updates…"
+    item 14: assistant / tool_use  Bash: sed -i kagent versions
+    item 15: assistant / tool_use  Bash: find | xargs sed provider-helm
+    item 16: assistant / tool_use  Bash: find | xargs sed provider-kubernetes
+    item 17: assistant / tool_use  Bash: find | xargs sed function-go-templating
+    item 18: assistant / tool_use  Bash: find | xargs sed function-auto-ready
+    item 19: assistant / tool_use  Bash: find | xargs sed function-patch-and-transform
+    item 20: assistant / tool_use  Bash: find | xargs sed function-environment-configs
+
+  7 TOOL RESULTS (items 21-27, one user item per result):
+    item 21: user / tool_result  "" (empty — sed -i has no stdout)
+    item 22: user / tool_result  "" (empty)
+    ...
+    item 27: user / tool_result  "" (empty)
+
+  NEXT API CALL begins at item 28 (new cc/cr pair)
+```
+
+If one API call did one sed operation, each call would incur charges for the entire context again and again.
+
 ---
 
 ## Architecture
