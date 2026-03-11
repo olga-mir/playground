@@ -16,6 +16,7 @@ jobs:
   validate-kustomize:
     name: Validate Kustomize Builds
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.actor == 'olga-mir'
 
     steps:
     - name: Checkout repository

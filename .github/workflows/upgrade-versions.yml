@@ -23,6 +23,7 @@ jobs:
   upgrade-versions:
     name: Upgrade component versions
     runs-on: ubuntu-latest
+    if: github.actor == 'olga-mir'
 
     steps:
       - name: Checkout repository
