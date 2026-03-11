@@ -41,7 +41,7 @@ It is not entirely clear right how Day-2 for control-plane cluster should look l
 * tools: gcloud, flux, kubectl, task
 * Access to GitHub organisation or personal account
 
-### Enviroment Variables
+### Environment Variables
 
 All required env variables are validated in preconditions of `deploy` task, defined [here](./tasks/setup.yaml).
 
