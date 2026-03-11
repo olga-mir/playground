@@ -9,6 +9,8 @@
 
 Abridged execution log is available in this folder. Random uuids, session ids, though signatures were removed and outputs truncated for brevity. Additionally workflows have Summary available, example: https://github.com/olga-mir/playground/actions/runs/22926261398
 
+PR created with this workflow: https://github.com/olga-mir/playground/pull/58
+
 ## Architecture
 
 The workflow uses a hybrid approach to minimise LLM token usage:
@@ -23,7 +25,7 @@ slash commands at startup; when it sees /upgrade-versions, it invokes `ToolSearc
 
 ##  What makes up the context window
 
-  The initial 7K token cache (before any tool calls) is not just the skill file. It's everything Claude Code constructs at startup:
+The initial 7K token cache (before any tool calls) is not just the skill file. It's everything Claude Code constructs at startup:
 
   ┌──────────────────────────────────────────────────────────────┬─────────┐
   │                            Source                            │ ~Tokens │
@@ -37,9 +39,9 @@ slash commands at startup; when it sees /upgrade-versions, it invokes `ToolSearc
   │ SKILL.md                                                     │ ~770    │
   └──────────────────────────────────────────────────────────────┴─────────┘
 
-  `AGENTS.md` is always included — Claude Code reads `CLAUDE.md` at startup and follows @ includes. Every API call in the run carries the full project instructions.
+`AGENTS.md` is always included — Claude Code reads `CLAUDE.md` at startup and follows @ includes. Every API call in the run carries the full project instructions.
 
-  The jump from 7K to 18K happened when Claude ran cat .version-report.md — the bash output (a markdown table with ~50 rows) went directly into the context and stayed there for every subsequent turn.
+The jump from 7K to 18K happened when Claude ran cat .version-report.md — the bash output (a markdown table with ~50 rows) went directly into the context and stayed there for every subsequent turn.
 
 ---
 ##  How prompt caching actually works
@@ -89,7 +91,7 @@ slash commands at startup; when it sees /upgrade-versions, it invokes `ToolSearc
 
   Two separate permission mechanisms exist and they're easy to conflate:
 
-  allowedTools (in claude_args): which tools Claude is permitted to call. Must include Skill for slash commands to work. Without Skill, Claude cannot invoke /upgrade-versions and instead works from scratch — this was the cause of
+  `allowedTools` (in `claude_args`): which tools Claude is permitted to call. Must include Skill for slash commands to work. Without Skill, Claude cannot invoke /upgrade-versions and instead works from scratch — this was the cause of
    a 21-turn, $0.97 run.
 
   defaultMode: "acceptEdits" (in settings): whether Claude Code auto-approves file write operations. In GitHub Actions' non-interactive environment, the default mode blocks file edits and prompts for confirmation — which never
@@ -143,3 +145,23 @@ turn (cr_delta=0 across turns 10-16), keeping the cached context stable across t
 
   Cache reads halved despite peak context being larger — fewer turns meant less re-reading of
   the growing context. The cost improvement came from command batching, not from compaction.
+
+
+---
+
+## Unexpected Curveballs
+
+As I was iterating with my workflow runs, suddendenly two things happened one after the other. First, during the execution, just before opening PR Claude decided it would be a cool idea to `Simplify`. This took it on an archeological journey through repo history, brought up a lot of unrelated stuff and never ended in a working PR, while burning more tokens than previous runs. This Skill is added automatically and I haven't find a way to remove or block it. In the run9 logs in this folder you can see at the top following snippet:
+
+```
+    "skills": [
+      "debug",
+      "simplify",
+      "batch",
+      "claude-api",
+      "upgrade-versions"
+    ],
+```
+
+Second, all of a sudden the workflow started breking at init stage, presumably due to: https://github.com/anthropics/claude-code-action/issues/892
+
