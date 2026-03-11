@@ -40,10 +40,16 @@ jobs:
           echo "=== Version report ==="
           cat .version-report.md
 
+      - name: Pin Claude Code to known-good version
+        run: |
+          npm install -g @anthropic-ai/claude-code@2.1.18
+          echo "CLAUDE_PATH=$(which claude)" >> "$GITHUB_ENV"
+
       - name: Apply version updates
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          path_to_claude_code_executable: ${{ env.CLAUDE_PATH }}
           # Use current v1 parameters (allowed_tools and direct_prompt are deprecated)
           claude_args: >-
             --allowedTools "Bash,Read,Glob,Grep,Skill"
