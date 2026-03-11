@@ -46,12 +46,25 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Use current v1 parameters (allowed_tools and direct_prompt are deprecated)
           claude_args: >-
-            --allowedTools "Bash,Read,Glob,Grep"
+            --allowedTools "Bash,Read,Glob,Grep,Skill"
             --max-turns 25
           settings: |
             {
               "permissions": {
                 "defaultMode": "acceptEdits"
+              },
+              "hooks": {
+                "PreToolUse": [
+                  {
+                    "matcher": "Skill",
+                    "hooks": [
+                      {
+                        "type": "command",
+                        "command": "skill=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.skill // empty'); if [ \"$skill\" != \"upgrade-versions\" ]; then echo \"Blocked: only upgrade-versions skill is permitted in this workflow\"; exit 2; fi"
+                      }
+                    ]
+                  }
+                ]
               }
             }
           prompt: "/upgrade-versions"
