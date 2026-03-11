@@ -157,7 +157,7 @@ Just before opening the PR, Claude decided to invoke the `simplify` skill. This 
 
 The root cause: `Skill` must be in `allowedTools` (required to load skills at all), but that also allows Claude to call *any* registered skill mid-execution. After running `git diff`, Claude saw changed code and autonomously invoked `simplify` with `caller.type: "direct"` — its own decision, not triggered by an agent.
 
-The skills registered in the session are visible in the `system init` item of the execution JSON:
+The skills registered in the session are visible in the `system init` item of the [execution JSON](/demo/github-actions-claude-workflow/run9-abridged.json). Only `upgrade-versions` is the SKILL that comes from this repo, the rest are added automatically by Claude.
 
 ```json
 "skills": ["debug", "simplify", "batch", "claude-api", "upgrade-versions"]
