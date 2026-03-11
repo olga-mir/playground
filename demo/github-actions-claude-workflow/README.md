@@ -10,7 +10,7 @@ Abridged execution log is available in this folder. Random uuids, session ids, t
 
 PR created with this workflow: https://github.com/olga-mir/playground/pull/58
 
-In this write-up runs refered by a number - this number is a run number in GH Actions: https://github.com/olga-mir/playground/actions/workflows/upgrade-versions.yml Although run-4 is deleted because it exposed information which was not intended to be public.
+In this write-up, runs are referred to by a number, which corresponds to the run number in GitHub Actions: https://github.com/olga-mir/playground/actions/workflows/upgrade-versions.yml. Note that run-4 was deleted because it exposed information that was not intended to be public.
 
 ---
 
