@@ -1,7 +1,7 @@
 ---
 name: upgrade-versions
 description: Upgrade component versions in the project by checking GitHub releases and updating README and Helm manifests. Use when asked to bump, upgrade, update, or check versions of project components.
-allowed-tools: Read, Bash, Glob, Grep, Skill
+allowed-tools: Read, Bash, Glob, Grep
 ---
 
 # Upgrade Component Versions
@@ -55,18 +55,7 @@ For each helm or crossplane update, update the matching version link in README.m
 component appears in the tech-stack table (both link text and URL contain the version string,
 so a single `sed -i 's|OLD|NEW|g' README.md` handles both).
 
-### 4. Compact the context
-
-All file edits are now done. The conversation history contains verbose grep/sed output that
-is no longer needed. Compact it before the git steps to reduce context size for remaining turns:
-
-```
-/compact
-```
-
-The compact summary should note which components were updated and to what versions.
-
-### 5. Create a PR if any files changed
+### 4. Create a PR if any files changed
 
 ```bash
 DATE=$(date -u +%Y-%m-%d)
