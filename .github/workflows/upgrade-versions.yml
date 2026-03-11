@@ -1,5 +1,7 @@
 name: Upgrade Component Versions
 
+# Learning experiment, checkout "demo" folder in the repo
+
 # Runs weekly to bump versions in Helm manifests, Crossplane packages, and README.
 # Bash scripts handle version discovery and GitHub API calls (cheap, no LLM tokens).
 # Claude reads the pre-computed report and applies targeted edits (fast, low token cost).
@@ -8,8 +10,8 @@ name: Upgrade Component Versions
 # See docs/upgrade-versions.md for full process documentation.
 
 on:
-  schedule:
-    - cron: "0 9 * * 3"  # Every Wednesday at 09:00 UTC
+  #schedule:
+  #  - cron: "0 9 * * 3"  # Every Wednesday at 09:00 UTC
   workflow_dispatch:       # Allow manual trigger from GitHub UI
 
 permissions:
