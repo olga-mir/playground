@@ -42,10 +42,15 @@ jobs:
           cat .version-report.md
 
       - name: Apply version updates
-        uses: anthropics/claude-code-action@v1
+        # uses: anthropics/claude-code-action@v1
+        # https://github.com/anthropics/claude-code-action/issues/892
+        uses: anthropics/claude-code-action@01e756b34ef7a1447e9508f674143b07d20c2631
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Use current v1 parameters (allowed_tools and direct_prompt are deprecated)
+
+          # there's an open issue (#860) that track_progress: true merges in 18 additional write tools (Edit, MultiEdit, git commands) that override `--allowedTools` because the merge is additive, not restrictive
+          track_progress: true
+
           claude_args: >-
             --allowedTools "Bash,Read,Glob,Grep,Skill"
             --max-turns 25

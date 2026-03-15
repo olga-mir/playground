@@ -206,12 +206,15 @@ The skills registered in the session are visible in the `system init` item of th
 
 Exit code 2 is Claude Code's signal for permission denied. This is a technical fence enforced before Claude acts — the right place for a workflow-level constraint, not inside the skill itself.
 
-Note: removing `Skill` from `allowedTools` entirely causes the run to crash at init (skills not loaded); the skill file's `allowed-tools` frontmatter does not restrict the global execution context.
+### SDK crash (runs 11+)
 
-### The AJV crash (runs 11+)
+https://github.com/anthropics/claude-code-action/issues/892 (`SDK execution error: 14 |     depsCount: ${Q},`)
+and
+https://github.com/anthropics/claude-code-action/issues/1053 (`Credit balance is too low`)
 
-Shortly after, the workflow started crashing at init with exit code 1 and an AJV JSON schema validation error, `duration_ms: ~150`, `total_cost_usd: 0`. This is a known upstream bug: https://github.com/anthropics/claude-code-action/issues/892
+Have fresh reports of the same issues that started happening in my workflows, without any known workarounds. Finalizing this demo will be suspended until this is resolved.
 
-The action installs the latest Claude Code binary at runtime. A version bump broke AJV schema validation during SDK initialization, affecting all configurations. Earlier runs (9, 10) happened to use a working version.
-
-Downgrading to `@anthropic-ai/claude-code@2.1.18` did not help.
+Did not help:
+* Bumping API limits,
+* Rotating API key
+* Downgrading SDK version (vibe-coded, so errors possible, attempted: `@anthropic-ai/claude-code@2.1.18`)
