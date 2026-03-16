@@ -56,11 +56,23 @@ jobs:
           echo "Providers: $(echo "$PROVIDERS" | grep -c . || true)"
           echo "Configs: $(echo "$CONFIGS" | grep -c . || true)"
 
-          echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
-          echo "xrds=$XRDS" >> $GITHUB_OUTPUT
-          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
-          echo "providers=$PROVIDERS" >> $GITHUB_OUTPUT
-          echo "configs=$CONFIGS" >> $GITHUB_OUTPUT
+          {
+            echo "compositions<<EOF"
+            echo "$COMPOSITIONS"
+            echo "EOF"
+            echo "xrds<<EOF"
+            echo "$XRDS"
+            echo "EOF"
+            echo "functions<<EOF"
+            echo "$FUNCTIONS"
+            echo "EOF"
+            echo "providers<<EOF"
+            echo "$PROVIDERS"
+            echo "EOF"
+            echo "configs<<EOF"
+            echo "$CONFIGS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Validate YAML syntax
         if: steps.changes.outputs.compositions != '' || steps.changes.outputs.xrds != '' || steps.changes.outputs.functions != '' || steps.changes.outputs.providers != '' || steps.changes.outputs.configs != ''
