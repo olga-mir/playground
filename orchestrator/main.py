@@ -18,8 +18,6 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import anthropic
-
 # ── paths ─────────────────────────────────────────────────────────────────────
 REPO_ROOT      = Path(__file__).resolve().parent.parent
 AGENTS_DIR     = REPO_ROOT / ".claude" / "agents"
@@ -178,14 +176,15 @@ def read_agent_prompt(name: str) -> str:
         text = text[end + 3:].lstrip()
     return text
 
-def call_claude(system: str, user: str, client: anthropic.Anthropic) -> str:
-    response = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=2048,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+def call_claude(system: str, user: str) -> str:
+    """Call Claude via the claude CLI (uses Claude Code subscription, no API billing)."""
+    result = subprocess.run(
+        ["claude", "-p", user, "--system-prompt", system, "--output-format", "json"],
+        capture_output=True, text=True, timeout=120,
     )
-    return response.content[0].text
+    if result.returncode != 0:
+        raise RuntimeError(f"claude exited {result.returncode}: {result.stderr[:300]}")
+    return json.loads(result.stdout)["result"]
 
 def parse_json_response(text: str) -> dict:
     start = text.find("{")
@@ -210,7 +209,7 @@ def log(msg: str) -> None:
     print(f"[{ts}] {msg}", flush=True)
 
 # ── phase runner ──────────────────────────────────────────────────────────────
-def run_phase(phase: str, client: anthropic.Anthropic) -> tuple[str, list]:
+def run_phase(phase: str) -> tuple[str, list]:
     """
     Poll a phase until healthy, timeout, or hard failure.
 
@@ -239,7 +238,7 @@ def run_phase(phase: str, client: anthropic.Anthropic) -> tuple[str, list]:
         )
 
         log("   Calling phase-checker agent...")
-        raw = call_claude(system, user_msg, client)
+        raw = call_claude(system, user_msg)
 
         try:
             verdict = parse_json_response(raw)
@@ -280,7 +279,6 @@ def run_phase(phase: str, client: anthropic.Anthropic) -> tuple[str, list]:
 def handle_failure(
     phase: str,
     errors: list,
-    client: anthropic.Anthropic,
     state: dict,
 ) -> str:
     """
@@ -305,7 +303,7 @@ def handle_failure(
     )
 
     log("   Calling diagnostics agent...")
-    raw = call_claude(system, user_msg, client)
+    raw = call_claude(system, user_msg)
 
     try:
         decision = parse_json_response(raw)
@@ -372,8 +370,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    client = anthropic.Anthropic()
-    state  = load_state()
+    state = load_state()
 
     log("══════════════════════════════════════════════")
     log("  Cluster Provisioning Orchestrator")
@@ -390,7 +387,7 @@ def main() -> None:
 
     while phase_index < len(PHASES):
         phase          = PHASES[phase_index]
-        outcome, errors = run_phase(phase, client)
+        outcome, errors = run_phase(phase)
 
         if outcome == "healthy":
             log(f"✓ Phase '{phase}' healthy.")
@@ -408,7 +405,7 @@ def main() -> None:
             errors = [{"resource": "unknown", "kind": "unknown",
                        "message": f"phase '{phase}' result: {outcome}"}]
 
-        action = handle_failure(phase, errors, client, state)
+        action = handle_failure(phase, errors, state)
 
         if action == "retry":
             log(f"Fix applied — retrying phase '{phase}'...")

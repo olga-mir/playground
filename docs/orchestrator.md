@@ -33,7 +33,7 @@ Phases run in order:
 ## Prerequisites
 
 - `uv` installed (`brew install uv`)
-- `ANTHROPIC_API_KEY` set in environment
+- Claude Code (`claude` CLI) installed and authenticated — agent calls run via `claude -p`, which uses your Claude subscription (no separate API billing)
 - All other env vars from `.setup-env` sourced (same as `setup:deploy`)
 
 ## Usage

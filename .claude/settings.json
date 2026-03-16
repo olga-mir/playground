@@ -8,14 +8,14 @@
       "Bash(kubectl describe:*)",
       "Bash(kubectl annotate kustomization:*)",
       "Bash(kustomize build:*)",
+      "Bash(flux get:*)",
+      "Bash(flux reconcile source git:*)",
+      "Bash(flux reconcile kustomization:*)",
       "Bash(find:*)",
       "Bash(rg:*)",
       "Bash(ls:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(flux get:*)",
-      "Bash(flux reconcile source git:*)",
-      "Bash(flux reconcile kustomization:*)",
       "Bash(echo:*)",
       "Bash(diff:*)",
       "Bash(tree:*)",
@@ -27,9 +27,7 @@
     "deny": [
       "Bash(rm:*)",
       "Bash(mv:*)",
-      "Bash(cp:*)",
-      "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(cp:*)"
     ],
     "defaultMode": "acceptEdits"
   },
