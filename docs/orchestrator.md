@@ -59,13 +59,21 @@ cd orchestrator
 uv run python main.py --start-phase control --skip-install
 ```
 
-## State file
+## State and run output
 
-State is persisted at `/tmp/orchestrator-state.json` across runs. It tracks:
-- `fix_attempts` — per-phase, per-error-signature count
+State and run summaries are written to `orchestrator/runs/` (gitignored):
+
+```
+orchestrator/runs/
+├── state.json                        # persisted fix attempt counts and restart count
+└── run-success-2026-03-16_143021.md  # summary written at end of each run
+```
+
+State tracks:
+- `fix_attempts` — per-phase, per-error-signature count (drives the 3× escalation limit)
 - `restart_count` — how many full teardown+reinstall cycles have run
 
-Delete it to reset: `rm /tmp/orchestrator-state.json`
+Reset state between runs: `rm orchestrator/runs/state.json`
 
 ## Escalation and the 3× limit
 

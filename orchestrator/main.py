@@ -25,7 +25,8 @@ REPO_ROOT      = Path(__file__).resolve().parent.parent
 AGENTS_DIR     = REPO_ROOT / ".claude" / "agents"
 INSTALL_SCRIPT = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
 CLEANUP_SCRIPT = REPO_ROOT / "bootstrap" / "scripts" / "00-cleanup.sh"
-STATE_FILE     = Path("/tmp/orchestrator-state.json")
+RUNS_DIR   = REPO_ROOT / "orchestrator" / "runs"
+STATE_FILE = RUNS_DIR / "state.json"
 
 PHASES = ["bootstrap", "control", "workload"]
 MAX_FIX_ATTEMPTS = 3   # same error signature → escalate instead of looping
@@ -195,6 +196,7 @@ def parse_json_response(text: str) -> dict:
 
 # ── state ─────────────────────────────────────────────────────────────────────
 def load_state() -> dict:
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
     if STATE_FILE.exists():
         return json.loads(STATE_FILE.read_text())
     return {"fix_attempts": {}, "restart_count": 0}
@@ -336,7 +338,7 @@ def handle_failure(
 # ── summary ───────────────────────────────────────────────────────────────────
 def write_summary(state: dict, outcome: str, phase: str) -> None:
     ts   = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    path = REPO_ROOT / f"orchestrator-{outcome.lower()}-{ts}.md"
+    path = RUNS_DIR / f"run-{outcome.lower()}-{ts}.md"
     path.write_text(
         f"# Orchestrator Run — {outcome}\n\n"
         f"Date: {ts}\n"

@@ -9,3 +9,9 @@ local-stash/**
 # Temporary files from upgrade-versions workflow
 .version-report.md
 .version-report.json
+
+# Orchestrator run state and summaries
+orchestrator/runs/
+
+# uv managed virtualenv
+orchestrator/.venv/
