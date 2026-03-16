@@ -1,10 +1,18 @@
 name: Crossplane Consumer Validation
 
 on:
+  workflow_call:
+    inputs:
+      base_sha:
+        type: string
+        required: true
   push:
     branches:
       - main
       - 'releases/**'
+    paths:
+      - 'kubernetes/namespaces/base/gkecluster-*/**'
+      - 'kubernetes/tenants/base/cloudrun-deployments/**'
 
 jobs:
   validate-crossplane-consumers:
@@ -13,7 +21,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          fetch-depth: 2  # Need previous commit for comparison
+          fetch-depth: 0
 
       - name: Install yq
         run: |
@@ -22,58 +30,61 @@ jobs:
 
       - name: Detect and validate changed consumer files
         run: |
-          echo "## 🔍 Detecting Changes"
+          echo "## Detecting Changes"
 
-          # Get changed files compared to previous commit
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          BASE_SHA="${{ inputs.base_sha }}"
+          if [[ -z "$BASE_SHA" ]]; then
+            BASE_SHA="$(git rev-parse HEAD~1)"
+          fi
+
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" HEAD)
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          # Find consumer files (composite resources and tenant configs)
-          CONSUMER_FILES=$(echo "$CHANGED_FILES" | grep -E '\.(yaml|yml)$' | grep -E '(bootstrap/control-plane/crossplane/|platform-tenants/)' || true)
+          CONSUMER_FILES=$(echo "$CHANGED_FILES" | grep -E '\.(yaml|yml)$' | grep -E \
+            'kubernetes/namespaces/base/gkecluster-|kubernetes/tenants/base/cloudrun-deployments/' \
+            || true)
 
           if [[ -z "$CONSUMER_FILES" ]]; then
-            echo "⏭️  No Crossplane consumer files changed. Skipping validation."
+            echo "No Crossplane consumer files changed. Skipping validation."
             exit 0
           fi
 
           echo ""
-          echo "## 📋 Consumer files to validate:"
+          echo "## Consumer files to validate:"
           echo "$CONSUMER_FILES"
           echo ""
 
-          echo "## ✅ Validating Files"
+          echo "## Validating Files"
           ERROR_COUNT=0
 
           for file in $CONSUMER_FILES; do
             if [[ ! -f "$file" ]]; then
-              echo "⚠️  Skipping deleted file: $file"
+              echo "Skipping deleted file: $file"
               continue
             fi
 
             echo "Validating: $file"
 
-            # YAML syntax validation
             if ! yq eval '.' "$file" >/dev/null 2>&1; then
-              echo "❌ YAML syntax error in $file"
+              echo "  YAML syntax error in $file"
               ((ERROR_COUNT++))
               continue
             fi
 
-            # Basic structure validation for YAML files
             if ! yq eval '.apiVersion and .kind and .metadata.name' "$file" | grep -q "true"; then
-              echo "❌ $file missing required fields (apiVersion, kind, metadata.name)"
+              echo "  $file missing required fields (apiVersion, kind, metadata.name)"
               ((ERROR_COUNT++))
               continue
             fi
 
-            echo "✅ $file validated successfully"
+            echo "  $file validated successfully"
           done
 
           echo ""
           if [[ $ERROR_COUNT -eq 0 ]]; then
-            echo "## 🎉 All consumer files validated successfully!"
+            echo "## All consumer files validated successfully!"
           else
-            echo "## ❌ Validation failed with $ERROR_COUNT errors"
+            echo "## Validation failed with $ERROR_COUNT errors"
             exit 1
           fi
