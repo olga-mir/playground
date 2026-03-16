@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Cluster provisioning orchestrator.
+AI Agent orchestrator which is used to monitor and troubleshoot project provisioning.
 
 Drives: kind (bootstrap) → GKE control-plane → GKE apps-dev
-Delegates phase assessment and diagnostics to Claude agents via Anthropic SDK.
+Delegates phase assessment and diagnostics to Claude agents via Anthropic SDK (or `claude -p` directly to use subscription instead of API key))
 
 Usage:
     uv run python main.py
@@ -28,11 +28,13 @@ RUNS_DIR   = REPO_ROOT / "orchestrator" / "runs"
 STATE_FILE = RUNS_DIR / "state.json"
 
 PHASES = ["bootstrap", "control", "workload"]
-MAX_FIX_ATTEMPTS = 3   # same error signature → escalate instead of looping
+MAX_FIX_ATTEMPTS  = 3   # same error signature → escalate instead of looping
+DEFAULT_MISSION   = REPO_ROOT / "orchestrator" / "mission.md"
 
 # ── interrupt handling ────────────────────────────────────────────────────────
 # Module-level refs so the signal handler can write a summary on Ctrl-C
 _interrupt_state: dict = {}
+_mission_context: str  = ""  # loaded at startup, injected into every agent call
 _interrupt_phase: str  = "unknown"
 
 def _on_sigint(signum, frame):  # noqa: ARG001
@@ -104,8 +106,9 @@ def get_assessment_commands(phase: str) -> list[str]:
     if phase == "bootstrap":
         return [
             f"kubectl get pods -n crossplane-system --context {KIND_CTX} -o wide",
-            f"kubectl get providers --context {KIND_CTX} -o wide",
-            f"kubectl get providerrevisions --context {KIND_CTX} -o wide",
+            f"kubectl get providers.pkg.crossplane.io --context {KIND_CTX} -o wide",
+            f"kubectl get providerrevisions.pkg.crossplane.io --context {KIND_CTX} -o wide",
+            f"kubectl get functions.pkg.crossplane.io --context {KIND_CTX} -o wide",
             f"kubectl get kustomizations -A --context {KIND_CTX}",
             f"kubectl get gitrepositories -A --context {KIND_CTX}",
             f"kubectl get helmreleases -A --context {KIND_CTX}",
@@ -115,9 +118,11 @@ def get_assessment_commands(phase: str) -> list[str]:
         cmds = [
             f"kubectl get gkecluster -A --context {KIND_CTX} -o wide",
             f"kubectl describe gkecluster -A --context {KIND_CTX}",
-            f"kubectl get clusters.container.gcp.crossplane.io -A --context {KIND_CTX} -o wide",
-            f"kubectl get nodepools.container.gcp.crossplane.io -A --context {KIND_CTX} -o wide",
             f"kubectl get managed --context {KIND_CTX} -o wide",
+            f"kubectl get providers.pkg.crossplane.io --context {KIND_CTX} -o wide",
+            f"kubectl get compositions --context {KIND_CTX} -o wide",
+            # CRD inventory: critical for provider migrations — shows which API groups are registered
+            f"kubectl get crds --context {KIND_CTX} --no-headers | grep -E 'gke\\.gcp|container\\.gcp' | awk '{{print $1}}' | sort",
             f"kubectl get events -A --context {KIND_CTX} --sort-by=.lastTimestamp --field-selector type=Warning",
             f"kubectl get kustomizations -A --context {KIND_CTX}",
             f"kubectl logs -n crossplane-system --context {KIND_CTX} -l pkg.crossplane.io/revision --tail=40 --prefix",
@@ -184,6 +189,16 @@ def collect_cluster_state(phase: str) -> str:
     return "\n".join(parts)
 
 # ── agent helpers ─────────────────────────────────────────────────────────────
+def load_mission(path: Path | None) -> str:
+    """Load mission context file. Falls back to orchestrator/mission.md if present."""
+    candidates = [path, DEFAULT_MISSION]
+    for p in candidates:
+        if p and p.exists():
+            log(f"Mission context: {p}")
+            return p.read_text()
+    log("No mission.md found — agents will have no task context (consider creating orchestrator/mission.md)")
+    return ""
+
 def read_agent_prompt(name: str) -> str:
     """Load agent system prompt, stripping YAML frontmatter if present."""
     path = AGENTS_DIR / f"{name}.md"
@@ -195,6 +210,8 @@ def read_agent_prompt(name: str) -> str:
 
 def call_claude(system: str, user: str) -> str:
     """Call Claude via the claude CLI (uses Claude Code subscription, no API billing)."""
+    if _mission_context:
+        user = f"## Current Mission\n\n{_mission_context}\n\n---\n\n{user}"
     result = subprocess.run(
         ["claude", "-p", user, "--system-prompt", system, "--output-format", "json"],
         capture_output=True, text=True, timeout=120,
@@ -384,11 +401,16 @@ def main() -> None:
         "--start-phase", choices=PHASES, default="bootstrap",
         help="Start from a specific phase (default: bootstrap)",
     )
+    parser.add_argument(
+        "--mission", type=Path, default=None,
+        help="Path to mission context file (default: orchestrator/mission.md if present)",
+    )
     args = parser.parse_args()
 
     state = load_state()
 
-    global _interrupt_state, _interrupt_phase
+    global _interrupt_state, _interrupt_phase, _mission_context
+    _mission_context = load_mission(args.mission)
     _interrupt_state = state
     _interrupt_phase = args.start_phase
     signal.signal(signal.SIGINT, _on_sigint)

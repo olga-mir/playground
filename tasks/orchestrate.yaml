@@ -2,7 +2,7 @@ version: "3"
 
 tasks:
   run:
-    desc: "Full provisioning run: install + bootstrap + control + workload phases"
+    desc: "Full provisioning run: install + bootstrap + control + workload phases (set mission in orchestrator/mission.md first)"
     preconditions:
       - sh: test -n "$PROJECT_ID"
         msg: "PROJECT_ID is not set"

@@ -61,25 +61,54 @@ The only `kubectl` commands allowed are read-only: `get`, `describe`, `logs`, `e
 
 **GKECluster XR not provisioning (SYNCED=False or error conditions)**
 
-This is the most common failure during a Crossplane provider migration. Key things to check:
+This is the most common failure during a Crossplane provider migration. Follow this checklist:
 
-1. **API group mismatch** — After migrating providers, the composition may reference the old provider's CRD API group. Check:
-   - `kubectl describe gkecluster -A --context kind-kind-test-cluster` for the exact error
-   - The Composition in `kubernetes/components/crossplane-compositions/`
-   - The GKECluster XR definition — does `spec.compositeTypeRef` match the installed CompositeResourceDefinition?
+### Step 1 — Read the mission context
+You will be given a "## Current Mission" section at the top. Read it carefully before investigating.
+It tells you what provider is being migrated TO, what not to revert, and what the fix target is.
 
-2. **Composition not selecting the right provider** — Check if `compositeDeletePolicy` or `publishConnectionDetailsTo` reference a provider config name that changed in the new provider
+### Step 2 — Identify the API group mismatch
 
-3. **Missing provider config** — New provider may need a ProviderConfig with different settings:
-   - Check `kubernetes/namespaces/base/crossplane-system/` for ProviderConfig resources
-   - The new provider's ProviderConfig format may differ from the old one
+Error "no matches for kind X in version Y" means the Composition references a CRD API group
+that doesn't exist on the cluster. This is the canonical provider migration failure.
 
-4. **Function pipeline changes** — Crossplane v2 uses function-based compositions. Check if the functions referenced in the Composition are installed and healthy
+**Diagnosis:**
+- The CRD inventory in the cluster state (from `kubectl get crds | grep gke.gcp|container.gcp`)
+  tells you which API groups ARE registered
+- The Composition in `kubernetes/components/crossplane-compositions/` tells you which groups
+  it REFERENCES
+- If they don't match → update the Composition to use the installed CRD group
 
-5. **GKECluster spec field changes** — The new provider's API may have different field names or required fields. Read the GKECluster CR and compare against the installed CRD schema:
-   ```
-   kubectl get crd gkeclusters.gcp.platform.upbound.io -o yaml --context kind-kind-test-cluster
-   ```
+**Common API group mapping for GKE provider migration:**
+- Old `provider-gcp-beta-container` / `provider-gcp-container`: `container.gcp.upbound.io/v1beta1`
+- New `provider-gcp-gke`: `gke.gcp.upbound.io/v1beta1`
+
+**How to fix:**
+1. Read `kubernetes/components/crossplane-compositions/` — find the Composition file
+2. Check what CRDs are available: look at the CRD inventory in the cluster state
+3. Find the correct `apiVersion` by checking a CRD:
+   `kubectl get crd clusters.gke.gcp.upbound.io -o jsonpath='{.spec.versions[*].name}' --context kind-kind-test-cluster`
+4. Update the Composition — replace the old `apiVersion` (e.g. `container.gcp.upbound.io/v1beta1`)
+   with the new one (e.g. `gke.gcp.upbound.io/v1beta1`) in all pipeline steps
+5. Also check: do the Kind names match? Some providers rename `Cluster` → `Cluster` (same) or
+   add different sub-resources
+6. Commit and push to develop
+
+### Step 3 — Check provider family alignment
+
+If a provider family (e.g. `crossplane-contrib-provider-family-gcp`) is HEALTHY=False while
+a different family (e.g. `upbound-provider-family-gcp`) is HEALTHY=True:
+- The HEALTHY=False family may be the old one — check if it's still referenced in any ProviderConfig
+- If the new provider (e.g. `provider-gcp-gke`) uses `upbound-provider-family-gcp`, the unhealthy
+  old family can be removed from the provider manifests
+- Check `kubernetes/namespaces/base/crossplane-system/` for provider manifests
+
+### Step 4 — Verify ProviderConfig references
+
+After changing API groups, the Composition's `providerConfigRef.name` must match an installed
+ProviderConfig for the new provider. Check:
+- What ProviderConfig names exist: `kubectl get providerconfigs.gcp.upbound.io --context kind-kind-test-cluster`
+- What the Composition references in `spec.providerConfigRef.name`
 
 **GKECluster READY=False, SYNCED=True, no error**
 - GKE cluster is still being provisioned by GCP — this is normal for up to 20 minutes
