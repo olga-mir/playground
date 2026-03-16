@@ -1,6 +1,6 @@
 # ProviderConfig for GCP - references the secret created by gcp-creds-secret-gke-control-plane.yaml
 ---
-apiVersion: gcp-beta.upbound.io/v1beta1
+apiVersion: gcp.upbound.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: crossplane-provider-gcp

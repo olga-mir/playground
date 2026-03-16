@@ -28,7 +28,7 @@ The table has columns: `Component | Type | File | Current | Latest | Update?`
 
 Skip these regardless:
 - `crossplane` component — requires special process, skip for now
-- `provider-gcp-beta-container` — to be replaced later, skip
+- `provider-gcp-gke` — track via `upbound/provider-gcp-gke` GitHub releases
 - Any row where `latest_version` is `unknown`
 
 For each version that needs updating, run ONE `sed` command that covers all files containing

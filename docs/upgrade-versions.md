@@ -80,10 +80,10 @@ LitmusChaos publishes to a HTTP Helm repo (`https://litmuschaos.github.io/litmus
 The scan uses the Helm index directly, looking up the `litmus-core` chart version specifically.
 This avoids confusion with GitHub tags like `litmus-agent-3.26.0` (a different chart family).
 
-### `provider-gcp-beta-container` — upbound package
+### `provider-gcp-gke` — upbound package
 
-This package (`xpkg.upbound.io/upbound/provider-gcp-beta-container`) is derived as
-`upbound/provider-gcp-beta-container` on GitHub. If the GitHub releases API returns 404
+This package (`xpkg.upbound.io/upbound/provider-gcp-gke`) is tracked as
+`upbound/provider-gcp-gke` on GitHub. If the GitHub releases API returns 404
 (repo not found or no releases), the fetch script marks it as `unknown` and skips it.
 Check the workflow run log for a WARN message; update the package manually if needed.
 
