@@ -37,7 +37,9 @@ kind (local bootstrap)
 
 | Task | Command |
 |---|---|
-| Full deploy | `bootstrap/bootstrap-control-plane-cluster.sh` |
+| Full deploy (orchestrated) | `task orchestrate:run` |
+| Full deploy (raw script) | `bootstrap/bootstrap-control-plane-cluster.sh` |
+| Resume from phase | `task orchestrate:resume PHASE=control` |
 | Validate kustomize | `task validate:kustomize-build` |
 | Fleet health check | `bootstrap/scripts/check-fleet-health.sh` |
 
@@ -50,6 +52,7 @@ Deep-dive context for specific areas — read the relevant doc when working in t
 - **[GitHub Integration](docs/github-integration.md)** — GitHub App auth, Actions workflows, notifications
 - **[Tenants](docs/tenants.md)** — Tenant onboarding, multi-repo GitOps, image promotion
 - **[Version Upgrades](docs/upgrade-versions.md)** — Weekly automated upgrades: how the scan works, adding new components, known quirks
+- **[Orchestrator](docs/orchestrator.md)** — Automated provisioning pipeline: phases, agent prompts, escalation logic, task reference
 
 # Variables
 

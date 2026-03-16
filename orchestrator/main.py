@@ -6,13 +6,12 @@ Drives: kind (bootstrap) → GKE control-plane → GKE apps-dev
 Delegates phase assessment and diagnostics to Claude agents via Anthropic SDK.
 
 Usage:
-    python bootstrap/orchestrator.py
-    python bootstrap/orchestrator.py --skip-install
-    python bootstrap/orchestrator.py --start-phase control
+    uv run python main.py
+    uv run python main.py --skip-install
+    uv run python main.py --start-phase control
 """
 import argparse
 import json
-import os
 import subprocess
 import sys
 import time
@@ -22,11 +21,11 @@ from pathlib import Path
 import anthropic
 
 # ── paths ─────────────────────────────────────────────────────────────────────
-REPO_ROOT   = Path(__file__).resolve().parent.parent
-AGENTS_DIR  = REPO_ROOT / ".claude" / "agents"
+REPO_ROOT      = Path(__file__).resolve().parent.parent
+AGENTS_DIR     = REPO_ROOT / ".claude" / "agents"
 INSTALL_SCRIPT = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
 CLEANUP_SCRIPT = REPO_ROOT / "bootstrap" / "scripts" / "00-cleanup.sh"
-STATE_FILE  = Path("/tmp/orchestrator-state.json")
+STATE_FILE     = Path("/tmp/orchestrator-state.json")
 
 PHASES = ["bootstrap", "control", "workload"]
 MAX_FIX_ATTEMPTS = 3   # same error signature → escalate instead of looping
@@ -227,7 +226,7 @@ def run_phase(phase: str, client: anthropic.Anthropic) -> tuple[str, list]:
     last_errors: list = []
 
     while datetime.now() < deadline:
-        log(f"   Collecting cluster state...")
+        log("   Collecting cluster state...")
         cluster_state = collect_cluster_state(phase)
 
         user_msg = (
@@ -287,7 +286,7 @@ def handle_failure(
     Tracks fix attempts per error signature to enforce the escalation limit.
     """
     # Stable key for this error set (order-independent)
-    error_key = json.dumps(sorted(e.get("message", "") for e in errors))
+    error_key      = json.dumps(sorted(e.get("message", "") for e in errors))
     phase_attempts = state["fix_attempts"].setdefault(phase, {})
     attempt_count  = phase_attempts.get(error_key, 0)
 
@@ -388,7 +387,7 @@ def main() -> None:
     phase_index = PHASES.index(args.start_phase)
 
     while phase_index < len(PHASES):
-        phase  = PHASES[phase_index]
+        phase          = PHASES[phase_index]
         outcome, errors = run_phase(phase, client)
 
         if outcome == "healthy":
@@ -398,14 +397,12 @@ def main() -> None:
 
         # ── unhealthy path ────────────────────────────────────────────────────
         if outcome == "teardown":
-            # Phase-checker flagged unrecoverable state immediately
             run_cleanup()
             write_summary(state, "TEARDOWN", phase)
             sys.exit(1)
 
         # outcome is degraded or timeout — run diagnostics
         if not errors:
-            # Synthesise a generic error if the agent didn't return structured ones
             errors = [{"resource": "unknown", "kind": "unknown",
                        "message": f"phase '{phase}' result: {outcome}"}]
 
@@ -413,7 +410,6 @@ def main() -> None:
 
         if action == "retry":
             log(f"Fix applied — retrying phase '{phase}'...")
-            # Don't increment phase_index; loop back to re-check same phase
             continue
 
         if action == "teardown":

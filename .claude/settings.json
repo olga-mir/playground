@@ -39,7 +39,7 @@
         "matcher": "Bash",
         "hooks": [{
           "type": "command",
-          "command": "python .claude/hooks/guardrails.sh"
+          "command": "bash .claude/hooks/guardrails.sh"
         }]
       }
     ],
