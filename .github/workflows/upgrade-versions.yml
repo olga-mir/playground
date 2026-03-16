@@ -74,7 +74,8 @@ jobs:
               }
             }
           prompt: "/upgrade-versions"
-          display_report: "true"
+          # not available in the older version which is pinned for testing
+          # display_report: "true"
 
       - name: Mask sensitive values
         if: always()
