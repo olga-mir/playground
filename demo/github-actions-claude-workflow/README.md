@@ -217,4 +217,20 @@ Have fresh reports of the same issues that started happening in my workflows, wi
 Did not help:
 * Bumping API limits,
 * Rotating API key
-* Downgrading SDK version (vibe-coded, so errors possible, attempted: `@anthropic-ai/claude-code@2.1.18`)
+* Downgrading to SHA version mentioned in the 892 description, which still does not work:
+
+```
+SDK execution error: 14 |     depsCount: ${Q},
+15 |     deps: ${$}}`};var Pj={keyword:"dependencies",type:"object",schemaType:"object",error:EB.error,code(X){let[Q,$]=Sj(X);RB(X,Q),IB(X,$)}};function Sj({schema:X}){let Q={},$={};for(let Y in X){if(Y==="__proto__")continue;let W=Array.isArray(X[Y])?Q:$;W[Y]=X[Y]}return[Q,$]}function RB(X,Q=X.schema){let{gen:$,data:Y,it:W}=X;if(Object.keys(Q).length===0)return;let J=$.let("missing");for(let G in Q){let H=Q[G];if(H.length===0)continue;let B=(0,W4.propertyInData)($,Y,G,W.opts.ownProperties);if(X.setParams({property:G,depsCount:H.length,deps:H.join(", ")}),W.allErrors)$.if(B,()=>{for(let z of H)(0,W4.checkReportMissingProp)(X,z)});else $.if(fY._`${B} && (${(0,W4.checkMissingProp)(X,H,J)})`),(0,W4.reportMissingProp)(X,J),$.else()}}EB.validatePropertyDeps=RB;function IB(X,Q=X.schema){let{gen:$,data:Y,keyword:W,it:J}=X,G=$.name("valid");for(let H in Q){if((0,bj.alwaysValidSchema)(J,Q[H]))continue;$.if((0,W4.propertyInData)($,Y,H,J.opts.ownProperties),()=>{let B=X.subschema({keyword:W,schemaProp:H},G);X.mergeValidEvalu
+16 | `))X=Z0(X);let Y=`${new Date().toISOString()} [${Q.toUpperCase()}] ${X.trim()}
+17 | `;if(WW()){d7(Y);return}_U().write(Y)}function GW(){return JW()??process.env.CLAUDE_CODE_DEBUG_LOGS_DIR??YW(V4(),"debug",`${s7()}.txt`)}var xU=k1(()=>{if(process.argv[2]==="--ripgrep")return;try{let X=GW(),Q=z9(X),$=YW(Q,"latest");if(!n0().existsSync(Q))n0().mkdirSync(Q);if(n0().existsSync($))try{n0().unlinkSync($)}catch{}n0().symlinkSync(X,$)}catch{}});var lU=!1;function F0(X,Q){let $=performance.now();try{return Q()}finally{performance.now()-$>B9}}var mU={cwd(){return process.cwd()},existsSync(X){return F0(`existsSync(${X})`,()=>h.existsSync(X))},async stat(X){return yU(X)},async readdir(X){return gU(X,{withFileTypes:!0})},async unlink(X){return fU(X)},async rmdir(X){return hU(X)},async rm(X,Q){return uU(X,Q)},statSync(X){return F0(`statSync(${X})`,()=>h.statSync(X))},lstatSync(X){return F0(`lstatSync(${X})`,()=>h.lstatSync(X))},readFileSync(X,Q){return F0(`readFileSync(${X})`,()=>h.readFileSync(X,{encoding:Q.encoding}))},readFileBytesSync(X){return F0(`readFileBytesSync(${X})`,()=>h.readFileSync(X))},readS
+18 | `),F4}function N1(X){let Q=tU();if(!Q)return;let Y=`${new Date().toISOString()} ${X}
+19 | `;nU(Q,Y)}function zW(X,Q){let $={...X};if(Q){let Y={sandbox:Q};if($.settings)try{Y={...L4($.settings),sandbox:Q}}catch{}$.settings=Z0(Y)}return $}class XX{options;process;processStdin;processStdout;ready=!1;abortController;exitError;exitListeners=[];processExitHandler;abortHandler;constructor(X){this.options=X;this.abortController=X.abortController||N6(),this.initialize()}getDefaultExecutable(){return j6()?"bun":"node"}spawnLocalProcess(X){let{command:Q,args:$,cwd:Y,env:W,signal:J}=X,G=W.DEBUG_CLAUDE_AGENT_SDK||this.options.stderr?"pipe":"ignore",H=aU(Q,$,{cwd:Y,stdio:["pipe","pipe",G],signal:J,env:W,windowsHide:!0});if(W.DEBUG_CLAUDE_AGENT_SDK||this.options.stderr)H.stderr.on("data",(z)=>{let K=z.toString();if(N1(K),this.options.stderr)this.options.stderr(K)});return{stdin:H.stdin,stdout:H.stdout,get killed(){return H.killed},get exitCode(){return H.exitCode},kill:H.kill.bind(H),on:H.on.bind(H),once:H.once.bind(H),off:H.off.bind(H)}}initialize(){try{let{additionalDirectories:X=[],agent:Q,betas:$,cwd:Y,execu
+
+error: Claude Code process exited with code 1
+      at $ (/home/runner/work/_actions/anthropics/claude-code-action/01e756b34ef7a1447e9508f674143b07d20c2631/base-action/node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs:19:7668)
+      at emit (node:events:98:22)
+      at #handleOnExit (node:child_process:520:14)
+
+Error: Process completed with exit code 1.
+```
