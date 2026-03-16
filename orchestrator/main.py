@@ -12,6 +12,7 @@ Usage:
 """
 import argparse
 import json
+import signal
 import subprocess
 import sys
 import time
@@ -28,6 +29,16 @@ STATE_FILE = RUNS_DIR / "state.json"
 
 PHASES = ["bootstrap", "control", "workload"]
 MAX_FIX_ATTEMPTS = 3   # same error signature → escalate instead of looping
+
+# ── interrupt handling ────────────────────────────────────────────────────────
+# Module-level refs so the signal handler can write a summary on Ctrl-C
+_interrupt_state: dict = {}
+_interrupt_phase: str  = "unknown"
+
+def _on_sigint(signum, frame):  # noqa: ARG001
+    log("\nInterrupted — writing run summary...")
+    write_summary(_interrupt_state, "INTERRUPTED", _interrupt_phase)
+    sys.exit(0)
 
 # ── phase definitions ─────────────────────────────────────────────────────────
 PHASE_DEFINITIONS: dict[str, dict] = {
@@ -103,10 +114,13 @@ def get_assessment_commands(phase: str) -> list[str]:
     elif phase == "control":
         cmds = [
             f"kubectl get gkecluster -A --context {KIND_CTX} -o wide",
+            f"kubectl describe gkecluster -A --context {KIND_CTX}",
             f"kubectl get clusters.container.gcp.crossplane.io -A --context {KIND_CTX} -o wide",
             f"kubectl get nodepools.container.gcp.crossplane.io -A --context {KIND_CTX} -o wide",
             f"kubectl get managed --context {KIND_CTX} -o wide",
+            f"kubectl get events -A --context {KIND_CTX} --sort-by=.lastTimestamp --field-selector type=Warning",
             f"kubectl get kustomizations -A --context {KIND_CTX}",
+            f"kubectl logs -n crossplane-system --context {KIND_CTX} -l pkg.crossplane.io/revision --tail=40 --prefix",
         ]
         if control_ctx:
             cmds += [
@@ -124,8 +138,11 @@ def get_assessment_commands(phase: str) -> list[str]:
             return ["# control-plane context not available — cannot assess workload phase yet"]
         cmds = [
             f"kubectl get gkecluster -A --context {control_ctx} -o wide",
+            f"kubectl describe gkecluster -A --context {control_ctx}",
             f"kubectl get managed --context {control_ctx} -o wide",
+            f"kubectl get events -A --context {control_ctx} --sort-by=.lastTimestamp --field-selector type=Warning",
             f"kubectl get kustomizations -A --context {control_ctx}",
+            f"kubectl logs -n crossplane-system --context {control_ctx} -l pkg.crossplane.io/revision --tail=40 --prefix",
         ]
         if apps_ctx:
             cmds += [
@@ -318,12 +335,11 @@ def handle_failure(
     log(f"   {rationale}")
 
     if action == "fix_forward":
-        fix_commands = decision.get("fix_commands", [])
-        log(f"   Applying {len(fix_commands)} fix command(s)...")
-        for cmd in fix_commands:
-            log(f"     $ {cmd}")
-            out = run_command(cmd, timeout=120)
-            log(f"     → {out[:300]}")
+        # The diagnostics agent makes changes and pushes to develop itself via tools.
+        # Record the commit description if provided.
+        committed = decision.get("committed", "")
+        if committed:
+            log(f"   Committed: {committed}")
         phase_attempts[error_key] = attempt_count + 1
         save_state(state)
         return "retry"
@@ -372,6 +388,11 @@ def main() -> None:
 
     state = load_state()
 
+    global _interrupt_state, _interrupt_phase
+    _interrupt_state = state
+    _interrupt_phase = args.start_phase
+    signal.signal(signal.SIGINT, _on_sigint)
+
     log("══════════════════════════════════════════════")
     log("  Cluster Provisioning Orchestrator")
     log(f"  Start phase : {args.start_phase}")
@@ -386,7 +407,8 @@ def main() -> None:
     phase_index = PHASES.index(args.start_phase)
 
     while phase_index < len(PHASES):
-        phase          = PHASES[phase_index]
+        phase           = PHASES[phase_index]
+        _interrupt_phase = phase
         outcome, errors = run_phase(phase)
 
         if outcome == "healthy":
@@ -408,7 +430,8 @@ def main() -> None:
         action = handle_failure(phase, errors, state)
 
         if action == "retry":
-            log(f"Fix applied — retrying phase '{phase}'...")
+            log("Fix pushed to develop — waiting 2min for Flux to reconcile...")
+            time.sleep(120)
             continue
 
         if action == "teardown":

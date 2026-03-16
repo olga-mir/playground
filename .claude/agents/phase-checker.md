@@ -33,8 +33,10 @@ You will be given:
 **Crossplane Managed Resources (control/workload phases)**
 - Healthy: `READY=True  SYNCED=True` in `kubectl get managed` or `kubectl get gkecluster`
 - `READY=False  SYNCED=True` with no error message → still reconciling, wait
-- `SYNCED=False` or error message → needs diagnosis
+- `SYNCED=False` or error message in conditions → needs diagnosis
 - GKE cluster takes 10–20 minutes to provision — do not escalate prematurely
+- From `kubectl describe gkecluster`: look at `.status.conditions[].message` for the root cause error text; include this verbatim in the `errors` list — it's the most useful signal for the diagnostics agent
+- Provider migration errors often appear as: "cannot apply composite resource", "no composition found", "API group not found" — always include the full condition message
 
 **Flux Kustomizations**
 - Healthy: `Ready  True` and not suspended
