@@ -1,7 +1,6 @@
 ---
 name: github-actions-flux-debugger
 description: Use this agent when you need to troubleshoot GitHub Actions workflows related to Flux GitOps bootstrap processes, including workflow failures, configuration issues, authentication problems, or deployment errors. Examples: <example>Context: User is experiencing a failed GitHub Actions workflow that bootstraps Flux to a GCP GKE cluster. user: 'My flux bootstrap workflow is failing with authentication errors when trying to connect to my GKE cluster' assistant: 'I'll use the github-actions-flux-debugger agent to analyze your workflow and help resolve the authentication issues.' <commentary>Since the user has a specific Flux bootstrap workflow issue, use the github-actions-flux-debugger agent to diagnose and provide solutions.</commentary></example> <example>Context: User's GitHub Actions workflow for Flux bootstrap is timing out during the reconciliation phase. user: 'The workflow keeps timing out when flux tries to reconcile the initial manifests' assistant: 'Let me launch the github-actions-flux-debugger agent to investigate the timeout issues in your Flux bootstrap process.' <commentary>The user has a timeout issue with Flux reconciliation, which requires the specialized debugging agent.</commentary></example>
-model: sonnet
 color: orange
 ---
 

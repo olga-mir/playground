@@ -37,7 +37,7 @@ kind (local bootstrap)
 
 | Task | Command |
 |---|---|
-| Full deploy | `bootstrap/scripts/setup-kind-cluster.sh` |
+| Full deploy | `bootstrap/bootstrap-control-plane-cluster.sh` |
 | Validate kustomize | `task validate:kustomize-build` |
 | Fleet health check | `bootstrap/scripts/check-fleet-health.sh` |
 
