@@ -1,0 +1,65 @@
+name: Crossplane Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'kubernetes/components/crossplane-compositions/**'
+      - 'kubernetes/namespaces/base/crossplane-system/**'
+      - 'kubernetes/namespaces/base/gkecluster-*/**'
+      - 'kubernetes/tenants/base/cloudrun-deployments/**'
+  push:
+    branches-ignore:
+      - main
+      - 'releases/**'
+    paths:
+      - 'kubernetes/components/crossplane-compositions/**'
+      - 'kubernetes/namespaces/base/crossplane-system/**'
+      - 'kubernetes/namespaces/base/gkecluster-*/**'
+      - 'kubernetes/tenants/base/cloudrun-deployments/**'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      platform: ${{ steps.filter.outputs.platform }}
+      consumer: ${{ steps.filter.outputs.consumer }}
+      base_sha: ${{ steps.filter.outputs.base_sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed file categories
+        id: filter
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha || github.event.before }}"
+          echo "base_sha=$BASE_SHA" >> $GITHUB_OUTPUT
+
+          CHANGED=$(git diff --name-only "$BASE_SHA" "${{ github.sha }}")
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          PLATFORM=$(echo "$CHANGED" | grep -E \
+            'kubernetes/components/crossplane-compositions/|kubernetes/namespaces/base/crossplane-system/' \
+            || true)
+          CONSUMER=$(echo "$CHANGED" | grep -E \
+            'kubernetes/namespaces/base/gkecluster-|kubernetes/tenants/base/cloudrun-deployments/' \
+            || true)
+
+          echo "platform=$([ -n "$PLATFORM" ] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "consumer=$([ -n "$CONSUMER" ] && echo true || echo false)" >> $GITHUB_OUTPUT
+
+  validate-platform:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.platform == 'true'
+    uses: ./.github/workflows/crossplane-platform-validation.yaml
+    with:
+      base_sha: ${{ needs.detect-changes.outputs.base_sha }}
+
+  validate-consumer:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.consumer == 'true'
+    uses: ./.github/workflows/crossplane-consumer-validation.yaml
+    with:
+      base_sha: ${{ needs.detect-changes.outputs.base_sha }}
