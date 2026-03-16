@@ -14,7 +14,7 @@ tasks:
       - uv run --directory {{.ROOT_DIR}}/orchestrator python main.py
 
   check:
-    desc: "Check current cluster state across all phases (no install, starts from bootstrap)"
+    desc: "Check current cluster state (no install, skips initial wait)"
     preconditions:
       - sh: command -v uv
         msg: "uv not found — install from https://docs.astral.sh/uv/"

@@ -49,8 +49,18 @@ You will be given:
 - `Unable to clone` or auth errors → diagnose
 - `artifact not found` shortly after bootstrap → wait (normal startup)
 
+**Install script status**
+The cluster state includes an `## Install status` line. Use it:
+- `STILL RUNNING` — the install script (flux bootstrap + secrets setup) is still in progress.
+  Resources may not exist yet. Be patient: recommend `wait` unless there are clear error conditions
+  that predate the install completing. Do not recommend `diagnose` just because resources are absent.
+- `completed successfully` — install is done; all resources should be present. Missing resources
+  or unhealthy conditions are genuine failures.
+- `FAILED` — the install script itself failed; surface this in analysis, recommend `diagnose`.
+
 **General wait signals — recommend "wait" for these:**
-- Crossplane providers showing `INSTALLED=False` within first 5 minutes
+- Install script still running and no error conditions visible yet
+- Crossplane providers showing `INSTALLED=False` within first 5 minutes of install completing
 - GKE cluster in `CREATING` state
 - Kustomizations with `dependency not ready`
 - Pod in `ContainerCreating` or `Init:0/1`

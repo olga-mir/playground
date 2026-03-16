@@ -31,14 +31,21 @@ PHASES = ["bootstrap", "control", "workload"]
 MAX_FIX_ATTEMPTS  = 3   # same error signature → escalate instead of looping
 DEFAULT_MISSION   = REPO_ROOT / "orchestrator" / "mission.md"
 
-# ── interrupt handling ────────────────────────────────────────────────────────
-# Module-level refs so the signal handler can write a summary on Ctrl-C
-_interrupt_state: dict = {}
-_mission_context: str  = ""  # loaded at startup, injected into every agent call
-_interrupt_phase: str  = "unknown"
+# ── module-level state (signal handler + mission) ─────────────────────────────
+_interrupt_state: dict              = {}
+_interrupt_phase: str               = "unknown"
+_mission_context: str               = ""
+_install_proc: subprocess.Popen | None = None
+_install_log_path: Path | None      = None
+_install_log_fh                     = None   # kept open while proc writes
 
 def _on_sigint(signum, frame):  # noqa: ARG001
     log("\nInterrupted — writing run summary...")
+    if _install_proc and _install_proc.poll() is None:
+        log(f"  Terminating install script (PID {_install_proc.pid})...")
+        _install_proc.terminate()
+    if _install_log_fh:
+        _install_log_fh.close()
     write_summary(_interrupt_state, "INTERRUPTED", _interrupt_phase)
     sys.exit(0)
 
@@ -178,10 +185,21 @@ def run_command(cmd: str, timeout: int = 60) -> str:
     except Exception as e:
         return f"[error: {e}]"
 
+def get_install_status() -> str:
+    """Return a one-line install script status for inclusion in agent context."""
+    if _install_proc is None:
+        return "install script: not started (--skip-install mode)"
+    rc = _install_proc.poll()
+    if rc is None:
+        return f"install script: STILL RUNNING (PID {_install_proc.pid}) — log: {_install_log_path}"
+    if rc == 0:
+        return f"install script: completed successfully — log: {_install_log_path}"
+    return f"install script: FAILED (exit {rc}) — log: {_install_log_path}"
+
 def collect_cluster_state(phase: str) -> str:
     """Run all assessment commands and format output for the agent."""
     commands = get_assessment_commands(phase)
-    parts = []
+    parts = [f"## Install status\n{get_install_status()}\n"]
     for cmd in commands:
         parts.append(f"$ {cmd}")
         parts.append(run_command(cmd))
@@ -381,13 +399,56 @@ def write_summary(state: dict, outcome: str, phase: str) -> None:
     log(f"Summary → {path}")
 
 # ── install / cleanup ─────────────────────────────────────────────────────────
-def run_install() -> bool:
-    log(f"Running install: {INSTALL_SCRIPT.name}")
-    result = subprocess.run([str(INSTALL_SCRIPT)])
-    return result.returncode == 0
+def run_install_background() -> bool:
+    """Launch install script in background. Logs to orchestrator/runs/install-<ts>.log.
+    Returns False immediately if the script fails to start."""
+    global _install_proc, _install_log_path, _install_log_fh
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    _install_log_path = RUNS_DIR / f"install-{ts}.log"
+    _install_log_fh   = open(_install_log_path, "w")
+    try:
+        _install_proc = subprocess.Popen(
+            [str(INSTALL_SCRIPT)],
+            stdout=_install_log_fh,
+            stderr=subprocess.STDOUT,
+        )
+    except OSError as e:
+        log(f"Failed to start install script: {e}")
+        _install_log_fh.close()
+        return False
+    log(f"Install script running in background  PID={_install_proc.pid}")
+    log(f"Log: {_install_log_path}   (tail -f to follow)")
+    return True
+
+def wait_before_first_check(seconds: int) -> bool:
+    """Wait before the first phase check. Polls every 30s for early install failure.
+    Returns False if install failed during the wait."""
+    log(f"Waiting {seconds // 60}min before first phase check...")
+    poll_interval = 30
+    elapsed = 0
+    while elapsed < seconds:
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+        if _install_proc:
+            rc = _install_proc.poll()
+            if rc is not None and rc != 0:
+                log(f"Install script failed early (exit {rc}) — check {_install_log_path}")
+                return False
+            if rc == 0:
+                log("Install script finished — starting phase checks immediately")
+                return True
+        remaining = seconds - elapsed
+        if remaining > 0:
+            log(f"  {remaining // 60}m{remaining % 60:02d}s until first phase check  ({get_install_status()})")
+    return True
 
 def run_cleanup() -> None:
     log(f"Running cleanup: {CLEANUP_SCRIPT.name}")
+    if _install_proc and _install_proc.poll() is None:
+        log(f"  Terminating running install script (PID {_install_proc.pid}) first...")
+        _install_proc.terminate()
+        _install_proc.wait(timeout=10)
     subprocess.run([str(CLEANUP_SCRIPT)])
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -405,6 +466,10 @@ def main() -> None:
         "--mission", type=Path, default=None,
         help="Path to mission context file (default: orchestrator/mission.md if present)",
     )
+    parser.add_argument(
+        "--initial-wait", type=int, default=300, metavar="SECONDS",
+        help="Seconds to wait after starting install before the first phase check (default: 300 = 5min)",
+    )
     args = parser.parse_args()
 
     state = load_state()
@@ -417,20 +482,35 @@ def main() -> None:
 
     log("══════════════════════════════════════════════")
     log("  Cluster Provisioning Orchestrator")
-    log(f"  Start phase : {args.start_phase}")
-    log(f"  Skip install: {args.skip_install}")
+    log(f"  Start phase  : {args.start_phase}")
+    log(f"  Skip install : {args.skip_install}")
+    log(f"  Initial wait : {args.initial_wait}s")
     log("══════════════════════════════════════════════")
 
     if not args.skip_install:
-        if not run_install():
-            log("Install script failed — check output above.")
+        if not run_install_background():
+            log("Failed to launch install script.")
+            sys.exit(1)
+        if not wait_before_first_check(args.initial_wait):
+            log("Install script failed during initial wait — aborting.")
+            write_summary(state, "FAILED", args.start_phase)
             sys.exit(1)
 
     phase_index = PHASES.index(args.start_phase)
 
     while phase_index < len(PHASES):
-        phase           = PHASES[phase_index]
+        phase            = PHASES[phase_index]
         _interrupt_phase = phase
+
+        # If install is still running and has now exited, close log handle and check result
+        if _install_proc and _install_proc.poll() is not None:
+            if _install_log_fh and not _install_log_fh.closed:
+                _install_log_fh.close()
+            if _install_proc.returncode != 0:
+                log(f"Install script exited with error (code {_install_proc.returncode}) — check {_install_log_path}")
+                write_summary(state, "FAILED", phase)
+                sys.exit(1)
+
         outcome, errors = run_phase(phase)
 
         if outcome == "healthy":
