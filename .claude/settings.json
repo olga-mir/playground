@@ -39,6 +39,20 @@
           "type": "command",
           "command": "bash .claude/hooks/guardrails.sh"
         }]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [{
+          "type": "command",
+          "command": "bash .claude/hooks/protect-generated-files.sh"
+        }]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [{
+          "type": "command",
+          "command": "bash .claude/hooks/protect-generated-files.sh"
+        }]
       }
     ],
     "Notification": [
