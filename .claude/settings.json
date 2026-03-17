@@ -8,14 +8,14 @@
       "Bash(kubectl describe:*)",
       "Bash(kubectl annotate kustomization:*)",
       "Bash(kustomize build:*)",
+      "Bash(flux get:*)",
+      "Bash(flux reconcile source git:*)",
+      "Bash(flux reconcile kustomization:*)",
       "Bash(find:*)",
       "Bash(rg:*)",
       "Bash(ls:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(flux get:*)",
-      "Bash(flux reconcile source git:*)",
-      "Bash(flux reconcile kustomization:*)",
       "Bash(echo:*)",
       "Bash(diff:*)",
       "Bash(tree:*)",
@@ -27,9 +27,44 @@
     "deny": [
       "Bash(rm:*)",
       "Bash(mv:*)",
-      "Bash(cp:*)",
-      "Bash(git add:*)"
+      "Bash(cp:*)"
     ],
     "defaultMode": "acceptEdits"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{
+          "type": "command",
+          "command": "bash .claude/hooks/guardrails.sh"
+        }]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [{
+          "type": "command",
+          "command": "bash .claude/hooks/protect-generated-files.sh"
+        }]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [{
+          "type": "command",
+          "command": "bash .claude/hooks/protect-generated-files.sh"
+        }]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude Code needs your attention\" with title \"Claude Code\"'"
+          }
+        ]
+      }
+    ]
   }
 }

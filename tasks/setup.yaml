@@ -28,8 +28,6 @@ tasks:
         msg: "GITHUB_DEMO_REPO_OWNER is not set"
       - sh: test -n "$GITHUB_DEMO_REPO_NAME"
         msg: "GITHUB_DEMO_REPO_NAME is not set"
-      - sh: test -n "$ANTHROPIC_API_KEY"
-        msg: "ANTHROPIC_API_KEY is not set"
     env:
       GKE_VPC: "{{.GKE_VPC}}"
       GKE_CONTROL_PLANE_CLUSTER: "{{.GKE_CONTROL_PLANE_CLUSTER}}"
@@ -44,7 +42,6 @@ tasks:
       DOMAIN: "{{.DOMAIN}}"
       GITHUB_DEMO_REPO_OWNER: "{{.GITHUB_DEMO_REPO_OWNER}}"
       GITHUB_DEMO_REPO_NAME: "{{.GITHUB_DEMO_REPO_NAME}}"
-      ANTHROPIC_API_KEY: "{{.ANTHROPIC_API_KEY}}"
     cmds:
       - "{{.ROOT_DIR}}/bootstrap/bootstrap-control-plane-cluster.sh"
 

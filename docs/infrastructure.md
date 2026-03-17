@@ -55,7 +55,7 @@ kubernetes/
 ## Provisioning flow
 
 ```
-setup-kind-cluster.sh
+bootstrap-control-plane-cluster.sh
   1. Create kind cluster
   2. Create flux-system namespace + secrets (platform-secrets, github-webhook-token)
   3. flux bootstrap → installs Flux, pushes gotk-sync.yaml to git

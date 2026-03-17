@@ -56,19 +56,38 @@ jobs:
           echo "Providers: $(echo "$PROVIDERS" | grep -c . || true)"
           echo "Configs: $(echo "$CONFIGS" | grep -c . || true)"
 
-          echo "compositions=$COMPOSITIONS" >> $GITHUB_OUTPUT
-          echo "xrds=$XRDS" >> $GITHUB_OUTPUT
-          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
-          echo "providers=$PROVIDERS" >> $GITHUB_OUTPUT
-          echo "configs=$CONFIGS" >> $GITHUB_OUTPUT
+          {
+            echo "compositions<<EOF"
+            echo "$COMPOSITIONS"
+            echo "EOF"
+            echo "xrds<<EOF"
+            echo "$XRDS"
+            echo "EOF"
+            echo "functions<<EOF"
+            echo "$FUNCTIONS"
+            echo "EOF"
+            echo "providers<<EOF"
+            echo "$PROVIDERS"
+            echo "EOF"
+            echo "configs<<EOF"
+            echo "$CONFIGS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Validate YAML syntax
         if: steps.changes.outputs.compositions != '' || steps.changes.outputs.xrds != '' || steps.changes.outputs.functions != '' || steps.changes.outputs.providers != '' || steps.changes.outputs.configs != ''
         run: |
           echo "Validating YAML syntax..."
 
-          for file in ${{ steps.changes.outputs.compositions }} ${{ steps.changes.outputs.xrds }} ${{ steps.changes.outputs.functions }} ${{ steps.changes.outputs.providers }} ${{ steps.changes.outputs.configs }}; do
-            if [[ -n "$file" && -f "$file" ]]; then
+          COMPOSITIONS="${{ steps.changes.outputs.compositions }}"
+          XRDS="${{ steps.changes.outputs.xrds }}"
+          FUNCTIONS="${{ steps.changes.outputs.functions }}"
+          PROVIDERS="${{ steps.changes.outputs.providers }}"
+          CONFIGS="${{ steps.changes.outputs.configs }}"
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            if [[ -f "$file" ]]; then
               echo "Checking $file"
               if yq eval '.' "$file" > /dev/null; then
                 echo "  Valid YAML"
@@ -77,16 +96,20 @@ jobs:
                 exit 1
               fi
             fi
-          done
+          done <<< "$(printf '%s\n' "$COMPOSITIONS" "$XRDS" "$FUNCTIONS" "$PROVIDERS" "$CONFIGS")"
 
       - name: Validate Crossplane resources
         if: steps.changes.outputs.compositions != '' || steps.changes.outputs.xrds != ''
         run: |
           echo "Validating Crossplane platform resources..."
 
+          COMPOSITIONS="${{ steps.changes.outputs.compositions }}"
+          XRDS="${{ steps.changes.outputs.xrds }}"
+
           # Validate Compositions
-          for composition in ${{ steps.changes.outputs.compositions }}; do
-            if [[ -n "$composition" && -f "$composition" ]]; then
+          while IFS= read -r composition; do
+            [[ -z "$composition" ]] && continue
+            if [[ -f "$composition" ]]; then
               echo "Validating Composition: $composition"
 
               if yq eval '.apiVersion == "apiextensions.crossplane.io/v1" and .kind == "Composition"' "$composition" | grep -q "true"; then
@@ -103,11 +126,12 @@ jobs:
                 exit 1
               fi
             fi
-          done
+          done <<< "$COMPOSITIONS"
 
           # Validate XRDs
-          for xrd in ${{ steps.changes.outputs.xrds }}; do
-            if [[ -n "$xrd" && -f "$xrd" ]]; then
+          while IFS= read -r xrd; do
+            [[ -z "$xrd" ]] && continue
+            if [[ -f "$xrd" ]]; then
               echo "Validating XRD: $xrd"
 
               if yq eval '.apiVersion == "apiextensions.crossplane.io/v1" and .kind == "CompositeResourceDefinition"' "$xrd" | grep -q "true"; then
@@ -128,7 +152,7 @@ jobs:
                 exit 1
               fi
             fi
-          done
+          done <<< "$XRDS"
 
       - name: Test composition rendering
         if: steps.changes.outputs.compositions != '' && steps.changes.outputs.xrds != ''

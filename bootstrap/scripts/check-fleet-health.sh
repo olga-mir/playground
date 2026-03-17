@@ -129,6 +129,14 @@ get_context_for() {
   done
 }
 
+is_known_cluster() {
+  local target="$1"
+  for entry in "${CLUSTERS[@]}"; do
+    [ "${entry%%:*}" = "${target}" ] && return 0
+  done
+  return 1
+}
+
 if [ "${1:-}" != "" ]; then
   TARGETS=("$1")
 else
@@ -142,7 +150,11 @@ fi
 for short_name in "${TARGETS[@]}"; do
   ctx=$(get_context_for "${short_name}")
   if [ -z "${ctx}" ]; then
-    echo -e "${RED}Unknown cluster '${short_name}'${NC}"
+    if is_known_cluster "${short_name}"; then
+      warn "context for '${short_name}' not found in kubeconfig — cluster not provisioned yet, skipping"
+    else
+      echo -e "${RED}Unknown cluster '${short_name}'${NC}"
+    fi
     continue
   fi
 

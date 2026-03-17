@@ -6,7 +6,7 @@ metadata:
 spec:
   interval: 10m
   timeout: 30m
-  path: ./kubernetes/namespaces/base/crossplane-system/providerconfigs
+  path: ./kubernetes/namespaces/base/crossplane-system/provider-configs
   prune: true
   wait: true
   sourceRef:

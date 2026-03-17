@@ -4,4 +4,4 @@ kind: Kustomization
 # Crossplane configurations that depend on provider CRDs being available
 resources:
   - ../crossplane-system/environment-configs
-  - ../crossplane-system/providerconfigs
+  - ../crossplane-system/provider-configs

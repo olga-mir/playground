@@ -9,6 +9,6 @@ spec:
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
-  name: provider-gcp-beta-container
+  name: provider-gcp-gke
 spec:
-  package: xpkg.upbound.io/upbound/provider-gcp-beta-container:v0.5.1
+  package: xpkg.upbound.io/upbound/provider-gcp-gke:v2.5.0
