@@ -388,11 +388,12 @@ def handle_failure(
     log(f"   {rationale}")
 
     if action == "fix_forward":
-        # The diagnostics agent makes changes and pushes to develop itself via tools.
-        # Record the commit description if provided.
-        committed = decision.get("committed", "")
-        if committed:
-            log(f"   Committed: {committed}")
+        commit_message = decision.get("commit_message", f"fix: diagnostics agent fix for phase {phase}")
+        try:
+            commit_and_push(commit_message)
+        except RuntimeError as e:
+            log(f"   Git operation failed: {e}")
+            return "escalate"
         phase_attempts[error_key] = attempt_count + 1
         save_state(state)
         return "retry"
@@ -459,6 +460,29 @@ def wait_before_first_check(seconds: int) -> bool:
         remaining = seconds - elapsed
         if remaining > 0:
             log(f"  {remaining // 60}m{remaining % 60:02d}s until first phase check  ({get_install_status()})")
+    return True
+
+def commit_and_push(commit_message: str) -> bool:
+    """Stage all repo changes, commit, and push to develop.
+    Returns True if a commit was made, False if there was nothing to commit."""
+    def git(args: list[str]) -> str:
+        result = subprocess.run(
+            ["git"] + args, capture_output=True, text=True, cwd=str(REPO_ROOT),
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"git {args[0]} failed: {result.stderr.strip()}")
+        return result.stdout.strip()
+
+    status = git(["status", "--porcelain"])
+    if not status:
+        log("   No file changes detected — nothing to commit")
+        return False
+
+    log(f"   Changed files:\n" + "\n".join(f"     {l}" for l in status.splitlines()))
+    git(["add", "-A"])
+    git(["commit", "-m", commit_message])
+    git(["push", "origin", "develop"])
+    log(f"   Pushed to develop: {commit_message}")
     return True
 
 def run_cleanup() -> None:
