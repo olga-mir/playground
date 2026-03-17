@@ -12,6 +12,7 @@ Usage:
 """
 import argparse
 import json
+import os
 import signal
 import subprocess
 import sys
@@ -227,15 +228,32 @@ def read_agent_prompt(name: str) -> str:
     return text
 
 def call_claude(system: str, user: str) -> str:
-    """Call Claude via the claude CLI (uses Claude Code subscription, no API billing)."""
+    """Call Claude via the claude CLI (uses Claude Code subscription, no API billing).
+
+    --system-prompt forces direct API mode (requires ANTHROPIC_API_KEY), so we fold
+    the agent instructions into the message instead. Claude Code then also loads
+    CLAUDE.md / AGENTS.md automatically, which gives agents useful project context.
+
+    Runs with cwd=REPO_ROOT so tool-using agents resolve file paths correctly.
+    User message is piped via stdin to avoid OS arg-length limits.
+    """
     if _mission_context:
         user = f"## Current Mission\n\n{_mission_context}\n\n---\n\n{user}"
+    message = f"{system}\n\n---\n\n{user}"
+    # Strip ANTHROPIC_API_KEY so Claude Code uses subscription auth, not the API key
+    # (the key may be set for other tools like kagent but breaks claude -p)
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     result = subprocess.run(
-        ["claude", "-p", user, "--system-prompt", system, "--output-format", "json"],
-        capture_output=True, text=True, timeout=120,
+        ["claude", "-p", "--output-format", "json"],
+        input=message,
+        capture_output=True, text=True,
+        timeout=600,        # tool-using agents need time: file reads, git ops, kubectl
+        cwd=str(REPO_ROOT), # agents resolve paths relative to repo root
+        env=env,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"claude exited {result.returncode}: {result.stderr[:300]}")
+        detail = (result.stderr or result.stdout or "(no output)")[:500]
+        raise RuntimeError(f"claude exited {result.returncode}:\n{detail}")
     return json.loads(result.stdout)["result"]
 
 def parse_json_response(text: str) -> dict:
