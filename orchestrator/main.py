@@ -233,7 +233,7 @@ def read_agent_prompt(name: str) -> str:
         text = text[end + 3:].lstrip()
     return text
 
-def call_claude(system: str, user: str) -> str:
+def call_claude(system: str, user: str, verbose: bool = False) -> str:
     """Call Claude via the claude CLI (uses Claude Code subscription, no API billing).
 
     --system-prompt forces direct API mode (requires ANTHROPIC_API_KEY), so we fold
@@ -242,6 +242,9 @@ def call_claude(system: str, user: str) -> str:
 
     Runs with cwd=REPO_ROOT so tool-using agents resolve file paths correctly.
     User message is piped via stdin to avoid OS arg-length limits.
+
+    When verbose=True, stderr is inherited (not captured), so tool use activity
+    (file reads, edits, bash calls, hook output) streams to the terminal in real time.
     """
     if _mission_context:
         user = f"## Current Mission\n\n{_mission_context}\n\n---\n\n{user}"
@@ -252,7 +255,9 @@ def call_claude(system: str, user: str) -> str:
     result = subprocess.run(
         ["claude", "-p", "--output-format", "json"],
         input=message,
-        capture_output=True, text=True,
+        stdout=subprocess.PIPE,
+        stderr=None if verbose else subprocess.PIPE,  # None = inherit, streams to terminal
+        text=True,
         timeout=600,        # tool-using agents need time: file reads, git ops, kubectl
         cwd=str(REPO_ROOT), # agents resolve paths relative to repo root
         env=env,
@@ -393,7 +398,7 @@ def handle_failure(
     )
 
     log("   Calling diagnostics agent...")
-    raw = call_claude(system, user_msg)
+    raw = call_claude(system, user_msg, verbose=True)
 
     try:
         decision = parse_json_response(raw)
