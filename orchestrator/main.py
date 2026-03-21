@@ -26,7 +26,6 @@ REPO_ROOT           = Path(__file__).resolve().parent.parent
 AGENTS_DIR          = REPO_ROOT / ".claude" / "agents"
 INSTALL_SCRIPT      = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
 CLEANUP_SCRIPT      = REPO_ROOT / "bootstrap" / "scripts" / "00-cleanup.sh"
-FLEET_HEALTH_SCRIPT = REPO_ROOT / "bootstrap" / "scripts" / "check-fleet-health.sh"
 RUNS_DIR   = REPO_ROOT / "orchestrator" / "runs"
 STATE_FILE = RUNS_DIR / "state.json"
 
@@ -286,13 +285,14 @@ def log(msg: str) -> None:
     print(f"[{ts}] {msg}", flush=True)
 
 # ── phase runner ──────────────────────────────────────────────────────────────
-def run_phase(phase: str) -> tuple[str, list]:
+def run_phase(phase: str) -> tuple[str, list, str]:
     """
     Poll a phase until healthy, timeout, or hard failure.
 
-    Returns (outcome, errors) where outcome is one of:
+    Returns (outcome, errors, last_cluster_state) where outcome is one of:
         healthy | timeout | degraded | teardown
     errors is the list from the last verdict (empty if healthy).
+    last_cluster_state is the kubectl output from the final check cycle.
     """
     defn     = PHASE_DEFINITIONS[phase]
     deadline = datetime.now() + timedelta(minutes=defn["max_wait_minutes"])
@@ -301,7 +301,8 @@ def run_phase(phase: str) -> tuple[str, list]:
     log(f"── Phase: {phase} ({defn['description']})")
     log(f"   Deadline: {deadline.strftime('%H:%M:%S')} ({defn['max_wait_minutes']}min window)")
 
-    last_errors: list = []
+    last_errors: list       = []
+    last_cluster_state: str = ""
     check_number   = 0
     phase_start    = datetime.now()
 
@@ -310,7 +311,8 @@ def run_phase(phase: str) -> tuple[str, list]:
         elapsed_min   = int((datetime.now() - phase_start).total_seconds() / 60)
 
         log("   Collecting cluster state...")
-        cluster_state = collect_cluster_state(phase)
+        cluster_state      = collect_cluster_state(phase)
+        last_cluster_state = cluster_state
 
         user_msg = (
             f"Phase: {phase}\n"
@@ -339,14 +341,14 @@ def run_phase(phase: str) -> tuple[str, list]:
             log(f"   {verdict['analysis']}")
 
         if status == "healthy":
-            return "healthy", []
+            return "healthy", [], last_cluster_state
 
         if recommendation == "teardown":
             log("   Agent recommends immediate teardown.")
-            return "teardown", last_errors
+            return "teardown", last_errors, last_cluster_state
 
         if recommendation == "diagnose":
-            return "degraded", last_errors
+            return "degraded", last_errors, last_cluster_state
 
         # recommendation == "wait" — sleep and loop
         remaining = (deadline - datetime.now()).total_seconds()
@@ -356,7 +358,7 @@ def run_phase(phase: str) -> tuple[str, list]:
         log(f"   Waiting {int(wait_s / 60)}min before next check...")
         time.sleep(wait_s)
 
-    return "timeout", last_errors
+    return "timeout", last_errors, last_cluster_state
 
 # ── diagnostics runner ────────────────────────────────────────────────────────
 def handle_failure(
@@ -368,8 +370,13 @@ def handle_failure(
     Run diagnostics agent. Returns: retry | teardown | escalate
     Tracks fix attempts per error signature to enforce the escalation limit.
     """
-    # Stable key for this error set (order-independent)
-    error_key      = json.dumps(sorted(e.get("message", "") for e in errors))
+    # Stable key for this error set (order-independent).
+    # Normalise out numeric values (elapsed times, counts) so that "after 90 minutes"
+    # and "after 91 minutes" hash to the same signature and don't bypass the attempt limit.
+    def _normalise(msg: str) -> str:
+        return re.sub(r"\d+", "N", msg)
+
+    error_key      = json.dumps(sorted(_normalise(e.get("message", "")) for e in errors))
     phase_attempts = state["fix_attempts"].setdefault(phase, {})
     attempt_count  = phase_attempts.get(error_key, 0)
 
@@ -504,23 +511,22 @@ def commit_and_push(commit_message: str) -> bool:
     log(f"   Pushed to develop: {commit_message}")
     return True
 
-def save_state_snapshot(label: str) -> None:
-    """Run check-fleet-health.sh and save output to runs/snapshot-<label>-<ts>.txt."""
+def save_state_snapshot(label: str, phase: str, cluster_state: str) -> None:
+    """Save cluster state snapshot to runs/snapshot-<label>-<ts>.txt.
+
+    Uses the already-collected cluster_state (same data the phase-checker agent saw).
+    check-fleet-health.sh is not used here: it relies on grep pipelines that fail with
+    set -eou pipefail when GKE contexts are absent (e.g. during bootstrap phase).
+    """
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     ts   = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     path = RUNS_DIR / f"snapshot-{label}-{ts}.txt"
     log(f"   Saving fleet state snapshot → {path.name}")
-    result = subprocess.run(
-        [str(FLEET_HEALTH_SCRIPT)],
-        capture_output=True, text=True, cwd=str(REPO_ROOT),
-        timeout=120,
+    path.write_text(
+        f"# Fleet State Snapshot — {label}\n"
+        f"# Phase: {phase}  |  {ts}\n\n"
+        f"{cluster_state}\n"
     )
-    output = result.stdout
-    if result.stderr.strip():
-        output += f"\n[stderr]\n{result.stderr}"
-    # strip ANSI colour codes so the file is readable as plain text
-    output = re.sub(r"\x1b\[[0-9;]*m", "", output)
-    path.write_text(f"# Fleet State Snapshot — {label}\n# {ts}\n\n{output}")
 
 
 def run_cleanup() -> None:
@@ -591,17 +597,17 @@ def main() -> None:
                 write_summary(state, "FAILED", phase)
                 sys.exit(1)
 
-        outcome, errors = run_phase(phase)
+        outcome, errors, cluster_state = run_phase(phase)
 
         if outcome == "healthy":
             log(f"✓ Phase '{phase}' healthy.")
-            save_state_snapshot(f"{phase}-healthy")
+            save_state_snapshot(f"{phase}-healthy", phase, cluster_state)
             phase_index += 1
             continue
 
         # ── unhealthy path ────────────────────────────────────────────────────
         if outcome == "teardown":
-            save_state_snapshot(f"{phase}-teardown")
+            save_state_snapshot(f"{phase}-teardown", phase, cluster_state)
             run_cleanup()
             write_summary(state, "TEARDOWN", phase)
             sys.exit(1)
@@ -611,7 +617,7 @@ def main() -> None:
             errors = [{"resource": "unknown", "kind": "unknown",
                        "message": f"phase '{phase}' result: {outcome}"}]
 
-        save_state_snapshot(f"{phase}-pre-diagnostics")
+        save_state_snapshot(f"{phase}-pre-diagnostics", phase, cluster_state)
         action = handle_failure(phase, errors, state)
 
         if action == "retry":
