@@ -408,12 +408,8 @@ def handle_failure(
     log(f"   {rationale}")
 
     if action == "fix_forward":
-        commit_message = decision.get("commit_message", f"fix: diagnostics agent fix for phase {phase}")
-        try:
-            commit_and_push(commit_message)
-        except RuntimeError as e:
-            log(f"   Git operation failed: {e}")
-            return "escalate"
+        # Agent handles git add/commit/push directly.
+        # The guardrails PreToolUse hook does fetch+rebase before each push.
         phase_attempts[error_key] = attempt_count + 1
         save_state(state)
         return "retry"
@@ -482,41 +478,6 @@ def wait_before_first_check(seconds: int) -> bool:
             log(f"  {remaining // 60}m{remaining % 60:02d}s until first phase check  ({get_install_status()})")
     return True
 
-def commit_and_push(commit_message: str) -> bool:
-    """Stage all repo changes, commit, and push to develop.
-    Returns True if a commit was made, False if there was nothing to commit."""
-    def git(args: list[str]) -> str:
-        result = subprocess.run(
-            ["git"] + args, capture_output=True, text=True, cwd=str(REPO_ROOT),
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"git {args[0]} failed: {result.stderr.strip()}")
-        return result.stdout.strip()
-
-    status = git(["status", "--porcelain"])
-    if not status:
-        log("   No file changes detected — nothing to commit")
-        return False
-
-    log(f"   Changed files:\n" + "\n".join(f"     {l}" for l in status.splitlines()))
-
-    # Stage and commit first, then rebase onto remote.
-    # Pulling before committing fails when the working tree is dirty (agent has
-    # edited files). Committing first gives us a clean tree to rebase onto.
-    git(["add", "-A"])
-    git(["commit", "-m", commit_message])
-
-    log("   Rebasing onto origin/develop before push...")
-    try:
-        git(["fetch", "origin", "develop"])
-        git(["rebase", "origin/develop"])
-    except RuntimeError as e:
-        log(f"   Rebase failed: {e}")
-        raise
-
-    git(["push", "origin", "develop"])
-    log(f"   Pushed to develop: {commit_message}")
-    return True
 
 def save_state_snapshot(label: str, phase: str, cluster_state: str) -> None:
     """Save cluster state snapshot to runs/snapshot-<label>-<ts>.txt.

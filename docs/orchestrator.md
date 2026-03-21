@@ -17,7 +17,7 @@ task orchestrate:run
              │    • diagnose → save snapshot → call diagnostics agent
              │    • teardown → save snapshot → cleanup, exit
              └─ Claude API → diagnostics agent → JSON decision
-                  • fix_forward → git pull + commit + push → wait for Flux → retry phase
+                  • fix_forward → agent: git add/commit/push (hook: rebase before push) → wait for Flux → retry phase
                   • teardown    → cleanup + restart from scratch (max 2×)
                   • escalate    → write summary, exit
 ```
@@ -104,9 +104,9 @@ The orchestrator enforces GitOps discipline via `.claude/hooks/guardrails.sh` (a
 
 - **No direct kubectl writes** — `apply`, `delete`, `patch`, etc. are blocked; all cluster changes must go through git → Flux
 - **Develop-only pushes** — `git push` is only allowed to `develop` or `chore/*` branches
-- **git pull before commit** — any `git commit` attempt automatically pulls and rebases from `origin/develop` first, preventing push rejection on diverged history
+- **Rebase before push** — any `git push` attempt automatically fetches and rebases onto `origin/develop` first, ensuring a linear history without requiring the agent to manage pull/rebase itself
 
-The same pull-before-commit behaviour is also built into `commit_and_push()` in `main.py`, which covers the orchestrator's own git operations (not just agent tool calls).
+The diagnostics agent handles its own git operations (add, commit, push). The Python orchestrator contains no git code — that complexity lives in the hook and the agent.
 
 ## File layout
 

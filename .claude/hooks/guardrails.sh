@@ -38,10 +38,15 @@ if echo "$cmd" | grep -Eq '\bgit push\b.*(-f|--force)\b'; then
   exit 2
 fi
 
-# ── pull before commit to avoid push rejection on diverged history ────────────
-if echo "$cmd" | grep -Eq '\bgit commit\b'; then
-  echo "Pre-commit: pulling latest changes from origin/develop..." >&2
-  git pull --rebase origin develop >&2 || true
+# ── rebase onto origin/develop before push ────────────────────────────────────
+# Intercept push (not commit) — the tree is clean at push time, so rebase works
+# without stashing. Doing it at commit time fails because the agent has staged
+# changes that git pull --rebase refuses to run over.
+if echo "$cmd" | grep -Eq '\bgit push\b'; then
+  echo "Pre-push: rebasing onto origin/develop..." >&2
+  git fetch origin develop >&2 && git rebase origin/develop >&2 || {
+    echo "WARNING: pre-push rebase failed — push may be rejected" >&2
+  }
 fi
 
 exit 0
