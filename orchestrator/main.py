@@ -58,9 +58,12 @@ PHASE_DEFINITIONS: dict[str, dict] = {
         "max_wait_minutes": 20,
         "healthy_criteria": """
 - All pods in crossplane-system: Running, no CrashLoopBackOff, no Pending
-- provider-family-gcp: INSTALLED=True, HEALTHY=True
-- provider-gcp-container: INSTALLED=True, HEALTHY=True
-- No ProviderRevision in Failed or Unhealthy state
+- upbound-provider-family-gcp: INSTALLED=True, HEALTHY=True
+- provider-gcp-gke: INSTALLED=True, HEALTHY=True
+- Note: crossplane-contrib-provider-family-gcp may be present with HEALTHY=False — this is an auto-installed
+  dependency of crossplane-contrib providers (cloudrun, iam) and does NOT affect functionality; ignore it
+- No ProviderRevision in Failed or Unhealthy state (excluding crossplane-contrib-provider-family-gcp which is
+  auto-managed by Crossplane package dependency resolution and may not have a running pod)
 - All Flux Kustomizations: Ready=True, not suspended
 - GitRepository: Ready=True, synced to latest remote commit
 - No HelmRelease in Failed state
