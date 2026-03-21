@@ -2,6 +2,13 @@
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
+  name: upbound-provider-family-gcp
+spec:
+  package: xpkg.upbound.io/upbound/provider-family-gcp:v2.5.0
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
   name: provider-gcp-gke
 spec:
   package: xpkg.upbound.io/upbound/provider-gcp-gke:v2.5.0
