@@ -493,20 +493,27 @@ def commit_and_push(commit_message: str) -> bool:
             raise RuntimeError(f"git {args[0]} failed: {result.stderr.strip()}")
         return result.stdout.strip()
 
-    log("   Pulling latest changes before commit...")
-    try:
-        git(["pull", "--rebase", "origin", "develop"])
-    except RuntimeError as e:
-        log(f"   git pull failed (continuing anyway): {e}")
-
     status = git(["status", "--porcelain"])
     if not status:
         log("   No file changes detected — nothing to commit")
         return False
 
     log(f"   Changed files:\n" + "\n".join(f"     {l}" for l in status.splitlines()))
+
+    # Stage and commit first, then rebase onto remote.
+    # Pulling before committing fails when the working tree is dirty (agent has
+    # edited files). Committing first gives us a clean tree to rebase onto.
     git(["add", "-A"])
     git(["commit", "-m", commit_message])
+
+    log("   Rebasing onto origin/develop before push...")
+    try:
+        git(["fetch", "origin", "develop"])
+        git(["rebase", "origin/develop"])
+    except RuntimeError as e:
+        log(f"   Rebase failed: {e}")
+        raise
+
     git(["push", "origin", "develop"])
     log(f"   Pushed to develop: {commit_message}")
     return True
