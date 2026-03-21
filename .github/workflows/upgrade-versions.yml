@@ -73,8 +73,7 @@ jobs:
               }
             }
           prompt: "/upgrade-versions"
-          # not available in the older version which is pinned for testing
-          # display_report: "true"
+          display_report: "true"
 
       - name: Mask sensitive values
         if: always()
@@ -101,4 +100,4 @@ jobs:
           BUCKET="${GCS_LOG_BUCKET#gs://}"
           PREFIX="${BUCKET}/$(date -u +%Y-%m-%d)_run${{ github.run_number }}"
           gcloud storage cp /home/runner/work/_temp/claude-execution-output.json "gs://${PREFIX}_claude-execution-output.json" || true
-          gcloud storage cp /home/runner/work/_temp/claude-prompts/claude-prompt.txt "gs://${PREFIX}_claude-prompt.txt" || true
+          ls /home/runner/work/_temp/
