@@ -23,11 +23,11 @@ if echo "$cmd" | grep -Eq '\bkubectl\b.*(apply|delete|patch|create|edit|replace|
   exit 2
 fi
 
-# ── block git push to any branch other than develop ───────────────────────────
+# ── block git push to any branch other than develop or chore/* ────────────────
 if echo "$cmd" | grep -Eq '\bgit push\b'; then
-  if ! echo "$cmd" | grep -Eq '\bgit push\b[^|&;]*\bdevelop\b'; then
-    echo "BLOCKED: git push is only allowed to the 'develop' branch." >&2
-    echo "Use: git push origin develop" >&2
+  if ! echo "$cmd" | grep -Eq '\bgit push\b[^|&;]*\b(develop|chore/.+)'; then
+    echo "BLOCKED: git push is only allowed to 'develop' or 'chore/*' branches." >&2
+    echo "Use: git push origin develop  OR  git push origin chore/<name>" >&2
     exit 2
   fi
 fi
