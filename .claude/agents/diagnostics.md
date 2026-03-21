@@ -32,6 +32,8 @@ the orchestrator will stage, commit, and push to develop.
    - Do NOT run any git commands — the orchestrator will commit and push your changes
 5. Output ONLY the JSON verdict as your final response (after all tool use is complete).
 
+IMPORTANT: You need to apply reasoning into each error state, pull the thread and dive deep into the problem. Don't assume that stuck resources will eventually resolve themselves, unless it is a known state or something you already checked.
+
 ## How to investigate
 
 **Start with the error message, then trace it to its source in the repo.**

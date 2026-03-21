@@ -40,9 +40,12 @@ You will be given:
 
 **Flux Kustomizations**
 - Healthy: `Ready  True` and not suspended
-- `Unknown` with "dependency not ready" → a dependency is still reconciling, wait
 - `False` with a message → degraded, needs diagnosis
 - Suspended → likely a manual intervention artifact; flag it
+- `Unknown` with "dependency not ready" → **do not blindly wait**. Check the named dependency:
+  - If the dependency itself is also not Ready → cascading wait, normal
+  - If the dependency shows `Ready=True` but the downstream still reports "dependency not ready" → this is a stuck/stale condition, not transient; recommend `diagnose` if observed on check 2 or later
+  - Always read the `kubectl describe kustomization` output to see the exact condition message and which dependency is named
 
 **Flux GitRepository**
 - Healthy: `Ready  True`, revision matches remote HEAD (if shown)
@@ -51,26 +54,36 @@ You will be given:
 
 **Install script status**
 The cluster state includes an `## Install status` line. Use it:
-- `STILL RUNNING` — the install script (flux bootstrap + secrets setup) is still in progress.
-  Resources may not exist yet. Be patient: recommend `wait` unless there are clear error conditions
-  that predate the install completing. Do not recommend `diagnose` just because resources are absent.
-- `completed successfully` — install is done; all resources should be present. Missing resources
-  or unhealthy conditions are genuine failures.
+- `STILL RUNNING` — the install script is still in progress. Be patient about **absent** resources
+  (they may not have been created yet). But "still running" does NOT excuse resources that already
+  exist and have error conditions. If a resource is present with an error message in its conditions,
+  that error is real and must be evaluated on its merits — not dismissed as transient. Specifically:
+  - Absent resource → wait
+  - Present resource with error condition → evaluate the error, escalate to `diagnose` if it looks permanent
+- `completed successfully` — all resources should be present. Missing resources or unhealthy conditions
+  are genuine failures; recommend `diagnose`.
 - `FAILED` — the install script itself failed; surface this in analysis, recommend `diagnose`.
 
 **General wait signals — recommend "wait" for these:**
-- Install script still running and no error conditions visible yet
+- Install script still running and resource is simply absent (not yet created)
 - Crossplane providers showing `INSTALLED=False` within first 5 minutes of install completing
-- GKE cluster in `CREATING` state
-- Kustomizations with `dependency not ready`
+- GKE cluster in `CREATING` state with no error condition
 - Pod in `ContainerCreating` or `Init:0/1`
 - `no condition yet` on a freshly created resource
+
+**Use check number to avoid infinite waiting:**
+You are told the check number and elapsed time. If you are on check 3 or later (9+ minutes for bootstrap,
+30+ minutes for control/workload) and the state has not progressed, treat it as stuck — even if install
+is still running or resources show "dependency not ready". A genuine transient condition clears within
+a few cycles; a permanent error does not.
 
 **Escalate to diagnose for:**
 - CrashLoopBackOff > 2 restarts
 - `SYNCED=False` with an error message on a managed resource
 - Flux: `unable to clone` or `authentication failed`
-- Any resource stuck with the same error for multiple check cycles
+- Any resource stuck with the same condition across multiple check cycles (use check number)
+- A dependency showing `Ready=True` but its dependent still reports "dependency not ready" on check 2+
+- A kustomization `kubectl describe` showing a recurring non-transient error message
 
 **Recommend teardown for:**
 - Irrecoverable CRD schema conflicts

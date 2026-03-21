@@ -123,8 +123,10 @@ def get_assessment_commands(phase: str) -> list[str]:
             f"kubectl get providerrevisions.pkg.crossplane.io --context {KIND_CTX} -o wide",
             f"kubectl get functions.pkg.crossplane.io --context {KIND_CTX} -o wide",
             f"kubectl get kustomizations -A --context {KIND_CTX}",
+            f"kubectl describe kustomizations -A --context {KIND_CTX}",
             f"kubectl get gitrepositories -A --context {KIND_CTX}",
             f"kubectl get helmreleases -A --context {KIND_CTX}",
+            f"kubectl describe providers.pkg.crossplane.io --context {KIND_CTX}",
         ]
 
     elif phase == "control":
@@ -300,14 +302,20 @@ def run_phase(phase: str) -> tuple[str, list]:
     log(f"   Deadline: {deadline.strftime('%H:%M:%S')} ({defn['max_wait_minutes']}min window)")
 
     last_errors: list = []
+    check_number   = 0
+    phase_start    = datetime.now()
 
     while datetime.now() < deadline:
+        check_number += 1
+        elapsed_min   = int((datetime.now() - phase_start).total_seconds() / 60)
+
         log("   Collecting cluster state...")
         cluster_state = collect_cluster_state(phase)
 
         user_msg = (
             f"Phase: {phase}\n"
-            f"Description: {defn['description']}\n\n"
+            f"Description: {defn['description']}\n"
+            f"Check number: {check_number} (elapsed: {elapsed_min}min into a {defn['max_wait_minutes']}min window)\n\n"
             f"Healthy criteria:\n{defn['healthy_criteria']}\n\n"
             f"Current cluster state:\n{cluster_state}"
         )
