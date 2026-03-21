@@ -233,7 +233,7 @@ def read_agent_prompt(name: str) -> str:
         text = text[end + 3:].lstrip()
     return text
 
-def call_claude(system: str, user: str, verbose: bool = False) -> str:
+def call_claude(system: str, user: str, agent_name: str = "agent") -> str:
     """Call Claude via the claude CLI (uses Claude Code subscription, no API billing).
 
     --system-prompt forces direct API mode (requires ANTHROPIC_API_KEY), so we fold
@@ -243,8 +243,8 @@ def call_claude(system: str, user: str, verbose: bool = False) -> str:
     Runs with cwd=REPO_ROOT so tool-using agents resolve file paths correctly.
     User message is piped via stdin to avoid OS arg-length limits.
 
-    When verbose=True, stderr is inherited (not captured), so tool use activity
-    (file reads, edits, bash calls, hook output) streams to the terminal in real time.
+    Debug logs (tool calls, hook output, API traffic) are written to
+    orchestrator/runs/agent-<name>-<ts>.log — tail -f to follow in real time.
     """
     if _mission_context:
         user = f"## Current Mission\n\n{_mission_context}\n\n---\n\n{user}"
@@ -252,12 +252,14 @@ def call_claude(system: str, user: str, verbose: bool = False) -> str:
     # Strip ANTHROPIC_API_KEY so Claude Code uses subscription auth, not the API key
     # (the key may be set for other tools like kagent but breaks claude -p)
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    ts        = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    debug_log = RUNS_DIR / f"agent-{agent_name}-{ts}.log"
+    log(f"   Agent debug log → tail -f {debug_log}")
     result = subprocess.run(
-        ["claude", "-p", "--output-format", "json"],
+        ["claude", "-p", "--output-format", "json", "--debug-file", str(debug_log)],
         input=message,
-        stdout=subprocess.PIPE,
-        stderr=None if verbose else subprocess.PIPE,  # None = inherit, streams to terminal
-        text=True,
+        capture_output=True, text=True,
         timeout=600,        # tool-using agents need time: file reads, git ops, kubectl
         cwd=str(REPO_ROOT), # agents resolve paths relative to repo root
         env=env,
@@ -328,7 +330,7 @@ def run_phase(phase: str) -> tuple[str, list, str]:
         )
 
         log("   Calling phase-checker agent...")
-        raw = call_claude(system, user_msg)
+        raw = call_claude(system, user_msg, agent_name="phase-checker")
 
         try:
             verdict = parse_json_response(raw)
@@ -398,7 +400,7 @@ def handle_failure(
     )
 
     log("   Calling diagnostics agent...")
-    raw = call_claude(system, user_msg, verbose=True)
+    raw = call_claude(system, user_msg, agent_name="diagnostics")
 
     try:
         decision = parse_json_response(raw)
