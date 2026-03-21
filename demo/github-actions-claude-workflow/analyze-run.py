@@ -90,7 +90,7 @@ def extract_stats(data):
 
 
 def implied_pricing(stats):
-    """Returns (tier_name, inp_rate, cc_rate, cr_rate, out_rate) of best match."""
+    """Returns (best_tier, calculated_cost, difference) or None."""
     if stats["cost"] is None:
         return None
     best = None
