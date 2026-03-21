@@ -13,6 +13,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -21,10 +22,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # ── paths ─────────────────────────────────────────────────────────────────────
-REPO_ROOT      = Path(__file__).resolve().parent.parent
-AGENTS_DIR     = REPO_ROOT / ".claude" / "agents"
-INSTALL_SCRIPT = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
-CLEANUP_SCRIPT = REPO_ROOT / "bootstrap" / "scripts" / "00-cleanup.sh"
+REPO_ROOT           = Path(__file__).resolve().parent.parent
+AGENTS_DIR          = REPO_ROOT / ".claude" / "agents"
+INSTALL_SCRIPT      = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
+CLEANUP_SCRIPT      = REPO_ROOT / "bootstrap" / "scripts" / "00-cleanup.sh"
+FLEET_HEALTH_SCRIPT = REPO_ROOT / "bootstrap" / "scripts" / "check-fleet-health.sh"
 RUNS_DIR   = REPO_ROOT / "orchestrator" / "runs"
 STATE_FILE = RUNS_DIR / "state.json"
 
@@ -476,6 +478,12 @@ def commit_and_push(commit_message: str) -> bool:
             raise RuntimeError(f"git {args[0]} failed: {result.stderr.strip()}")
         return result.stdout.strip()
 
+    log("   Pulling latest changes before commit...")
+    try:
+        git(["pull", "--rebase", "origin", "develop"])
+    except RuntimeError as e:
+        log(f"   git pull failed (continuing anyway): {e}")
+
     status = git(["status", "--porcelain"])
     if not status:
         log("   No file changes detected — nothing to commit")
@@ -487,6 +495,25 @@ def commit_and_push(commit_message: str) -> bool:
     git(["push", "origin", "develop"])
     log(f"   Pushed to develop: {commit_message}")
     return True
+
+def save_state_snapshot(label: str) -> None:
+    """Run check-fleet-health.sh and save output to runs/snapshot-<label>-<ts>.txt."""
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    ts   = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    path = RUNS_DIR / f"snapshot-{label}-{ts}.txt"
+    log(f"   Saving fleet state snapshot → {path.name}")
+    result = subprocess.run(
+        [str(FLEET_HEALTH_SCRIPT)],
+        capture_output=True, text=True, cwd=str(REPO_ROOT),
+        timeout=120,
+    )
+    output = result.stdout
+    if result.stderr.strip():
+        output += f"\n[stderr]\n{result.stderr}"
+    # strip ANSI colour codes so the file is readable as plain text
+    output = re.sub(r"\x1b\[[0-9;]*m", "", output)
+    path.write_text(f"# Fleet State Snapshot — {label}\n# {ts}\n\n{output}")
+
 
 def run_cleanup() -> None:
     log(f"Running cleanup: {CLEANUP_SCRIPT.name}")
@@ -560,11 +587,13 @@ def main() -> None:
 
         if outcome == "healthy":
             log(f"✓ Phase '{phase}' healthy.")
+            save_state_snapshot(f"{phase}-healthy")
             phase_index += 1
             continue
 
         # ── unhealthy path ────────────────────────────────────────────────────
         if outcome == "teardown":
+            save_state_snapshot(f"{phase}-teardown")
             run_cleanup()
             write_summary(state, "TEARDOWN", phase)
             sys.exit(1)
@@ -574,6 +603,7 @@ def main() -> None:
             errors = [{"resource": "unknown", "kind": "unknown",
                        "message": f"phase '{phase}' result: {outcome}"}]
 
+        save_state_snapshot(f"{phase}-pre-diagnostics")
         action = handle_failure(phase, errors, state)
 
         if action == "retry":

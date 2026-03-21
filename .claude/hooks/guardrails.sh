@@ -38,4 +38,10 @@ if echo "$cmd" | grep -Eq '\bgit push\b.*(-f|--force)\b'; then
   exit 2
 fi
 
+# ── pull before commit to avoid push rejection on diverged history ────────────
+if echo "$cmd" | grep -Eq '\bgit commit\b'; then
+  echo "Pre-commit: pulling latest changes from origin/develop..." >&2
+  git pull --rebase origin develop >&2 || true
+fi
+
 exit 0
