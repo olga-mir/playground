@@ -5,7 +5,7 @@ Automated provisioning pipeline for the three-cluster fleet. Runs the install sc
 ## How it works
 
 ```
-task orchestrate:run
+task agentic:deploy
         │
         ├─ bootstrap/bootstrap-control-plane-cluster.sh  (background)
         │
@@ -40,16 +40,16 @@ Phases run in order:
 
 ```bash
 # Full run: install + all phases
-task orchestrate:run
+task agentic:deploy
 
 # Skip install, check current state from bootstrap
-task orchestrate:check
+task agentic:check
 
 # Resume from a specific phase (install already done, cluster exists)
-task orchestrate:resume PHASE=control
+task agentic:resume PHASE=control
 
 # Sync Python dependencies only
-task orchestrate:sync
+task agentic:sync
 ```
 
 Or run directly from the `orchestrator/` directory:
@@ -124,5 +124,5 @@ orchestrator/
 └── guardrails.sh     # PreToolUse hook: blocks kubectl writes, enforces git discipline
 
 tasks/
-└── orchestrate.yaml  # Task definitions
+└── agentic.yaml  # Task definitions
 ```

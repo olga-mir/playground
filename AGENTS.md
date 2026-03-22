@@ -37,9 +37,9 @@ kind (local bootstrap)
 
 | Task | Command |
 |---|---|
-| Full deploy (orchestrated) | `task orchestrate:run` |
+| Full deploy (orchestrated) | `task agentic:deploy` |
 | Full deploy (raw script) | `bootstrap/bootstrap-control-plane-cluster.sh` |
-| Resume from phase | `task orchestrate:resume PHASE=control` |
+| Resume from phase | `task agentic:resume PHASE=control` |
 | Validate kustomize | `task validate:kustomize-build` |
 | Fleet health check | `bootstrap/scripts/check-fleet-health.sh` |
 

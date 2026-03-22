@@ -36,7 +36,7 @@ kind (local bootstrap)
 The provisioning pipeline is driven by a **Claude-powered agentic loop** that monitors, diagnoses, and fixes the cluster fleet without human intervention:
 
 ```
-task orchestrate:run
+task agentic:deploy
         │
         ├─ bootstrap-control-plane-cluster.sh  (background)
         │
@@ -69,11 +69,14 @@ See [docs/github-integration.md](./docs/github-integration.md) for GCP OIDC / Gi
 ## Running
 
 ```bash
-# Full automated run (install + AI-driven phase loop)
-task orchestrate:run
+# Scripted deploy (no AI)
+task setup:deploy
 
-# Resume from a specific phase (cluster already exists)
-task orchestrate:resume PHASE=control
+# Agentic deploy — same goal, AI-monitored and self-fixing
+task agentic:deploy
+
+# Resume agentic deploy from a specific phase (cluster already exists)
+task agentic:resume PHASE=control
 
 # Tear everything down
 task setup:cleanup

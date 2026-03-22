@@ -16,13 +16,13 @@ bootstrap/scripts/check-fleet-health.sh apps-dev
 
 ```bash
 # Full deploy: install + all phases
-task orchestrate:run
+task agentic:deploy
 
 # Check current state without install
-task orchestrate:check
+task agentic:check
 
 # Resume from a specific phase
-task orchestrate:resume PHASE=control
+task agentic:resume PHASE=control
 
 # Validate all
 task validate:all
