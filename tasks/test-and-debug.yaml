@@ -75,6 +75,7 @@ tasks:
       - echo "kubectl --context kind-kind-test-cluster patch kustomization crossplane-composite-resources -n flux-system -p '{"spec":{"suspend":true}}' --type=merge"
       - echo "flux --context {{.CONTEXT}} suspend helmrelease kgateway -n kgateway-system"
       - echo "flux --context {{.CONTEXT}} resume helmrelease kgateway -n kgateway-system"
+      - echo "flux reconcile source git flux-system -n flux-system"
       - echo "gh api repos/:owner/:repo/dispatches -X POST -f event_type='Kustomization/clusters.flux-system'"
       - echo "gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId -q '.[0].databaseId' --logs"
 

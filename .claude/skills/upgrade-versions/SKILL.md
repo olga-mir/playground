@@ -76,7 +76,8 @@ If nothing needed updating, just report that everything is up to date.
 
 ## Notes
 
-- **LitmusChaos**: version from Helm index has no `v` prefix (`3.26.0` not `v3.26.0`); match the format in the file
+- **LitmusChaos**: version from Helm index has no `v` prefix (`3.26.0` not `v3.26.0`); match the format in the file.
+  HelmRelease is at `kubernetes/namespaces/base/litmus/helm/litmus-release.yaml` — update the `version:` field there AND README.md
 - **kagent / kgateway**: version from GitHub has `v` prefix; match the format already in the file
 - **FluxCD**: README-only update (no manifest)
 - **gotk-components.yaml**: never read or modify this file — it is huge and Flux manages it

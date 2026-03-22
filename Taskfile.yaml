@@ -4,8 +4,8 @@ includes:
   setup:
     taskfile: ./tasks/setup.yaml
     dir: .
-  orchestrate:
-    taskfile: ./tasks/orchestrate.yaml
+  agentic:
+    taskfile: ./tasks/agentic.yaml
     dir: .
   debug:
     taskfile: ./tasks/test-and-debug.yaml

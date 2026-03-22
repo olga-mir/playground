@@ -5,19 +5,19 @@ Automated provisioning pipeline for the three-cluster fleet. Runs the install sc
 ## How it works
 
 ```
-task orchestrate:run
+task agentic:deploy
         │
-        ├─ bootstrap/bootstrap-control-plane-cluster.sh
+        ├─ bootstrap/bootstrap-control-plane-cluster.sh  (background)
         │
         └─ phase loop:
              ├─ collect kubectl state (subprocess)
              ├─ Claude API → phase-checker agent → JSON verdict
-             │    • healthy  → advance to next phase
+             │    • healthy  → save snapshot → advance to next phase
              │    • wait     → sleep, re-check
-             │    • diagnose → call diagnostics agent
-             │    • teardown → cleanup, exit
+             │    • diagnose → save snapshot → call diagnostics agent
+             │    • teardown → save snapshot → cleanup, exit
              └─ Claude API → diagnostics agent → JSON decision
-                  • fix_forward → run fix commands, retry phase
+                  • fix_forward → agent: git add/commit/push (hook: rebase before push) → wait for Flux → retry phase
                   • teardown    → cleanup + restart from scratch (max 2×)
                   • escalate    → write summary, exit
 ```
@@ -40,16 +40,16 @@ Phases run in order:
 
 ```bash
 # Full run: install + all phases
-task orchestrate:run
+task agentic:deploy
 
 # Skip install, check current state from bootstrap
-task orchestrate:check
+task agentic:check
 
 # Resume from a specific phase (install already done, cluster exists)
-task orchestrate:resume PHASE=control
+task agentic:resume PHASE=control
 
 # Sync Python dependencies only
-task orchestrate:sync
+task agentic:sync
 ```
 
 Or run directly from the `orchestrator/` directory:
@@ -61,13 +61,23 @@ uv run python main.py --start-phase control --skip-install
 
 ## State and run output
 
-State and run summaries are written to `orchestrator/runs/` (gitignored):
+State, snapshots, and run summaries are written to `orchestrator/runs/` (gitignored):
 
 ```
 orchestrator/runs/
-├── state.json                        # persisted fix attempt counts and restart count
-└── run-success-2026-03-16_143021.md  # summary written at end of each run
+├── state.json                                    # persisted fix attempt counts and restart count
+├── run-success-2026-03-16_143021.md              # summary written at end of each run
+├── snapshot-bootstrap-healthy-<ts>.txt           # fleet state at phase transition
+├── snapshot-control-pre-diagnostics-<ts>.txt     # fleet state captured before diagnostics agent runs
+└── install-<ts>.log                              # bootstrap-control-plane-cluster.sh output
 ```
+
+Snapshots are captured at three points in the loop:
+- **`<phase>-healthy`** — immediately after a phase passes; records the good state before advancing
+- **`<phase>-pre-diagnostics`** — before handing off to the diagnostics agent; gives it concrete Flux resource state to reason from
+- **`<phase>-teardown`** — before cleanup runs; useful for post-mortem
+
+Snapshot content comes from `scripts/check-fleet-health.sh` (ANSI colours stripped).
 
 State tracks:
 - `fix_attempts` — per-phase, per-error-signature count (drives the 3× escalation limit)
@@ -88,17 +98,31 @@ The two agents used by the orchestrator are defined in `.claude/agents/` and dou
 - `.claude/agents/phase-checker.md` — evaluates cluster state against healthy criteria; returns a structured verdict
 - `.claude/agents/diagnostics.md` — investigates failures, decides fix-forward or teardown, produces exact fix commands
 
+## GitOps safety guardrails
+
+The orchestrator enforces GitOps discipline via `.claude/hooks/guardrails.sh` (a Claude Code `PreToolUse` hook):
+
+- **No direct kubectl writes** — `apply`, `delete`, `patch`, etc. are blocked; all cluster changes must go through git → Flux
+- **Develop-only pushes** — `git push` is only allowed to `develop` or `chore/*` branches
+- **Rebase before push** — any `git push` attempt automatically fetches and rebases onto `origin/develop` first, ensuring a linear history without requiring the agent to manage pull/rebase itself
+
+The diagnostics agent handles its own git operations (add, commit, push). The Python orchestrator contains no git code — that complexity lives in the hook and the agent.
+
 ## File layout
 
 ```
 orchestrator/
 ├── main.py          # Orchestrator script
-└── pyproject.toml   # Python dependencies (anthropic SDK)
+├── mission.md       # Current mission context (loaded into every agent call)
+└── pyproject.toml   # Python dependencies
 
 .claude/agents/
 ├── phase-checker.md  # Phase assessment agent prompt
 └── diagnostics.md    # Failure diagnostics agent prompt
 
+.claude/hooks/
+└── guardrails.sh     # PreToolUse hook: blocks kubectl writes, enforces git discipline
+
 tasks/
-└── orchestrate.yaml  # Task definitions
+└── agentic.yaml  # Task definitions
 ```

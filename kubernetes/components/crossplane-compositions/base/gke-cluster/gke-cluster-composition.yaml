@@ -25,7 +25,7 @@ spec:
         template: |
           ---
           # GKE Cluster
-          apiVersion: gke.gcp.upbound.io/v1beta1
+          apiVersion: container.gcp.upbound.io/v1beta1
           kind: Cluster
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}
@@ -41,22 +41,22 @@ spec:
               subnetwork: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/regions/{{ .observed.composite.resource.spec.parameters.region }}/subnetworks/{{ .observed.composite.resource.spec.parameters.subnetName }}"
               location: "{{ .observed.composite.resource.spec.parameters.zone }}"
               workloadIdentityConfig:
-                workloadPool: "{{ .observed.composite.resource.spec.parameters.projectId }}.svc.id.goog"
+                - workloadPool: "{{ .observed.composite.resource.spec.parameters.projectId }}.svc.id.goog"
               initialNodeCount: 1
               removeDefaultNodePool: true
               gatewayApiConfig:
-                channel: CHANNEL_STANDARD
+                - channel: CHANNEL_STANDARD
               releaseChannel:
-                channel: RAPID
+                - channel: RAPID
               enableAutopilot: false
               securityPostureConfig:
-                mode: DISABLED
+                - mode: DISABLED
             writeConnectionSecretToRef:
               namespace: crossplane-system
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
           ---
           # GKE Node Pool
-          apiVersion: gke.gcp.upbound.io/v1beta1
+          apiVersion: container.gcp.upbound.io/v1beta1
           kind: NodePool
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
@@ -70,15 +70,15 @@ spec:
                 name: {{ .observed.composite.resource.spec.parameters.clusterName }}
               maxPodsPerNode: 32
               nodeConfig:
-                spot: true
-                machineType: {{ .observed.composite.resource.spec.parameters.machineType }}
-                diskSizeGb: 50
+                - spot: true
+                  machineType: {{ .observed.composite.resource.spec.parameters.machineType }}
+                  diskSizeGb: 50
               autoscaling:
-                minNodeCount: {{ .observed.composite.resource.spec.parameters.minNodes }}
-                maxNodeCount: {{ .observed.composite.resource.spec.parameters.maxNodes }}
+                - minNodeCount: {{ .observed.composite.resource.spec.parameters.minNodes }}
+                  maxNodeCount: {{ .observed.composite.resource.spec.parameters.maxNodes }}
               management:
-                autoRepair: true
-                autoUpgrade: true
+                - autoRepair: true
+                  autoUpgrade: true
             providerConfigRef:
               name: crossplane-provider-gcp
 

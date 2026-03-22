@@ -37,11 +37,11 @@ kind (local bootstrap)
 
 | Task | Command |
 |---|---|
-| Full deploy (orchestrated) | `task orchestrate:run` |
+| Full deploy (orchestrated) | `task agentic:deploy` |
 | Full deploy (raw script) | `bootstrap/bootstrap-control-plane-cluster.sh` |
-| Resume from phase | `task orchestrate:resume PHASE=control` |
+| Resume from phase | `task agentic:resume PHASE=control` |
 | Validate kustomize | `task validate:kustomize-build` |
-| Fleet health check | `bootstrap/scripts/check-fleet-health.sh` |
+| Fleet health check | `scripts/check-fleet-health.sh` |
 
 # Domain docs
 
@@ -52,7 +52,8 @@ Deep-dive context for specific areas — read the relevant doc when working in t
 - **[GitHub Integration](docs/github-integration.md)** — GitHub App auth, Actions workflows, notifications
 - **[Tenants](docs/tenants.md)** — Tenant onboarding, multi-repo GitOps, image promotion
 - **[Version Upgrades](docs/upgrade-versions.md)** — Weekly automated upgrades: how the scan works, adding new components, known quirks
-- **[Orchestrator](docs/orchestrator.md)** — Automated provisioning pipeline: phases, agent prompts, escalation logic, task reference
+- **[Orchestrator](docs/orchestrator.md)** — Automated provisioning pipeline: phases, agent prompts, escalation logic, guardrails, snapshot artifacts
+- **[Operations](docs/operations.md)** — Fleet health check, key task commands, load testing and performance experiments
 
 # Variables
 

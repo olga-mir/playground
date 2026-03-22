@@ -6,9 +6,12 @@
 > [!NOTE]
 > The goal this workflow achieves is not necessarily best suited for an AI. But this is a good example to experiment and understand LLM-based workflows.
 
-Abridged execution log is available in this folder. Random uuids, session ids, though signatures were removed and outputs truncated for brevity. Additionally workflows have Summary available, example: https://github.com/olga-mir/playground/actions/runs/22926261398
+Abridged execution logs are available in this folder. Random uuids, session ids, thought signatures were removed and outputs truncated for brevity. Additionally workflows have Summary available.
 
-PR created with this workflow: https://github.com/olga-mir/playground/pull/58
+| Run | GH Actions | PR | Notes |
+|---|---|---|---|
+| run-9 | [22926261398](https://github.com/olga-mir/playground/actions/runs/22926261398) | [#58](https://github.com/olga-mir/playground/pull/58) | Baseline + `/compact` experiment |
+| run-25 | [23367912566](https://github.com/olga-mir/playground/actions/runs/23367912566) | [#64](https://github.com/olga-mir/playground/pull/64) | First run with skill hook fix; LitmusChaos HelmRelease missed (skill bug, now fixed) |
 
 In this write-up, runs are referred to by a number, which corresponds to the run number in GitHub Actions: https://github.com/olga-mir/playground/actions/workflows/upgrade-versions.yml. Note that run-4 was deleted because it exposed information that was not intended to be public.
 
@@ -108,9 +111,22 @@ Total cache reads across all API calls in run-4: 427K tokens at $0.50/MTok = $0.
 
 ---
 
+## Cost breakdown — run-25 ($0.284)
+
+Model: `claude-sonnet-4-6` — implied rate $3/MTok input, $15/MTok output (back-calculated from `total_cost_usd`; see `analyze-run.py`).
+
+| Component | Tokens | Cost | % |
+|---|---|---|---|
+| Cache create (1.25× input) | 28,215 | $0.106 | 37% |
+| Cache read (0.10× input) | 277,191 | $0.083 | 29% |
+| Output (incl. extended thinking) | 6,354 | $0.095 | 33% |
+| Input (non-cached) | 14 | ~$0 | — |
+
+---
+
 ## Cost breakdown — run-4 ($0.608)
 
-Model: `claude-sonnet-4-6` — priced at $5/MTok input, $25/MTok output (not $3/$15 as one might assume from older models).
+Model: `claude-sonnet-4-6` — implied rate $5/MTok input, $25/MTok output (back-calculated from `total_cost_usd`).
 
 | Component | Tokens | Cost | % |
 |---|---|---|---|
@@ -159,20 +175,36 @@ Run-9 did end up cheaper ($0.57 vs $0.608) and used fewer total cache-read token
 
 ---
 
-## Comparing run-4 and run-9
+## Comparing runs
 
-| | run-4 | run-9 |
-|---|---|---|
-| Cost | $0.608 | $0.571 |
-| Turns | 20 | 18 |
-| Cache read | 427,226 | 239,723 |
-| Cache create | 35,172 | 40,264 |
-| Output tokens | 7,010 | 7,966 |
-| Peak context | ~28K | ~32K |
+| | run-4 | run-9 | run-25 |
+|---|---|---|---|
+| Cost | $0.608 | $0.571 | $0.284 |
+| Turns | 20 | 18 | 13 |
+| Cache read | 427,226 | 239,723 | 277,191 |
+| Cache create | 35,172 | 40,264 | 28,215 |
+| Output tokens | 7,010 | 7,966 | 6,354 |
+| Initial context (cc turn 1) | ~7K | ~7K | ~18K |
 
 **Why cache reads differ despite similar peak context:** both runs batched sed commands — run-4 issued all crossplane updates as a single multi-line bash script (one `Bash` tool_use), run-9 issued them as multiple `tool_use` blocks within a single API call. The difference in total cache reads comes from run-4 making more API calls overall: more intermediate verification greps and thinking turns, each re-reading the full growing context. More API calls × ~22K average context = higher total cache reads.
 
 How to identify API calls in the execution JSON: items that share the same `(cache_creation_input_tokens, cache_read_input_tokens)` pair belong to one API call. Total `cache_read` for a run = sum of unique `cache_read_input_tokens` values, one per API call.
+
+**run-25 vs run-9: why so much cheaper despite more cache reads?**
+
+Back-calculating from `total_cost_usd` and the token counts (see `analyze-run.py`):
+
+- run-9 was billed at **$5/MTok input, $25/MTok output** — the rate matches to the cent
+- run-25 was billed at **$3/MTok input, $15/MTok output** — the rate matches to the cent
+
+Note: I am still unsure how accurate that is, but the cost in the runs summary does reflect exactly what I am seeing in Anthropic Billing console.
+I don't see evidence for price change. From Anthropic announcement post from [Feb 17th 2026](https://www.anthropic.com/news/claude-sonnet-4-6):
+
+> Pricing remains the same as Sonnet 4.5, starting at $3/$15 per million tokens.
+
+Both runs report `model: claude-sonnet-4-6` and both are well under 200K context, so the tiered 1M-context pricing does not apply. The billing rate changed between `cc_version`: `2.1.70` (run-9) and `2.1.81` (run-25) — whether this was a formal price cut, a model version update behind the alias, or part of the 1M context window announcement needs external verification.
+
+The initial context nearly tripled (7K → 18K) because more agents and skills are now registered in the repo (`phase-checker`, `diagnostics`, `loop`, `update-config`) — all of their system prompts are loaded at startup and cached on turn 1. This makes the first API call slightly more expensive but subsequent turns benefit from a larger cached base.
 
 ---
 

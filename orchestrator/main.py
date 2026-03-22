@@ -13,6 +13,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -21,10 +22,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # ── paths ─────────────────────────────────────────────────────────────────────
-REPO_ROOT      = Path(__file__).resolve().parent.parent
-AGENTS_DIR     = REPO_ROOT / ".claude" / "agents"
-INSTALL_SCRIPT = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
-CLEANUP_SCRIPT = REPO_ROOT / "bootstrap" / "scripts" / "00-cleanup.sh"
+REPO_ROOT           = Path(__file__).resolve().parent.parent
+AGENTS_DIR          = REPO_ROOT / ".claude" / "agents"
+INSTALL_SCRIPT      = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
+CLEANUP_SCRIPT      = REPO_ROOT / "scripts" / "cleanup.sh"
 RUNS_DIR   = REPO_ROOT / "orchestrator" / "runs"
 STATE_FILE = RUNS_DIR / "state.json"
 
@@ -58,9 +59,12 @@ PHASE_DEFINITIONS: dict[str, dict] = {
         "max_wait_minutes": 20,
         "healthy_criteria": """
 - All pods in crossplane-system: Running, no CrashLoopBackOff, no Pending
-- provider-family-gcp: INSTALLED=True, HEALTHY=True
-- provider-gcp-container: INSTALLED=True, HEALTHY=True
-- No ProviderRevision in Failed or Unhealthy state
+- upbound-provider-family-gcp: INSTALLED=True, HEALTHY=True
+- provider-gcp-gke: INSTALLED=True, HEALTHY=True
+- Note: crossplane-contrib-provider-family-gcp may be present with HEALTHY=False — this is an auto-installed
+  dependency of crossplane-contrib providers (cloudrun, iam) and does NOT affect functionality; ignore it
+- No ProviderRevision in Failed or Unhealthy state (excluding crossplane-contrib-provider-family-gcp which is
+  auto-managed by Crossplane package dependency resolution and may not have a running pod)
 - All Flux Kustomizations: Ready=True, not suspended
 - GitRepository: Ready=True, synced to latest remote commit
 - No HelmRelease in Failed state
@@ -118,8 +122,10 @@ def get_assessment_commands(phase: str) -> list[str]:
             f"kubectl get providerrevisions.pkg.crossplane.io --context {KIND_CTX} -o wide",
             f"kubectl get functions.pkg.crossplane.io --context {KIND_CTX} -o wide",
             f"kubectl get kustomizations -A --context {KIND_CTX}",
+            f"kubectl describe kustomizations -A --context {KIND_CTX}",
             f"kubectl get gitrepositories -A --context {KIND_CTX}",
             f"kubectl get helmreleases -A --context {KIND_CTX}",
+            f"kubectl describe providers.pkg.crossplane.io --context {KIND_CTX}",
         ]
 
     elif phase == "control":
@@ -227,7 +233,7 @@ def read_agent_prompt(name: str) -> str:
         text = text[end + 3:].lstrip()
     return text
 
-def call_claude(system: str, user: str) -> str:
+def call_claude(system: str, user: str, agent_name: str = "agent") -> str:
     """Call Claude via the claude CLI (uses Claude Code subscription, no API billing).
 
     --system-prompt forces direct API mode (requires ANTHROPIC_API_KEY), so we fold
@@ -236,6 +242,9 @@ def call_claude(system: str, user: str) -> str:
 
     Runs with cwd=REPO_ROOT so tool-using agents resolve file paths correctly.
     User message is piped via stdin to avoid OS arg-length limits.
+
+    Debug logs (tool calls, hook output, API traffic) are written to
+    orchestrator/runs/agent-<name>-<ts>.log — tail -f to follow in real time.
     """
     if _mission_context:
         user = f"## Current Mission\n\n{_mission_context}\n\n---\n\n{user}"
@@ -243,8 +252,12 @@ def call_claude(system: str, user: str) -> str:
     # Strip ANTHROPIC_API_KEY so Claude Code uses subscription auth, not the API key
     # (the key may be set for other tools like kagent but breaks claude -p)
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    ts        = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    debug_log = RUNS_DIR / f"agent-{agent_name}-{ts}.log"
+    log(f"   Agent debug log → tail -f {debug_log}")
     result = subprocess.run(
-        ["claude", "-p", "--output-format", "json"],
+        ["claude", "-p", "--output-format", "json", "--debug-file", str(debug_log)],
         input=message,
         capture_output=True, text=True,
         timeout=600,        # tool-using agents need time: file reads, git ops, kubectl
@@ -279,13 +292,14 @@ def log(msg: str) -> None:
     print(f"[{ts}] {msg}", flush=True)
 
 # ── phase runner ──────────────────────────────────────────────────────────────
-def run_phase(phase: str) -> tuple[str, list]:
+def run_phase(phase: str) -> tuple[str, list, str]:
     """
     Poll a phase until healthy, timeout, or hard failure.
 
-    Returns (outcome, errors) where outcome is one of:
+    Returns (outcome, errors, last_cluster_state) where outcome is one of:
         healthy | timeout | degraded | teardown
     errors is the list from the last verdict (empty if healthy).
+    last_cluster_state is the kubectl output from the final check cycle.
     """
     defn     = PHASE_DEFINITIONS[phase]
     deadline = datetime.now() + timedelta(minutes=defn["max_wait_minutes"])
@@ -294,21 +308,29 @@ def run_phase(phase: str) -> tuple[str, list]:
     log(f"── Phase: {phase} ({defn['description']})")
     log(f"   Deadline: {deadline.strftime('%H:%M:%S')} ({defn['max_wait_minutes']}min window)")
 
-    last_errors: list = []
+    last_errors: list       = []
+    last_cluster_state: str = ""
+    check_number   = 0
+    phase_start    = datetime.now()
 
     while datetime.now() < deadline:
+        check_number += 1
+        elapsed_min   = int((datetime.now() - phase_start).total_seconds() / 60)
+
         log("   Collecting cluster state...")
-        cluster_state = collect_cluster_state(phase)
+        cluster_state      = collect_cluster_state(phase)
+        last_cluster_state = cluster_state
 
         user_msg = (
             f"Phase: {phase}\n"
-            f"Description: {defn['description']}\n\n"
+            f"Description: {defn['description']}\n"
+            f"Check number: {check_number} (elapsed: {elapsed_min}min into a {defn['max_wait_minutes']}min window)\n\n"
             f"Healthy criteria:\n{defn['healthy_criteria']}\n\n"
             f"Current cluster state:\n{cluster_state}"
         )
 
         log("   Calling phase-checker agent...")
-        raw = call_claude(system, user_msg)
+        raw = call_claude(system, user_msg, agent_name="phase-checker")
 
         try:
             verdict = parse_json_response(raw)
@@ -326,14 +348,14 @@ def run_phase(phase: str) -> tuple[str, list]:
             log(f"   {verdict['analysis']}")
 
         if status == "healthy":
-            return "healthy", []
+            return "healthy", [], last_cluster_state
 
         if recommendation == "teardown":
             log("   Agent recommends immediate teardown.")
-            return "teardown", last_errors
+            return "teardown", last_errors, last_cluster_state
 
         if recommendation == "diagnose":
-            return "degraded", last_errors
+            return "degraded", last_errors, last_cluster_state
 
         # recommendation == "wait" — sleep and loop
         remaining = (deadline - datetime.now()).total_seconds()
@@ -343,7 +365,7 @@ def run_phase(phase: str) -> tuple[str, list]:
         log(f"   Waiting {int(wait_s / 60)}min before next check...")
         time.sleep(wait_s)
 
-    return "timeout", last_errors
+    return "timeout", last_errors, last_cluster_state
 
 # ── diagnostics runner ────────────────────────────────────────────────────────
 def handle_failure(
@@ -355,8 +377,13 @@ def handle_failure(
     Run diagnostics agent. Returns: retry | teardown | escalate
     Tracks fix attempts per error signature to enforce the escalation limit.
     """
-    # Stable key for this error set (order-independent)
-    error_key      = json.dumps(sorted(e.get("message", "") for e in errors))
+    # Stable key for this error set (order-independent).
+    # Normalise out numeric values (elapsed times, counts) so that "after 90 minutes"
+    # and "after 91 minutes" hash to the same signature and don't bypass the attempt limit.
+    def _normalise(msg: str) -> str:
+        return re.sub(r"\d+", "N", msg)
+
+    error_key      = json.dumps(sorted(_normalise(e.get("message", "")) for e in errors))
     phase_attempts = state["fix_attempts"].setdefault(phase, {})
     attempt_count  = phase_attempts.get(error_key, 0)
 
@@ -373,7 +400,7 @@ def handle_failure(
     )
 
     log("   Calling diagnostics agent...")
-    raw = call_claude(system, user_msg)
+    raw = call_claude(system, user_msg, agent_name="diagnostics")
 
     try:
         decision = parse_json_response(raw)
@@ -388,12 +415,8 @@ def handle_failure(
     log(f"   {rationale}")
 
     if action == "fix_forward":
-        commit_message = decision.get("commit_message", f"fix: diagnostics agent fix for phase {phase}")
-        try:
-            commit_and_push(commit_message)
-        except RuntimeError as e:
-            log(f"   Git operation failed: {e}")
-            return "escalate"
+        # Agent handles git add/commit/push directly.
+        # The guardrails PreToolUse hook does fetch+rebase before each push.
         phase_attempts[error_key] = attempt_count + 1
         save_state(state)
         return "retry"
@@ -462,28 +485,24 @@ def wait_before_first_check(seconds: int) -> bool:
             log(f"  {remaining // 60}m{remaining % 60:02d}s until first phase check  ({get_install_status()})")
     return True
 
-def commit_and_push(commit_message: str) -> bool:
-    """Stage all repo changes, commit, and push to develop.
-    Returns True if a commit was made, False if there was nothing to commit."""
-    def git(args: list[str]) -> str:
-        result = subprocess.run(
-            ["git"] + args, capture_output=True, text=True, cwd=str(REPO_ROOT),
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"git {args[0]} failed: {result.stderr.strip()}")
-        return result.stdout.strip()
 
-    status = git(["status", "--porcelain"])
-    if not status:
-        log("   No file changes detected — nothing to commit")
-        return False
+def save_state_snapshot(label: str, phase: str, cluster_state: str) -> None:
+    """Save cluster state snapshot to runs/snapshot-<label>-<ts>.txt.
 
-    log(f"   Changed files:\n" + "\n".join(f"     {l}" for l in status.splitlines()))
-    git(["add", "-A"])
-    git(["commit", "-m", commit_message])
-    git(["push", "origin", "develop"])
-    log(f"   Pushed to develop: {commit_message}")
-    return True
+    Uses the already-collected cluster_state (same data the phase-checker agent saw).
+    check-fleet-health.sh is not used here: it relies on grep pipelines that fail with
+    set -eou pipefail when GKE contexts are absent (e.g. during bootstrap phase).
+    """
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    ts   = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    path = RUNS_DIR / f"snapshot-{label}-{ts}.txt"
+    log(f"   Saving fleet state snapshot → {path.name}")
+    path.write_text(
+        f"# Fleet State Snapshot — {label}\n"
+        f"# Phase: {phase}  |  {ts}\n\n"
+        f"{cluster_state}\n"
+    )
+
 
 def run_cleanup() -> None:
     log(f"Running cleanup: {CLEANUP_SCRIPT.name}")
@@ -553,15 +572,17 @@ def main() -> None:
                 write_summary(state, "FAILED", phase)
                 sys.exit(1)
 
-        outcome, errors = run_phase(phase)
+        outcome, errors, cluster_state = run_phase(phase)
 
         if outcome == "healthy":
             log(f"✓ Phase '{phase}' healthy.")
+            save_state_snapshot(f"{phase}-healthy", phase, cluster_state)
             phase_index += 1
             continue
 
         # ── unhealthy path ────────────────────────────────────────────────────
         if outcome == "teardown":
+            save_state_snapshot(f"{phase}-teardown", phase, cluster_state)
             run_cleanup()
             write_summary(state, "TEARDOWN", phase)
             sys.exit(1)
@@ -571,6 +592,7 @@ def main() -> None:
             errors = [{"resource": "unknown", "kind": "unknown",
                        "message": f"phase '{phase}' result: {outcome}"}]
 
+        save_state_snapshot(f"{phase}-pre-diagnostics", phase, cluster_state)
         action = handle_failure(phase, errors, state)
 
         if action == "retry":

@@ -1,8 +1,8 @@
 version: "3"
 
 tasks:
-  run:
-    desc: "Full provisioning run: install + bootstrap + control + workload phases (set mission in orchestrator/mission.md first)"
+  deploy:
+    desc: "Agentic deploy: AI-monitored self-fixing equivalent of 'task setup:deploy' (set mission in orchestrator/mission.md first)"
     preconditions:
       - sh: test -n "$PROJECT_ID"
         msg: "PROJECT_ID is not set"
@@ -14,7 +14,7 @@ tasks:
       - uv run --directory {{.ROOT_DIR}}/orchestrator python main.py
 
   check:
-    desc: "Check current cluster state (no install, skips initial wait)"
+    desc: "Check current cluster state without install (skips initial wait)"
     preconditions:
       - sh: command -v uv
         msg: "uv not found — install from https://docs.astral.sh/uv/"
@@ -24,10 +24,10 @@ tasks:
       - uv run --directory {{.ROOT_DIR}}/orchestrator python main.py --skip-install
 
   resume:
-    desc: "Resume from a specific phase (usage: task orchestrate:resume PHASE=control)"
+    desc: "Resume agentic deploy from a specific phase (usage: task agentic:resume PHASE=control)"
     preconditions:
       - sh: test -n "{{.PHASE}}"
-        msg: "PHASE is required — usage: task orchestrate:resume PHASE=bootstrap|control|workload"
+        msg: "PHASE is required — usage: task agentic:resume PHASE=bootstrap|control|workload"
       - sh: command -v uv
         msg: "uv not found — install from https://docs.astral.sh/uv/"
       - sh: command -v claude

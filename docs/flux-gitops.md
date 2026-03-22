@@ -58,7 +58,7 @@ Any GitRepository that references the `flux-system` secret (including tenant Git
 ```bash
 flux get all -A --context <ctx>
 # or use the fleet health script:
-bootstrap/scripts/check-fleet-health.sh [short-cluster-name]
+scripts/check-fleet-health.sh [short-cluster-name]
 ```
 
 **Force reconciliation:**
