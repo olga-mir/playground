@@ -77,7 +77,7 @@ Snapshots are captured at three points in the loop:
 - **`<phase>-pre-diagnostics`** — before handing off to the diagnostics agent; gives it concrete Flux resource state to reason from
 - **`<phase>-teardown`** — before cleanup runs; useful for post-mortem
 
-Snapshot content comes from `bootstrap/scripts/check-fleet-health.sh` (ANSI colours stripped).
+Snapshot content comes from `scripts/check-fleet-health.sh` (ANSI colours stripped).
 
 State tracks:
 - `fix_attempts` — per-phase, per-error-signature count (drives the 3× escalation limit)

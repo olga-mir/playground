@@ -25,7 +25,7 @@ from pathlib import Path
 REPO_ROOT           = Path(__file__).resolve().parent.parent
 AGENTS_DIR          = REPO_ROOT / ".claude" / "agents"
 INSTALL_SCRIPT      = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
-CLEANUP_SCRIPT      = REPO_ROOT / "bootstrap" / "scripts" / "00-cleanup.sh"
+CLEANUP_SCRIPT      = REPO_ROOT / "scripts" / "cleanup.sh"
 RUNS_DIR   = REPO_ROOT / "orchestrator" / "runs"
 STATE_FILE = RUNS_DIR / "state.json"
 

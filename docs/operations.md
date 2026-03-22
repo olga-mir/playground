@@ -6,10 +6,10 @@ Operational reference for a running fleet — diagnostics, load testing, and per
 
 ```bash
 # Check all clusters
-bootstrap/scripts/check-fleet-health.sh
+scripts/check-fleet-health.sh
 
 # Check a single cluster by short name
-bootstrap/scripts/check-fleet-health.sh apps-dev
+scripts/check-fleet-health.sh apps-dev
 ```
 
 ## Key task commands

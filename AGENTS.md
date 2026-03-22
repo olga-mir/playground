@@ -41,7 +41,7 @@ kind (local bootstrap)
 | Full deploy (raw script) | `bootstrap/bootstrap-control-plane-cluster.sh` |
 | Resume from phase | `task agentic:resume PHASE=control` |
 | Validate kustomize | `task validate:kustomize-build` |
-| Fleet health check | `bootstrap/scripts/check-fleet-health.sh` |
+| Fleet health check | `scripts/check-fleet-health.sh` |
 
 # Domain docs
 
