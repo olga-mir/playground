@@ -26,7 +26,7 @@ sub()    { echo -e "  ${BOLD}$*${NC}"; }
 # ── known clusters: "short-name:kubeconfig-context" ──────────────────────────
 # GKE context names embed the project ID — discover them from kubeconfig by
 # suffix pattern so this script stays project-ID-agnostic.
-_gke_ctx() { kubectl config get-contexts -o name 2>/dev/null | grep "_${1}$" | head -1; }
+_gke_ctx() { kubectl config get-contexts -o name 2>/dev/null | grep "_${1}$" | head -1 || true; }
 
 CLUSTERS=(
   "kind:kind-kind-test-cluster"
@@ -166,7 +166,7 @@ for short_name in "${TARGETS[@]}"; do
   fi
 
   if ! kubectl --context "${ctx}" cluster-info &>/dev/null 2>&1; then
-    fail "cannot reach API server for ${short_name}"
+    warn "cannot reach API server for ${short_name} — cluster not running, skipping"
     continue
   fi
 
