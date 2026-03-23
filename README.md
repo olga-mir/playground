@@ -1,8 +1,8 @@
 # Playground
 
-A monorepo showcasing modern cloud-native and AI-powered workflows. Built on **Crossplane v2** for platform API abstractions and **FluxCD** for GitOps automation. This repository serves as a playground for exploring the intersection of infrastructure-as-code, AI agents, and Kubernetes-native tooling.
+A monorepo showcasing modern cloud-native and AI-powered workflows. Built on **Crossplane v2** for platform API abstractions and **FluxCD** for GitOps automation. Serves as a playground for exploring the intersection of infrastructure-as-code, AI agents, and Kubernetes-native tooling.
 
-Write-ups and Demos are available in [Repo's Wiki](https://github.com/olga-mir/playground/wiki) and [demo](./demo) folder.
+Write-ups and demos: [Repo's Wiki](https://github.com/olga-mir/playground/wiki) · [demo/](./demo)
 
 # Tech Stack
 
@@ -17,121 +17,81 @@ Write-ups and Demos are available in [Repo's Wiki](https://github.com/olga-mir/p
 | <img src="https://raw.githubusercontent.com/cncf/artwork/88fa3f88ea2e4bf3e4941be8dc797b6d860c9ade/projects/flux/icon/color/flux-icon-color.svg" width="30"> | FluxCD | GitOps toolkit for Kubernetes that keeps clusters in sync with configuration sources and automates deployments. | [v2.8.3](https://github.com/fluxcd/flux2/releases/tag/v2.8.3) |
 | <img src="https://raw.githubusercontent.com/cncf/artwork/refs/heads/main/projects/litmus/icon/color/litmus-icon-color.svg" width="30"> | LitmusChaos | Cloud-native chaos engineering framework for Kubernetes that helps teams find weaknesses in their deployments through controlled chaos experiments. | [v3.27.0](https://github.com/litmuschaos/litmus-helm/releases/tag/litmus-agent-3.27.0) |
 
+# Architecture
 
-# Infrastructure
+Three-cluster hub-and-spoke fleet, provisioned in order:
 
-This project implements a **hierarchical architecture** with fully automated cluster provisioning and GitOps deployment:
+```
+kind (local bootstrap)
+  └─ provisions → GKE control-plane   (Crossplane + Flux + platform services)
+                    └─ provisions → GKE apps-dev   (tenant workloads)
+```
 
-## 🏗️ Cluster Architecture
+- **Crossplane v2** handles GKE cluster provisioning (no claims — direct namespace-scoped XRs)
+- **Flux GitOps** manages everything on each cluster once bootstrapped
+- **GitHub Actions** bootstraps Flux on new GKE clusters, triggered by Flux notifications
 
-1. **Temporary Bootstrap cluster (kind)**: Local cluster running Crossplane v2 + FluxCD. Provisions permanent `control-plane` cluster in the cloud.
-2. **Control-plane cluster (GKE)**: Management cluster with Crossplane, platform services, and AI stack. Provisions workload clusters.
-3. **Workload clusters (GKE)**: Isolated clusters for tenant applications (apps-dev, staging, prod).
+# AI Orchestrator
 
-In this project the temporary bootstrap cluster currently stays for the lifetime of the setup.
-In Cluster API (not used in this project) there is bootstrap-and-pivot concept allowing moving configuration from oneplace to another
-without breaking the connection. In this way the config for permanent control-plane cluster lives in the cluster itself.
-It is not entirely clear right how Day-2 for control-plane cluster should look like in Crossplane.
+The provisioning pipeline is driven by a **Claude-powered agentic loop** that monitors, diagnoses, and fixes the cluster fleet without human intervention:
+
+```
+task agentic:deploy
+        │
+        ├─ bootstrap-control-plane-cluster.sh  (background)
+        │
+        └─ phase loop  [bootstrap → control-plane → apps-dev]
+             ├─ collect kubectl state
+             ├─ phase-checker agent  →  healthy | wait | diagnose | teardown
+             └─ diagnostics agent   →  fix_forward | teardown | escalate
+                  fix_forward: edits manifests, commits to develop, waits for Flux to reconcile
+```
+
+Two Claude sub-agents drive the loop:
+
+- **phase-checker** — evaluates cluster state against healthy criteria for the current phase; returns a structured JSON verdict
+- **diagnostics** — investigates failures, reads the mission context, makes targeted manifest edits, and returns a commit-ready fix
+
+All cluster changes go through git → Flux. Direct `kubectl` writes are blocked by a `PreToolUse` hook. The orchestrator tracks error signatures and escalates after 3 identical failures or 2 full teardown cycles.
+
+→ Full reference: [docs/orchestrator.md](./docs/orchestrator.md)
 
 # Deployment
 
 ## Prerequisites
 
-* Access to GCP account with sufficient permissions
-* tools: gcloud, flux, kubectl, task
-* Access to GitHub organisation or personal account
+- Access to a GCP account with sufficient permissions
+- Tools: `gcloud`, `flux`, `kubectl`, `task`, `uv`, Claude Code (`claude` CLI)
+- GitHub organisation or personal account
 
-### Environment Variables
+See [docs/github-integration.md](./docs/github-integration.md) for GCP OIDC / GitHub Actions setup.
 
-All required env variables are validated in preconditions of `deploy` task, defined [here](./tasks/setup.yaml).
-
-### GitHub Integration
-
-GitHub Actions workflows in this repo use GCP OIDC auth to authenticate to GCP. Instructions on how to setup GH and GCP can be found in [./docs/github-integration.md](./docs/github-integration.md)
-
-A Claude Workflow is setup in this repository, at least for now for learning purposes. Instructions on how to set it up: [./docs/github-app-setup.md](./docs/github-app-setup.md). Learnings from this currently in-progress experiment documented in [./demo/github-actions-claude-workflow/](./demo/github-actions-claude-workflow/)
-
-## Project Structure and Bootstrap
-
-### Architectural Flow
-
-1. **Infrastructure Provisioning** (Kind cluster → GCP):
-   - Crossplane compositions create GKE clusters (infrastructure only)
-   - Connection secrets with kubeconfig are generated
-
-2. **Cluster Bootstrapping** (GitHub Actions → Target cluster):
-   - Flux notification detects cluster readiness → triggers GitHub webhook
-   - GitHub Actions authenticates via Workload Identity Federation
-   - Flux bootstrapped on target cluster pointing to `/clusters/{cluster-type}/`
-
-3. **"Batteries Included" Deployment** (Target cluster GitOps):
-   - Flux on target cluster deploys Crossplane installation
-   - Platform services (kagent, kgateway, networking) deployed
-   - Applications and tenant workloads deployed
-
-This repository hosts both platform teams and consumer teams configurations with clear separation of concerns.
-
-Refer to [./bootstrap/README.md](./bootstrap/README.md) for detailed explanation of repository structure and deployment flow.
-
-## Platform vs Tenants
-
-- **Platform Products**: Core services like kagent, kgateway, networking components
-- **Platform Tenants**: End-user applications and team-specific workloads
-- **Flux GitOps**: Automatically syncs both platform services and tenant applications to appropriate clusters
-
-## Key Operations
+## Running
 
 ```bash
-# Deploy complete infrastructure:
+# Scripted deploy (no AI)
 task setup:deploy
 
-# Validate deployment:
-task validate:all
+# Agentic deploy — same goal, AI-monitored and self-fixing
+task agentic:deploy
 
-# Clean up everything - this task removes all resources deployed in `setup:deploy`
-# i.e. clusters, but not project, WIF, IAM.
+# Resume agentic deploy from a specific phase (cluster already exists)
+task agentic:resume PHASE=control
+
+# Tear everything down
 task setup:cleanup
 ```
 
-**Available commands**:
-```bash
-task --list
-```
+→ Diagnostics, load tests, and performance experiments: [docs/operations.md](./docs/operations.md)
 
-## Additional Diagnostics and Experimentation
+# Domain docs
 
-```
-# Test whereami (team-alpha)
-kubectl exec -n team-platform deploy/fortio-diagnostic -- \
-  fortio load -c 10 -qps 100 -t 30s http://whereami.team-alpha/
-
-# Test fortio-echo (team-bravo)
-kubectl exec -n team-platform deploy/fortio-diagnostic -- \
-  fortio load -c 10 -qps 100 -t 30s http://fortio-echo.team-bravo/
-
-# High load test
-kubectl exec -n team-platform deploy/fortio-diagnostic -- \
-  fortio load -c 50 -qps 1000 -t 60s http://whereami.team-alpha/
-```
-
-### Performance Experimentation
-
-This project integrates "tenant" application which is developed in another repository: https://github.com/olga-mir/playground-sre.
-This repo has source code, GitHub Actions workflows to build and push image and k8s manifests that are deployed from this repo.
-
-```
-# Baseline — sleep 50ms, 10 concurrent connections, 30s
-kubectl exec -n team-bravo deploy/fortio-echo -- \
-  fortio load -c 10 -qps 100 -t 30s \
-  'http://perf-lab.sre.svc.cluster.local/v1/scenarios/sleep?duration=50ms'
-
-# CPU — 2 goroutines, 1s per request, 4 concurrent
-kubectl exec -n team-bravo deploy/fortio-echo -- \
-  fortio load -c 4 -qps 0 -t 30s \
-  'http://perf-lab.sre.svc.cluster.local/v1/scenarios/cpu?duration=1s&goroutines=2'
-
-# Fanout — 50 workers, watch goroutine scheduling overhead
-kubectl exec -n team-bravo deploy/fortio-echo -- \
-  fortio load -c 5 -qps 2 -t 30s \
-  'http://perf-lab.sre.svc.cluster.local/v1/scenarios/fanout?workers=50&task_duration=200ms'
-```
+| Doc | Covers |
+|-----|--------|
+| [docs/orchestrator.md](./docs/orchestrator.md) | AI orchestrator loop, phases, agent prompts, escalation logic |
+| [docs/infrastructure.md](./docs/infrastructure.md) | Crossplane, GKE, kind setup, provisioning flow |
+| [docs/flux-gitops.md](./docs/flux-gitops.md) | Kustomize structure, Flux quirks, image automation |
+| [docs/github-integration.md](./docs/github-integration.md) | GitHub App auth, Actions workflows, notifications |
+| [docs/tenants.md](./docs/tenants.md) | Tenant onboarding, multi-repo GitOps, image promotion |
+| [docs/upgrade-versions.md](./docs/upgrade-versions.md) | Weekly automated version upgrades |
+| [docs/operations.md](./docs/operations.md) | Fleet health check, key commands, load testing |
