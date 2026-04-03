@@ -212,11 +212,8 @@ def clear_stale_resource_refs(phase: str) -> bool:
             continue
 
         xr_name      = item["metadata"]["name"]
-        xr_ns        = item["metadata"].get("namespace", "")
+        xr_ns        = item["metadata"].get("namespace", "")  # empty for cluster-scoped XRs
         cluster_name = item.get("spec", {}).get("parameters", {}).get("clusterName", "")
-        if not xr_ns:
-            log(f"   Skipping gkecluster/{xr_name} — no namespace in metadata")
-            continue
 
         # Ensure composed-resources namespace exists first
         if cluster_name:
@@ -226,9 +223,11 @@ def clear_stale_resource_refs(phase: str) -> bool:
                 f"--dry-run=client -o yaml | kubectl apply --context {ctx} -f -"
             )
 
-        log(f"   Clearing stale resourceRefs on gkecluster/{xr_name} -n {xr_ns} on {ctx}")
+        # GKECluster XRs may be cluster-scoped (LegacyCluster) — omit -n when no namespace
+        ns_flag = f"-n {xr_ns}" if xr_ns else ""
+        log(f"   Clearing stale resourceRefs on gkecluster/{xr_name} {ns_flag} on {ctx}")
         run_command(
-            f"kubectl patch gkecluster {xr_name} -n {xr_ns} --context {ctx} "
+            f"kubectl patch gkecluster {xr_name} {ns_flag} --context {ctx} "
             f"--type=merge -p '{{\"spec\":{{\"resourceRefs\":null}}}}'"
         )
         cleared = True
