@@ -1,8 +1,9 @@
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: gkeclusters.platform.tornado-demo.io
 spec:
+  scope: Namespaced
   group: platform.tornado-demo.io
   names:
     kind: GKECluster
