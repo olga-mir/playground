@@ -142,6 +142,11 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic gcp-creds \
     --namespace crossplane-system \
     --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+# TODO - secret needs to live in the same ns as the XR
+# for now (namespace created later):
+# kubectl get secret gcp-creds -n crossplane-system -o json | \
+# jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp)' | \
+# kubectl apply -n control-plane -f -
 
 echo "Waiting for Flux to sync all resources..."
 flux get all -A
