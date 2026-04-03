@@ -36,7 +36,8 @@ You will be given:
 - `SYNCED=False` or error message in conditions → needs diagnosis
 - GKE cluster takes 10–20 minutes to provision — do not escalate prematurely
 - From `kubectl describe gkecluster`: look at `.status.conditions[].message` for the root cause error text; include this verbatim in the `errors` list — it's the most useful signal for the diagnostics agent
-- Provider migration errors often appear as: "cannot apply composite resource", "no composition found", "API group not found" — always include the full condition message
+- Provider migration errors often appear as: "cannot apply composite resource", "no composition found", "API group not found", "no matches for kind" — always include the full condition message
+- `SYNCED=False` with a message containing "no matches for kind" or an unknown API group almost always means the Composition references an API group that is not registered. Include the exact kind and apiVersion from the error — the diagnostics agent needs these to find the correct CRD.
 
 **Flux Kustomizations**
 - Healthy: `Ready  True` and not suspended
