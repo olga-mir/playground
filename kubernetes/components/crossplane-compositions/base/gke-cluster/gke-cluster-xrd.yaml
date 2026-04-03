@@ -3,13 +3,11 @@ kind: CompositeResourceDefinition
 metadata:
   name: gkeclusters.platform.tornado-demo.io
 spec:
-  scope: Namespaced
+  scope: Cluster
   group: platform.tornado-demo.io
   names:
     kind: GKECluster
     plural: gkeclusters
-  connectionSecretKeys:
-    - kubeconfig
   versions:
   - name: v1alpha1
     served: true
