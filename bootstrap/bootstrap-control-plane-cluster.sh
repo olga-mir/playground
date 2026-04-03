@@ -119,7 +119,7 @@ else
     perl -i -pe 's|  secretRef:|  provider: github\n  secretRef:|' "${SYNC_FILE}"
     git -C "${REPO_ROOT}" add "${SYNC_FILE}"
     git -C "${REPO_ROOT}" commit -m "fix: restore provider: github in kind gotk-sync.yaml after flux bootstrap"
-    git -C "${REPO_ROOT}" push origin develop
+    git -C "${REPO_ROOT}" push origin HEAD:develop
 fi
 
 echo "FluxCD bootstrap completed successfully!"
