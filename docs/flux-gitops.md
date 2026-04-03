@@ -68,7 +68,11 @@ The GitRepository never becomes Ready, the bootstrap wait (10 min) expires, and 
 
 **Fix applied**: Both `flux-bootstrap.yml` and `bootstrap-control-plane-cluster.sh` now explicitly delete the `flux-system` secret with `--ignore-not-found` before calling `flux bootstrap`. This gives bootstrap a clean slate regardless of what was left by the previous run.
 
-**Why this is not fixed upstream**: `flux bootstrap` is designed as an idempotent installer for net-new clusters; it has no knowledge of post-bootstrap secret replacement workflows. The upstream GitRepository type does not accept `provider` in the bootstrap path, and the Flux team considers post-bootstrap patching an operator responsibility (see olga-mir/playground#62).
+The core problem: flux bootstrap must push gotk-sync.yaml to git, which requires write access. Because the CLI uses token auth to write,
+it regenerates the file from its internal template — a template that has no concept of `provider: github`. The operator never writes to git;
+it manages Flux components and the GitRepository/Kustomization objects purely in-cluster via a FluxInstance CRD. `provider: github`
+is set once in that CRD and it never gets overwritten.
+See https://github.com/olga-mir/playground/issues/62 and https://github.com/fluxcd/flux2/issues/5471#issuecomment-3182999417 for more detail.
 
 ## Debugging Flux
 
