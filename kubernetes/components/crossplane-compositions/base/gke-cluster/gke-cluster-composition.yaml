@@ -29,7 +29,7 @@ spec:
           kind: Cluster
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}
-            namespace: crossplane-system
+            namespace: {{ .observed.composite.resource.spec.parameters.clusterName }}
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
@@ -61,7 +61,7 @@ spec:
           kind: NodePool
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
-            namespace: crossplane-system
+            namespace: {{ .observed.composite.resource.spec.parameters.clusterName }}
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool

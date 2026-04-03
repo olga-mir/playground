@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: control-plane
+  labels:
+    cluster.platform.io/name: control-plane
+    cluster.platform.io/type: control-plane
+    app.kubernetes.io/managed-by: crossplane

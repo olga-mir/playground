@@ -107,6 +107,17 @@ PROVIDER_GITHUB_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# When a Composition changes the namespace (or API group) of composed resources,
+# the XR retains stale resourceRefs pointing to the old objects.  Crossplane v2
+# namespace-scoped managed resources require a namespace on every ref; stale refs
+# without one cause a hard reconcile error.  The fix is to clear spec.resourceRefs
+# so Crossplane recreates composed resources from the current Composition.
+STALE_RESOURCE_REFS_PATTERN = re.compile(
+    r"an empty namespace may not be set when a resource name is provided|"
+    r"cannot get composed resource",
+    re.IGNORECASE,
+)
+
 # ── cluster context helpers ───────────────────────────────────────────────────
 KIND_CTX = "kind-kind-test-cluster"
 
@@ -161,6 +172,64 @@ def patch_provider_github(phase: str) -> bool:
                 )
                 patched = True
     return patched
+
+
+def is_stale_resource_refs_error(errors: list) -> bool:
+    return any(STALE_RESOURCE_REFS_PATTERN.search(e.get("message", "")) for e in errors)
+
+
+def clear_stale_resource_refs(phase: str) -> bool:
+    """Clear spec.resourceRefs from GKECluster XRs stuck with namespace errors.
+
+    When a Composition is updated (new namespace, new API group), the XR keeps
+    stale refs to the old composed objects.  Clearing them lets Crossplane
+    recreate composed resources using the current Composition.
+
+    Also ensures the target namespace exists before Crossplane tries to create
+    objects in it, to avoid an immediate recreation failure.
+    """
+    # GKECluster XRs live on the kind cluster (bootstrap/control) or
+    # control-plane cluster (workload phase).
+    ctx = KIND_CTX if phase in ("bootstrap", "control") else get_gke_context("control-plane")
+    if not ctx:
+        return False
+
+    raw = run_command(f"kubectl get gkecluster -A --context {ctx} -o json")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return False
+
+    cleared = False
+    for item in data.get("items", []):
+        conditions   = item.get("status", {}).get("conditions", [])
+        resource_refs = item.get("spec", {}).get("resourceRefs", [])
+        synced_false = any(
+            c.get("type") == "Synced" and c.get("status") == "False"
+            for c in conditions
+        )
+        if not (synced_false and resource_refs):
+            continue
+
+        xr_name      = item["metadata"]["name"]
+        xr_ns        = item["metadata"]["namespace"]
+        cluster_name = item.get("spec", {}).get("parameters", {}).get("clusterName", "")
+
+        # Ensure composed-resources namespace exists first
+        if cluster_name:
+            log(f"   Ensuring namespace/{cluster_name} exists on {ctx}")
+            run_command(
+                f"kubectl create namespace {cluster_name} --context {ctx} "
+                f"--dry-run=client -o yaml | kubectl apply --context {ctx} -f -"
+            )
+
+        log(f"   Clearing stale resourceRefs on gkecluster/{xr_name} -n {xr_ns} on {ctx}")
+        run_command(
+            f"kubectl patch gkecluster {xr_name} -n {xr_ns} --context {ctx} "
+            f"--type=merge -p '{{\"spec\":{{\"resourceRefs\":null}}}}'"
+        )
+        cleared = True
+    return cleared
 
 
 def get_assessment_commands(phase: str) -> list[str]:
@@ -455,8 +524,22 @@ def handle_failure(
             save_state(state)
             log("   Live patch applied — waiting 30s for GitRepository to recover...")
             time.sleep(30)
-            return "retry"
+            return "retry_live"
         log("   No GitRepositories needed patching — falling through to diagnostics agent")
+
+    # ── known: stale resourceRefs after Composition API group / namespace change ─
+    # When the Composition changes namespace or API group, the XR retains refs to
+    # old composed objects.  Crossplane v2 namespace-scoped resources require a
+    # namespace on every ref; stale refs without one cause a hard reconcile error.
+    if is_stale_resource_refs_error(errors):
+        log("   Detected stale resourceRefs — clearing and ensuring namespace exists")
+        if clear_stale_resource_refs(phase):
+            phase_attempts[error_key] = attempt_count + 1
+            save_state(state)
+            log("   resourceRefs cleared — waiting 30s for Crossplane to re-reconcile...")
+            time.sleep(30)
+            return "retry_live"
+        log("   No XRs needed clearing — falling through to diagnostics agent")
 
     system = read_agent_prompt("diagnostics")
     user_msg = (
@@ -663,7 +746,12 @@ def main() -> None:
         action = handle_failure(phase, errors, state)
 
         if action == "retry":
-            log("Fix pushed to develop — waiting 2min for Flux to reconcile...")
+            log("Fix committed to develop — waiting 2min for Flux to reconcile...")
+            time.sleep(120)
+            continue
+
+        if action == "retry_live":
+            log("Live fix applied — waiting 2min for cluster state to settle...")
             time.sleep(120)
             continue
 
