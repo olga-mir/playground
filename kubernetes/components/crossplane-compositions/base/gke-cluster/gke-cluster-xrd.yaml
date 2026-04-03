@@ -1,13 +1,13 @@
-apiVersion: apiextensions.crossplane.io/v2
+apiVersion: apiextensions.crossplane.io/v2 # Corrected: v2 is for Crossplane v1.16+ / v2.x
 kind: CompositeResourceDefinition
 metadata:
   name: gkeclusters.platform.tornado-demo.io
 spec:
-  scope: Cluster
   group: platform.tornado-demo.io
   names:
     kind: GKECluster
     plural: gkeclusters
+  scope: Namespaced
   versions:
   - name: v1alpha1
     served: true
@@ -18,90 +18,34 @@ spec:
         properties:
           spec:
             type: object
+            required: [parameters]
             properties:
-              writeConnectionSecretsToNamespace:
-                type: string
-                description: The namespace where connection secrets will be written
               parameters:
                 type: object
+                required: [clusterName, projectId, region, vpcName, subnetName]
                 properties:
-                  # Required parameters
-                  clusterName:
-                    type: string
-                    description: "Name of the GKE cluster"
+                  clusterName: { type: string }
                   clusterType:
                     type: string
                     enum: ["control-plane", "workload"]
-                    description: "Type of cluster - control-plane (management) or workload (applications)"
                     default: "workload"
-                  projectId:
-                    type: string
-                    description: "GCP Project ID"
-                  region:
-                    type: string
-                    description: "GCP Region"
-                  zone:
-                    type: string
-                    description: "GCP Zone"
-
-                  # Networking
-                  vpcName:
-                    type: string
-                    description: "VPC network name"
-                  subnetName:
-                    type: string
-                    description: "Subnet name"
-
-                  # Node configuration
-                  machineType:
-                    type: string
-                    default: "e2-standard-2"
-                    description: "Machine type for nodes"
-                  minNodes:
-                    type: integer
-                    default: 2
-                    description: "Minimum number of nodes"
-                  maxNodes:
-                    type: integer
-                    default: 5
-                    description: "Maximum number of nodes"
-
-                  # Crossplane configuration (control-plane clusters only)
+                  projectId: { type: string }
+                  region: { type: string }
+                  zone: { type: string }
+                  vpcName: { type: string }
+                  subnetName: { type: string }
+                  machineType: { type: string, default: "e2-standard-2" }
+                  minNodes: { type: integer, default: 2 }
+                  maxNodes: { type: integer, default: 5 }
                   crossplane:
                     type: object
                     properties:
-                      enabled:
-                        type: boolean
-                        default: false
-                        description: "Install Crossplane on this cluster"
-                      version:
-                        type: string
-                        default: "v2.2.0"
-                        description: "Crossplane version"
-                required:
-                - clusterName
-                - projectId
-                - region
-                - zone
-                - vpcName
-                - subnetName
-            required:
-            - parameters
+                      enabled: { type: boolean, default: false }
+                      version: { type: string, default: "v2.5.0" }
           status:
             type: object
             properties:
-              clusterEndpoint:
-                description: GKE cluster endpoint
-                type: string
-              connectionDetails:
-                description: Connection details for the cluster
-                type: object
-              clusterName:
-                description: The name of the created cluster
-                type: string
-              controlPlaneStatus:
-                description: The status of the GKE control plane
-                type: string
-              nodeCount:
-                description: The number of nodes in the cluster
-                type: integer
+              clusterEndpoint: { type: string }
+              clusterName: { type: string }
+              controlPlaneStatus: { type: string }
+              nodeCount: { type: integer }
