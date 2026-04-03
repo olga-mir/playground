@@ -37,6 +37,7 @@ spec:
           spec:
             providerConfigRef:
               name: crossplane-provider-gcp
+              kind: ProviderConfig
             forProvider:
               network: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/global/networks/{{ .observed.composite.resource.spec.parameters.vpcName }}"
               subnetwork: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/regions/{{ .observed.composite.resource.spec.parameters.region }}/subnetworks/{{ .observed.composite.resource.spec.parameters.subnetName }}"
@@ -82,6 +83,7 @@ spec:
                 autoUpgrade: true
             providerConfigRef:
               name: crossplane-provider-gcp
+              kind: ProviderConfig
 
   - step: ready
     functionRef:
