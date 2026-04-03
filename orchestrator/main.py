@@ -212,8 +212,11 @@ def clear_stale_resource_refs(phase: str) -> bool:
             continue
 
         xr_name      = item["metadata"]["name"]
-        xr_ns        = item["metadata"]["namespace"]
+        xr_ns        = item["metadata"].get("namespace", "")
         cluster_name = item.get("spec", {}).get("parameters", {}).get("clusterName", "")
+        if not xr_ns:
+            log(f"   Skipping gkecluster/{xr_name} — no namespace in metadata")
+            continue
 
         # Ensure composed-resources namespace exists first
         if cluster_name:
