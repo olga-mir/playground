@@ -118,6 +118,12 @@ STALE_RESOURCE_REFS_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# A Flux kustomization can get stuck reporting "dependency not ready" even after
+# the dependency becomes Ready=True.  The phase-checker only escalates to diagnose
+# when it confirms the dependency IS ready, so if we reach handle_failure with this
+# error it is a genuine stale condition.  Force-reconcile to clear it.
+DEPENDENCY_NOT_READY_PATTERN = re.compile(r"dependency.*not ready", re.IGNORECASE)
+
 # ── cluster context helpers ───────────────────────────────────────────────────
 KIND_CTX = "kind-kind-test-cluster"
 
@@ -232,6 +238,45 @@ def clear_stale_resource_refs(phase: str) -> bool:
         )
         cleared = True
     return cleared
+
+
+def is_stuck_dependency_error(errors: list) -> bool:
+    return any(DEPENDENCY_NOT_READY_PATTERN.search(e.get("message", "")) for e in errors)
+
+
+def reconcile_stuck_kustomizations(phase: str) -> bool:
+    """Force-reconcile kustomizations stuck on a stale 'dependency not ready' condition.
+
+    Uses kubectl to annotate the kustomization (equivalent to flux reconcile),
+    which triggers an immediate reconciliation cycle without waiting for the
+    normal polling interval.
+    """
+    ctx = KIND_CTX if phase in ("bootstrap", "control") else get_gke_context("control-plane")
+    if not ctx:
+        return False
+
+    raw = run_command(f"kubectl get kustomization -A --context {ctx} -o json")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return False
+
+    reconciled = False
+    ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    for item in data.get("items", []):
+        conditions = item.get("status", {}).get("conditions", [])
+        ready_cond = next((c for c in conditions if c.get("type") == "Ready"), {})
+        msg = ready_cond.get("message", "")
+        if ready_cond.get("status") == "False" and DEPENDENCY_NOT_READY_PATTERN.search(msg):
+            name = item["metadata"]["name"]
+            ns   = item["metadata"].get("namespace", "flux-system")
+            log(f"   Force-reconciling stuck kustomization/{name} -n {ns} on {ctx}")
+            run_command(
+                f"kubectl annotate kustomization {name} -n {ns} --context {ctx} "
+                f"reconcile.fluxcd.io/requestedAt={ts} --overwrite"
+            )
+            reconciled = True
+    return reconciled
 
 
 def get_assessment_commands(phase: str) -> list[str]:
@@ -380,14 +425,17 @@ def call_claude(system: str, user: str, agent_name: str = "agent") -> str:
     ts        = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     debug_log = RUNS_DIR / f"agent-{agent_name}-{ts}.log"
     log(f"   Agent debug log → tail -f {debug_log}")
-    result = subprocess.run(
-        ["claude", "-p", "--output-format", "json", "--debug-file", str(debug_log)],
-        input=message,
-        capture_output=True, text=True,
-        timeout=600,        # tool-using agents need time: file reads, git ops, kubectl
-        cwd=str(REPO_ROOT), # agents resolve paths relative to repo root
-        env=env,
-    )
+    try:
+        result = subprocess.run(
+            ["claude", "-p", "--output-format", "json", "--debug-file", str(debug_log)],
+            input=message,
+            capture_output=True, text=True,
+            timeout=900,        # tool-using agents need time: file reads, git ops, kubectl
+            cwd=str(REPO_ROOT), # agents resolve paths relative to repo root
+            env=env,
+        )
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"claude agent '{agent_name}' timed out after {e.timeout}s") from e
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "(no output)")[:500]
         raise RuntimeError(f"claude exited {result.returncode}:\n{detail}")
@@ -454,7 +502,12 @@ def run_phase(phase: str) -> tuple[str, list, str]:
         )
 
         log("   Calling phase-checker agent...")
-        raw = call_claude(system, user_msg, agent_name="phase-checker")
+        try:
+            raw = call_claude(system, user_msg, agent_name="phase-checker")
+        except RuntimeError as e:
+            log(f"   Phase-checker failed: {e} — waiting 60s and retrying")
+            time.sleep(60)
+            continue
 
         try:
             verdict = parse_json_response(raw)
@@ -543,6 +596,20 @@ def handle_failure(
             return "retry_live"
         log("   No XRs needed clearing — falling through to diagnostics agent")
 
+    # ── known: kustomization stuck with stale 'dependency not ready' condition ─
+    # Flux can get stuck reporting a dependency as not ready even after the
+    # dependency becomes Ready=True.  The phase-checker only escalates when it
+    # has confirmed the dependency IS ready, so we can safely force-reconcile.
+    if is_stuck_dependency_error(errors):
+        log("   Detected stuck 'dependency not ready' — force-reconciling kustomizations")
+        if reconcile_stuck_kustomizations(phase):
+            phase_attempts[error_key] = attempt_count + 1
+            save_state(state)
+            log("   Reconciliation triggered — waiting 60s for kustomizations to settle...")
+            time.sleep(60)
+            return "retry_live"
+        log("   No stuck kustomizations found — falling through to diagnostics agent")
+
     system = read_agent_prompt("diagnostics")
     user_msg = (
         f"Phase: {phase}\n\n"
@@ -552,7 +619,11 @@ def handle_failure(
     )
 
     log("   Calling diagnostics agent...")
-    raw = call_claude(system, user_msg, agent_name="diagnostics")
+    try:
+        raw = call_claude(system, user_msg, agent_name="diagnostics")
+    except RuntimeError as e:
+        log(f"   Diagnostics agent failed: {e} — escalating")
+        return "escalate"
 
     try:
         decision = parse_json_response(raw)
