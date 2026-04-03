@@ -3,4 +3,5 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - composed-resources-namespace.yaml
+  - gcp-provider-config.yaml
   - control-plane-cluster.yaml

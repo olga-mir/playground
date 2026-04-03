@@ -4,4 +4,5 @@ kind: Kustomization
 resources:
   - apps-dev-namespace.yaml
   - composed-resources-namespace.yaml
+  - gcp-provider-config.yaml
   - apps-dev-cluster.yaml
