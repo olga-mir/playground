@@ -4,8 +4,6 @@ metadata:
   name: apps-dev-cluster
   namespace: apps-dev
 spec:
-  compositionRef:
-    name: gke-cluster-composition
   parameters:
     clusterName: "${GKE_APPS_DEV_CLUSTER}"
     clusterType: workload
@@ -17,4 +15,3 @@ spec:
     machineType: "e2-standard-2"
     minNodes: 2
     maxNodes: 5
-  writeConnectionSecretsToNamespace: apps-dev
