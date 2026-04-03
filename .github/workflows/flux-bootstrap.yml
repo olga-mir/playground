@@ -160,6 +160,18 @@ jobs:
       run: |
         flux check --pre
 
+    - name: Reset flux-system secret before bootstrap
+      run: |
+        # On re-bootstrap the flux-system secret may still contain GitHub App
+        # credentials from a previous run.  flux bootstrap uses kubectl apply
+        # (3-way merge) which does NOT remove extra keys that are absent from
+        # its own last-applied-configuration — so githubAppID and friends stay
+        # in the secret.  source-controller then rejects the GitRepository with
+        # "has github app data but provider is not set to github", the bootstrap
+        # wait times out, and we never reach the step that patches provider.
+        # Deleting the secret first gives flux bootstrap a clean slate.
+        kubectl delete secret flux-system -n flux-system --ignore-not-found
+
     - name: Bootstrap Flux
       id: bootstrap
       env:
