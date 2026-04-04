@@ -14,7 +14,7 @@ The kind cluster is purely temporary — it exists only to bootstrap GKE, then c
 
 Crossplane v2 removed the concept of Claims. Users now create namespace-scoped Composite Resources (XRs) directly — no separate claim CRD acting as a proxy. This simplifies authoring and aligns with Kubernetes conventions.
 
-All GKE clusters are defined as `GKECluster` composite resources in their respective namespaces (`gkecluster-control-plane`, `gkecluster-apps-dev`).
+All GKE clusters are defined as `GKECluster` composite resources in their respective namespaces (`control-plane`, `apps-dev`).
 
 Compositions create **infrastructure only** (GKE cluster, NodePool, connection secrets). Platform software is installed separately via Flux after the cluster is ready — this avoids circular dependencies and readiness race conditions.
 
@@ -36,8 +36,8 @@ kubernetes/
 │   ├── base/               # Namespace-scoped resources (environment-agnostic)
 │   │   ├── crossplane-system/   # Crossplane install, providers, functions, compositions
 │   │   ├── flux-system/         # Notification provider + alert
-│   │   ├── gkecluster-control-plane/clusters/   # GKECluster XR for control-plane
-│   │   ├── gkecluster-apps-dev/ # GKECluster XR for apps-dev
+│   │   ├── gkecluster-control-plane/clusters/   # GKECluster XR for control-plane (namespace: control-plane)
+│   │   ├── gkecluster-apps-dev/ # GKECluster XR for apps-dev (namespace: apps-dev)
 │   │   ├── kagent/
 │   │   ├── kagent-system/
 │   │   └── kgateway-system/

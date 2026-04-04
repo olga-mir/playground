@@ -48,9 +48,31 @@ kubectl --context <ctx> patch gitrepository flux-system -n flux-system --type=me
 kubectl --context <ctx> patch kustomization flux-system -n flux-system --type=merge -p '{"spec":{"suspend":false}}'
 ```
 
-**Prevention**: The `flux-bootstrap.yml` workflow and `setup-kind-cluster.sh` both patch the live resource and push a fixup commit to git after bootstrap. The committed `gotk-sync.yaml` files always include `provider: github` — but bootstrap overwrites them, so the fixup step is essential.
+**Prevention**: The `flux-bootstrap.yml` workflow and `bootstrap-control-plane-cluster.sh` both patch the live resource and push a fixup commit to git after bootstrap. The committed `gotk-sync.yaml` files always include `provider: github` — but bootstrap overwrites them, so the fixup step is essential.
 
 Any GitRepository that references the `flux-system` secret (including tenant GitRepositories) also needs `provider: github` in its spec.
+
+### Re-bootstrap failure: bootstrap wait times out
+
+On **re-bootstrap** (running bootstrap against a cluster that already ran Flux), there is an additional failure mode that causes `flux bootstrap` itself to time out before the fixup step is even reached.
+
+**Root cause**: `flux bootstrap --token-auth` sets up the `flux-system` secret via `kubectl apply`. Kubernetes `apply` uses 3-way merge: fields present in the live object but absent from the previous `last-applied-configuration` are preserved. After the first successful bootstrap the secret is replaced with GitHub App credentials (`githubAppID`, `githubAppInstallationID`, `githubAppPrivateKey`). On the next bootstrap run, `flux bootstrap` applies a token-only secret — but the GitHub App fields were not in the *old* `last-applied-configuration`, so 3-way merge keeps them. The secret now has both a token **and** GitHub App data.
+
+At the same time, `flux bootstrap` pushes a fresh `gotk-sync.yaml` without `provider: github`. source-controller sees a secret with GitHub App fields but no `provider: github` declared on the GitRepository and immediately raises:
+
+```
+has github app data but provider is not set to github
+```
+
+The GitRepository never becomes Ready, the bootstrap wait (10 min) expires, and the workflow fails before it can apply the fixup.
+
+**Fix applied**: Both `flux-bootstrap.yml` and `bootstrap-control-plane-cluster.sh` now explicitly delete the `flux-system` secret with `--ignore-not-found` before calling `flux bootstrap`. This gives bootstrap a clean slate regardless of what was left by the previous run.
+
+The core problem: flux bootstrap must push gotk-sync.yaml to git, which requires write access. Because the CLI uses token auth to write,
+it regenerates the file from its internal template — a template that has no concept of `provider: github`. The operator never writes to git;
+it manages Flux components and the GitRepository/Kustomization objects purely in-cluster via a FluxInstance CRD. `provider: github`
+is set once in that CRD and it never gets overwritten.
+See https://github.com/olga-mir/playground/issues/62 and https://github.com/fluxcd/flux2/issues/5471#issuecomment-3182999417 for more detail.
 
 ## Debugging Flux
 

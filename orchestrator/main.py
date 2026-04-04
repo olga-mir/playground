@@ -96,6 +96,34 @@ PHASE_DEFINITIONS: dict[str, dict] = {
     },
 }
 
+# ── known-error patterns (handled directly without calling the diagnostics agent) ─
+# source-controller rejects GitRepository when secret has GitHub App fields but
+# provider:github is absent.  git already contains the fix (committed by the
+# bootstrap step), but the controller can't fetch from git to apply it —
+# the classic Catch-22.  The orchestrator patches the live object directly;
+# the agent can't because guardrails block kubectl writes.
+PROVIDER_GITHUB_PATTERN = re.compile(
+    r"provider is not set to github|has github app data",
+    re.IGNORECASE,
+)
+
+# When a Composition changes the namespace (or API group) of composed resources,
+# the XR retains stale resourceRefs pointing to the old objects.  Crossplane v2
+# namespace-scoped managed resources require a namespace on every ref; stale refs
+# without one cause a hard reconcile error.  The fix is to clear spec.resourceRefs
+# so Crossplane recreates composed resources from the current Composition.
+STALE_RESOURCE_REFS_PATTERN = re.compile(
+    r"an empty namespace may not be set when a resource name is provided|"
+    r"cannot get composed resource",
+    re.IGNORECASE,
+)
+
+# A Flux kustomization can get stuck reporting "dependency not ready" even after
+# the dependency becomes Ready=True.  The phase-checker only escalates to diagnose
+# when it confirms the dependency IS ready, so if we reach handle_failure with this
+# error it is a genuine stale condition.  Force-reconcile to clear it.
+DEPENDENCY_NOT_READY_PATTERN = re.compile(r"dependency.*not ready", re.IGNORECASE)
+
 # ── cluster context helpers ───────────────────────────────────────────────────
 KIND_CTX = "kind-kind-test-cluster"
 
@@ -109,6 +137,147 @@ def get_gke_context(cluster_suffix: str) -> str | None:
         if line.strip().endswith(f"_{cluster_suffix}"):
             return line.strip()
     return None
+
+def is_provider_github_error(errors: list) -> bool:
+    return any(PROVIDER_GITHUB_PATTERN.search(e.get("message", "")) for e in errors)
+
+
+def patch_provider_github(phase: str) -> bool:
+    """Patch live GitRepository objects that reference flux-system but lack provider:github.
+
+    Returns True if at least one object was patched.
+    Runs against every cluster context relevant to the current phase.
+    """
+    contexts = [KIND_CTX]
+    if phase in ("control", "workload"):
+        ctx = get_gke_context("control-plane")
+        if ctx:
+            contexts.append(ctx)
+    if phase == "workload":
+        ctx = get_gke_context("apps-dev")
+        if ctx:
+            contexts.append(ctx)
+
+    patched = False
+    for ctx in contexts:
+        raw = run_command(f"kubectl get gitrepository -A --context {ctx} -o json")
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        for item in data.get("items", []):
+            secret   = item.get("spec", {}).get("secretRef", {}).get("name", "")
+            provider = item.get("spec", {}).get("provider", "")
+            if secret == "flux-system" and provider != "github":
+                name = item["metadata"]["name"]
+                ns   = item["metadata"]["namespace"]
+                log(f"   Patching gitrepository/{name} -n {ns} on {ctx}")
+                run_command(
+                    f"kubectl patch gitrepository {name} -n {ns} --context {ctx} "
+                    f"--type=merge -p '{{\"spec\":{{\"provider\":\"github\"}}}}'"
+                )
+                patched = True
+    return patched
+
+
+def is_stale_resource_refs_error(errors: list) -> bool:
+    return any(STALE_RESOURCE_REFS_PATTERN.search(e.get("message", "")) for e in errors)
+
+
+def clear_stale_resource_refs(phase: str) -> bool:
+    """Clear spec.resourceRefs from GKECluster XRs stuck with namespace errors.
+
+    When a Composition is updated (new namespace, new API group), the XR keeps
+    stale refs to the old composed objects.  Clearing them lets Crossplane
+    recreate composed resources using the current Composition.
+
+    Also ensures the target namespace exists before Crossplane tries to create
+    objects in it, to avoid an immediate recreation failure.
+    """
+    # GKECluster XRs live on the kind cluster (bootstrap/control) or
+    # control-plane cluster (workload phase).
+    ctx = KIND_CTX if phase in ("bootstrap", "control") else get_gke_context("control-plane")
+    if not ctx:
+        return False
+
+    raw = run_command(f"kubectl get gkecluster -A --context {ctx} -o json")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return False
+
+    cleared = False
+    for item in data.get("items", []):
+        conditions   = item.get("status", {}).get("conditions", [])
+        resource_refs = item.get("spec", {}).get("resourceRefs", [])
+        synced_false = any(
+            c.get("type") == "Synced" and c.get("status") == "False"
+            for c in conditions
+        )
+        if not (synced_false and resource_refs):
+            continue
+
+        xr_name      = item["metadata"]["name"]
+        xr_ns        = item["metadata"].get("namespace", "")  # empty for cluster-scoped XRs
+        cluster_name = item.get("spec", {}).get("parameters", {}).get("clusterName", "")
+
+        # Ensure composed-resources namespace exists first
+        if cluster_name:
+            log(f"   Ensuring namespace/{cluster_name} exists on {ctx}")
+            run_command(
+                f"kubectl create namespace {cluster_name} --context {ctx} "
+                f"--dry-run=client -o yaml | kubectl apply --context {ctx} -f -"
+            )
+
+        # GKECluster XRs may be cluster-scoped (LegacyCluster) — omit -n when no namespace
+        ns_flag = f"-n {xr_ns}" if xr_ns else ""
+        log(f"   Clearing stale resourceRefs on gkecluster/{xr_name} {ns_flag} on {ctx}")
+        run_command(
+            f"kubectl patch gkecluster {xr_name} {ns_flag} --context {ctx} "
+            f"--type=merge -p '{{\"spec\":{{\"resourceRefs\":null}}}}'"
+        )
+        cleared = True
+    return cleared
+
+
+def is_stuck_dependency_error(errors: list) -> bool:
+    return any(DEPENDENCY_NOT_READY_PATTERN.search(e.get("message", "")) for e in errors)
+
+
+def reconcile_stuck_kustomizations(phase: str) -> bool:
+    """Force-reconcile kustomizations stuck on a stale 'dependency not ready' condition.
+
+    Uses kubectl to annotate the kustomization (equivalent to flux reconcile),
+    which triggers an immediate reconciliation cycle without waiting for the
+    normal polling interval.
+    """
+    ctx = KIND_CTX if phase in ("bootstrap", "control") else get_gke_context("control-plane")
+    if not ctx:
+        return False
+
+    raw = run_command(f"kubectl get kustomization -A --context {ctx} -o json")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return False
+
+    reconciled = False
+    ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    for item in data.get("items", []):
+        conditions = item.get("status", {}).get("conditions", [])
+        ready_cond = next((c for c in conditions if c.get("type") == "Ready"), {})
+        msg = ready_cond.get("message", "")
+        if ready_cond.get("status") == "False" and DEPENDENCY_NOT_READY_PATTERN.search(msg):
+            name = item["metadata"]["name"]
+            ns   = item["metadata"].get("namespace", "flux-system")
+            log(f"   Force-reconciling stuck kustomization/{name} -n {ns} on {ctx}")
+            run_command(
+                f"kubectl annotate kustomization {name} -n {ns} --context {ctx} "
+                f"reconcile.fluxcd.io/requestedAt={ts} --overwrite"
+            )
+            reconciled = True
+    return reconciled
+
 
 def get_assessment_commands(phase: str) -> list[str]:
     """Return kubectl commands appropriate for the current phase."""
@@ -256,14 +425,17 @@ def call_claude(system: str, user: str, agent_name: str = "agent") -> str:
     ts        = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     debug_log = RUNS_DIR / f"agent-{agent_name}-{ts}.log"
     log(f"   Agent debug log → tail -f {debug_log}")
-    result = subprocess.run(
-        ["claude", "-p", "--output-format", "json", "--debug-file", str(debug_log)],
-        input=message,
-        capture_output=True, text=True,
-        timeout=600,        # tool-using agents need time: file reads, git ops, kubectl
-        cwd=str(REPO_ROOT), # agents resolve paths relative to repo root
-        env=env,
-    )
+    try:
+        result = subprocess.run(
+            ["claude", "-p", "--output-format", "json", "--debug-file", str(debug_log)],
+            input=message,
+            capture_output=True, text=True,
+            timeout=900,        # tool-using agents need time: file reads, git ops, kubectl
+            cwd=str(REPO_ROOT), # agents resolve paths relative to repo root
+            env=env,
+        )
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"claude agent '{agent_name}' timed out after {e.timeout}s") from e
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "(no output)")[:500]
         raise RuntimeError(f"claude exited {result.returncode}:\n{detail}")
@@ -330,7 +502,12 @@ def run_phase(phase: str) -> tuple[str, list, str]:
         )
 
         log("   Calling phase-checker agent...")
-        raw = call_claude(system, user_msg, agent_name="phase-checker")
+        try:
+            raw = call_claude(system, user_msg, agent_name="phase-checker")
+        except RuntimeError as e:
+            log(f"   Phase-checker failed: {e} — waiting 60s and retrying")
+            time.sleep(60)
+            continue
 
         try:
             verdict = parse_json_response(raw)
@@ -391,6 +568,48 @@ def handle_failure(
         log(f"   Same error seen {MAX_FIX_ATTEMPTS}× — escalating instead of looping.")
         return "escalate"
 
+    # ── known Catch-22: provider:github missing on live GitRepository ─────────
+    # git already has the fix; source-controller can't fetch to apply it because
+    # it considers the GitRepository broken.  Apply the live patch directly from
+    # the orchestrator — no agent needed, and guardrails don't block Python subprocesses.
+    if is_provider_github_error(errors):
+        log("   Detected provider:github Catch-22 — patching live GitRepositories directly")
+        if patch_provider_github(phase):
+            phase_attempts[error_key] = attempt_count + 1
+            save_state(state)
+            log("   Live patch applied — waiting 30s for GitRepository to recover...")
+            time.sleep(30)
+            return "retry_live"
+        log("   No GitRepositories needed patching — falling through to diagnostics agent")
+
+    # ── known: stale resourceRefs after Composition API group / namespace change ─
+    # When the Composition changes namespace or API group, the XR retains refs to
+    # old composed objects.  Crossplane v2 namespace-scoped resources require a
+    # namespace on every ref; stale refs without one cause a hard reconcile error.
+    if is_stale_resource_refs_error(errors):
+        log("   Detected stale resourceRefs — clearing and ensuring namespace exists")
+        if clear_stale_resource_refs(phase):
+            phase_attempts[error_key] = attempt_count + 1
+            save_state(state)
+            log("   resourceRefs cleared — waiting 30s for Crossplane to re-reconcile...")
+            time.sleep(30)
+            return "retry_live"
+        log("   No XRs needed clearing — falling through to diagnostics agent")
+
+    # ── known: kustomization stuck with stale 'dependency not ready' condition ─
+    # Flux can get stuck reporting a dependency as not ready even after the
+    # dependency becomes Ready=True.  The phase-checker only escalates when it
+    # has confirmed the dependency IS ready, so we can safely force-reconcile.
+    if is_stuck_dependency_error(errors):
+        log("   Detected stuck 'dependency not ready' — force-reconciling kustomizations")
+        if reconcile_stuck_kustomizations(phase):
+            phase_attempts[error_key] = attempt_count + 1
+            save_state(state)
+            log("   Reconciliation triggered — waiting 60s for kustomizations to settle...")
+            time.sleep(60)
+            return "retry_live"
+        log("   No stuck kustomizations found — falling through to diagnostics agent")
+
     system = read_agent_prompt("diagnostics")
     user_msg = (
         f"Phase: {phase}\n\n"
@@ -400,7 +619,11 @@ def handle_failure(
     )
 
     log("   Calling diagnostics agent...")
-    raw = call_claude(system, user_msg, agent_name="diagnostics")
+    try:
+        raw = call_claude(system, user_msg, agent_name="diagnostics")
+    except RuntimeError as e:
+        log(f"   Diagnostics agent failed: {e} — escalating")
+        return "escalate"
 
     try:
         decision = parse_json_response(raw)
@@ -596,7 +819,12 @@ def main() -> None:
         action = handle_failure(phase, errors, state)
 
         if action == "retry":
-            log("Fix pushed to develop — waiting 2min for Flux to reconcile...")
+            log("Fix committed to develop — waiting 2min for Flux to reconcile...")
+            time.sleep(120)
+            continue
+
+        if action == "retry_live":
+            log("Live fix applied — waiting 2min for cluster state to settle...")
             time.sleep(120)
             continue
 

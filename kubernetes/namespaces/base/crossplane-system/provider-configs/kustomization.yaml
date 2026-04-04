@@ -3,5 +3,4 @@ kind: Kustomization
 
 resources:
   - providers-config.yaml
-  - gcp.yaml
   - kubernetes.yaml

@@ -68,7 +68,7 @@ client_payload:
     location: "REGION-a"
     cluster: "control-plane"
     # Message from Flux about what happened
-  message: "Namespace/gkecluster-control-plane created\nGKECluster/control-plane-cluster created"
+  message: "Namespace/control-plane created\nGKECluster/control-plane-cluster created"
 ```
 
 ## Common Issues and Solutions

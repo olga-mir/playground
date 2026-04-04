@@ -51,6 +51,15 @@ For any "resource not found" or "no matches for kind" error:
 - The mismatch between "what is registered" and "what is referenced" is the fix target.
 - Verify the correct API version by inspecting the installed CRD: `kubectl get crd <name> -o jsonpath='{.spec.versions[*].name}' --context <ctx>`
 
+**API group changes — verify before you infer:**
+
+The most common mistake is changing an API group based on naming similarity (e.g., "provider package is called provider-gcp-gke so the group must be gke.gcp.upbound.io"). Provider package names do not reliably predict API group names. Always verify with the cluster:
+
+1. **Find the kind's actual group** — `kubectl get crds | grep -i <kind>` lists every CRD that matches. Pick the one that has the right kind *and* is actually installed.
+2. **Confirm the kind exists in the proposed group** — a group can appear in `kubectl api-versions` but not contain the kind you need. `gke.gcp.upbound.io` existing does not mean it has `Cluster` or `NodePool`.
+3. **Prefer `.m.upbound.io` groups when available** — `container.gcp.m.upbound.io` and `gcp.m.upbound.io` are the managed-provider variants forward-compatible with Crossplane v2. When both the classic group and `.m.` group are installed and have the kind, use `.m.`.
+4. **Validate schema compatibility before committing** — after identifying the target group, fetch its `forProvider` fields: `kubectl get crd <plural>.<group> -o jsonpath='{.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.forProvider.properties}' | python3 -c "import sys,json; d=json.load(sys.stdin); print('\n'.join(sorted(d.keys())))"`. Confirm every field the manifest uses is present in the target CRD before making the change.
+
 For provider health failures (HEALTHY=False, CrashLoopBackOff):
 - Read the provider manifests in `kubernetes/namespaces/base/crossplane-system/`
 - Cross-reference with pod logs in the cluster state to identify the root cause (wrong image, missing config, wrong family provider, etc.)
@@ -89,8 +98,8 @@ kubernetes/
 │   ├── base/
 │   │   ├── crossplane-system/    # Providers, ProviderConfigs, Functions, Compositions
 │   │   ├── flux-system/          # Notification providers and alerts
-│   │   ├── gkecluster-control-plane/
-│   │   └── gkecluster-apps-dev/
+│   │   ├── gkecluster-control-plane/  # dir name; XR+MRs live in namespace: control-plane
+│   │   └── gkecluster-apps-dev/       # dir name; XR+MRs live in namespace: apps-dev
 │   └── overlays/
 └── components/
     └── crossplane-compositions/  # XRDs and Compositions

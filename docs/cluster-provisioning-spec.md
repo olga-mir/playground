@@ -57,7 +57,7 @@ apiVersion: platform.tornado-demo.io/v1alpha1
 kind: GKECluster
 metadata:
   name: control-plane-cluster
-  namespace: gkecluster-control-plane
+  namespace: control-plane
 spec:
   compositionRef:
     name: gke-cluster-composition

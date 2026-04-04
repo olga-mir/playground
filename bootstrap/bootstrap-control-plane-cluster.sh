@@ -4,7 +4,7 @@ set -eoux pipefail
 
 KIND_TEST_CLUSTER_NAME=kind-test-cluster
 REPO_ROOT=$(git rev-parse --show-toplevel)
-CROSSPLANE_VERSION="v2.0.0-rc.1"
+CROSSPLANE_VERSION="v2.2.0"
 FLUX_VERSION="v2.8.3"
 KIND_CLUSTER_CONTEXT="kind-${KIND_TEST_CLUSTER_NAME}"
 
@@ -68,6 +68,15 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic github-webhook
 unset BASE64_ENCODED_GCP_CREDS
 
 
+echo "Removing any pre-existing flux-system secret before bootstrap..."
+# On re-bootstrap the secret may retain GitHub App credentials.  flux bootstrap
+# uses kubectl apply (3-way merge) which does NOT remove extra keys absent from
+# its own last-applied-configuration, so githubAppID and friends survive in the
+# secret.  source-controller then rejects the GitRepository with "has github
+# app data but provider is not set to github", the bootstrap wait times out,
+# and we never reach the step that patches provider.
+kubectl --context "${KIND_CLUSTER_CONTEXT}" delete secret flux-system -n flux-system --ignore-not-found
+
 echo "Bootstrapping FluxCD..."
 GITHUB_TOKEN="${GITHUB_FLUX_PLAYGROUND_PAT}" flux bootstrap github \
     --token-auth \
@@ -99,6 +108,20 @@ for repo in $(kubectl --context "${KIND_CLUSTER_CONTEXT}" get gitrepository -n f
     fi
 done
 
+# Commit provider: github back to git.
+# flux bootstrap always rewrites gotk-sync.yaml without provider: github.
+# Without committing the fix, kustomize-controller will revert the live patch
+# on the next reconciliation interval (10 min), breaking GitHub App auth again.
+SYNC_FILE="${REPO_ROOT}/kubernetes/clusters/kind/flux-system/gotk-sync.yaml"
+if grep -q 'provider: github' "${SYNC_FILE}"; then
+    echo "provider: github already present in ${SYNC_FILE}, no commit needed"
+else
+    perl -i -pe 's|  secretRef:|  provider: github\n  secretRef:|' "${SYNC_FILE}"
+    git -C "${REPO_ROOT}" add "${SYNC_FILE}"
+    git -C "${REPO_ROOT}" commit -m "fix: restore provider: github in kind gotk-sync.yaml after flux bootstrap"
+    git -C "${REPO_ROOT}" push origin HEAD:develop
+fi
+
 echo "FluxCD bootstrap completed successfully!"
 
 # Wait for FluxCD to be ready
@@ -119,6 +142,11 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic gcp-creds \
     --namespace crossplane-system \
     --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+# TODO - secret needs to live in the same ns as the XR
+# for now (namespace created later):
+# kubectl get secret gcp-creds -n crossplane-system -o json | \
+# jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp)' | \
+# kubectl apply -n control-plane -f -
 
 echo "Waiting for Flux to sync all resources..."
 flux get all -A
@@ -178,7 +206,7 @@ wait_for_cluster_ready() {
 }
 
 # Wait for control-plane cluster
-wait_for_cluster_ready "control-plane-cluster" "gkecluster-control-plane"
+wait_for_cluster_ready "control-plane-cluster" "control-plane"
 
 echo "✅ Control-plane cluster is ready!"
 echo "Monitor detailed progress with: kubectl --context ${KIND_CLUSTER_CONTEXT} get gkeclusters -w"

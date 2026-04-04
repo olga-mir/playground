@@ -25,10 +25,11 @@ spec:
         template: |
           ---
           # GKE Cluster
-          apiVersion: container.gcp.upbound.io/v1beta1
+          apiVersion: container.gcp.m.upbound.io/v1beta1
           kind: Cluster
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}
+            namespace: {{ .observed.composite.resource.spec.parameters.clusterName }}
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}
@@ -36,30 +37,31 @@ spec:
           spec:
             providerConfigRef:
               name: crossplane-provider-gcp
+              kind: ProviderConfig
             forProvider:
               network: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/global/networks/{{ .observed.composite.resource.spec.parameters.vpcName }}"
               subnetwork: "projects/{{ .observed.composite.resource.spec.parameters.projectId }}/regions/{{ .observed.composite.resource.spec.parameters.region }}/subnetworks/{{ .observed.composite.resource.spec.parameters.subnetName }}"
               location: "{{ .observed.composite.resource.spec.parameters.zone }}"
               workloadIdentityConfig:
-                - workloadPool: "{{ .observed.composite.resource.spec.parameters.projectId }}.svc.id.goog"
+                workloadPool: "{{ .observed.composite.resource.spec.parameters.projectId }}.svc.id.goog"
               initialNodeCount: 1
               removeDefaultNodePool: true
               gatewayApiConfig:
-                - channel: CHANNEL_STANDARD
+                channel: CHANNEL_STANDARD
               releaseChannel:
-                - channel: RAPID
+                channel: RAPID
               enableAutopilot: false
               securityPostureConfig:
-                - mode: DISABLED
+                mode: DISABLED
             writeConnectionSecretToRef:
-              namespace: crossplane-system
               name: {{ .observed.composite.resource.spec.parameters.clusterName }}-kubeconfig
           ---
           # GKE Node Pool
-          apiVersion: container.gcp.upbound.io/v1beta1
+          apiVersion: container.gcp.m.upbound.io/v1beta1
           kind: NodePool
           metadata:
             name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
+            namespace: {{ .observed.composite.resource.spec.parameters.clusterName }}
             annotations:
               crossplane.io/external-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
               gotemplating.fn.crossplane.io/composition-resource-name: {{ .observed.composite.resource.spec.parameters.clusterName }}-pool
@@ -70,17 +72,18 @@ spec:
                 name: {{ .observed.composite.resource.spec.parameters.clusterName }}
               maxPodsPerNode: 32
               nodeConfig:
-                - spot: true
-                  machineType: {{ .observed.composite.resource.spec.parameters.machineType }}
-                  diskSizeGb: 50
+                spot: true
+                machineType: {{ .observed.composite.resource.spec.parameters.machineType }}
+                diskSizeGb: 50
               autoscaling:
-                - minNodeCount: {{ .observed.composite.resource.spec.parameters.minNodes }}
-                  maxNodeCount: {{ .observed.composite.resource.spec.parameters.maxNodes }}
+                minNodeCount: {{ .observed.composite.resource.spec.parameters.minNodes }}
+                maxNodeCount: {{ .observed.composite.resource.spec.parameters.maxNodes }}
               management:
-                - autoRepair: true
-                  autoUpgrade: true
+                autoRepair: true
+                autoUpgrade: true
             providerConfigRef:
               name: crossplane-provider-gcp
+              kind: ProviderConfig
 
   - step: ready
     functionRef:
