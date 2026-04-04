@@ -1,7 +1,7 @@
 ---
 # ModelConfig for team-charlie agents
 # References the kagent-system secret for API key
-apiVersion: kagent.dev/v1alpha1
+apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:
   name: claude-model-config

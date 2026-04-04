@@ -206,7 +206,7 @@ wait_for_cluster_ready() {
 }
 
 # Wait for control-plane cluster
-wait_for_cluster_ready "control-plane-cluster" "gkecluster-control-plane"
+wait_for_cluster_ready "control-plane-cluster" "control-plane"
 
 echo "✅ Control-plane cluster is ready!"
 echo "Monitor detailed progress with: kubectl --context ${KIND_CLUSTER_CONTEXT} get gkeclusters -w"

@@ -98,8 +98,8 @@ kubernetes/
 │   ├── base/
 │   │   ├── crossplane-system/    # Providers, ProviderConfigs, Functions, Compositions
 │   │   ├── flux-system/          # Notification providers and alerts
-│   │   ├── gkecluster-control-plane/
-│   │   └── gkecluster-apps-dev/
+│   │   ├── gkecluster-control-plane/  # dir name; XR+MRs live in namespace: control-plane
+│   │   └── gkecluster-apps-dev/       # dir name; XR+MRs live in namespace: apps-dev
 │   └── overlays/
 └── components/
     └── crossplane-compositions/  # XRDs and Compositions
