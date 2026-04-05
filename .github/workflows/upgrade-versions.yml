@@ -35,8 +35,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          bash bootstrap/scripts/scan-versions.sh \
-            | bash bootstrap/scripts/fetch-latest-versions.sh \
+          bash scripts/scan-versions.sh \
+            | bash scripts/fetch-latest-versions.sh \
             > .version-report.md
           echo "=== Version report ==="
           cat .version-report.md
