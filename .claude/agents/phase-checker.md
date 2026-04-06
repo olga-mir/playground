@@ -63,6 +63,7 @@ Start with broad listing commands, then drill into resources that look unhealthy
 - Healthy: `Ready  True`
 - `Unable to clone` or auth errors → diagnose
 - `artifact not found` shortly after bootstrap → wait (normal startup)
+- For auth errors: run `kubectl describe gitrepository <name> -n <ns> --context <ctx>` and include the verbatim `.status.conditions[].message` in the errors list — the orchestrator uses regex pattern matching on this text to detect known issues (e.g. `provider is not set to github`, `has github app data`) and apply automated fixes. Summarising the message defeats this mechanism.
 
 **Install script status**
 You will be told whether the install script is still running, completed, or failed. Use it:
