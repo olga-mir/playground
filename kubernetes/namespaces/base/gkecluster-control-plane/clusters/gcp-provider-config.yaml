@@ -8,6 +8,6 @@ spec:
   credentials:
     source: Secret
     secretRef:
-      namespace: crossplane-system
+      namespace: control-plane
       name: gcp-creds
       key: credentials
