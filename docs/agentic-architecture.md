@@ -202,23 +202,23 @@ The Crossplane troubleshooting skill is the most natural first kagent tool: a cl
 
 ### Phase 1 — Structural (do first, low risk)
 - [x] Move `bootstrap/scripts/` → `scripts/` at repo root
-- [ ] Extract `collect-cluster-state.sh` from Python logic
-- [ ] Update all references (orchestrator, tasks, docs, AGENTS.md)
+- [x] Extract `collect-cluster-state.sh` from Python logic
+- [x] Update orchestrator to call script for snapshots; agents use kubectl directly
 
 ### Phase 2 — Phase-checker upgrade
-- [ ] Add kubectl read-only tools to phase-checker
-- [ ] Add `problem_domain` field to its JSON output schema
-- [ ] Update orchestrator to pass `problem_domain` to routing
+- [x] Add kubectl read-only tools to phase-checker (active investigator model)
+- [x] Add `problem_domain` field to its JSON output schema
+- [x] Update orchestrator to use `problem_domain` for routing
 
 ### Phase 3 — Agent specialisation
-- [ ] Create `crossplane-diagnostics.md` agent with deep Crossplane expertise
-- [ ] Refocus `flux-diagnostics.md` (rename current `diagnostics.md`)
-- [ ] Wire `github-actions-flux-debugger` into orchestrator routing
+- [x] Create `crossplane-diagnostics.md` agent with deep Crossplane expertise
+- [ ] Refocus `flux-diagnostics.md` (rename current `diagnostics.md`) — deferred until after Flux operator migration (#71)
+- [ ] Wire `github-actions-flux-debugger` into orchestrator routing — deferred
 
 ### Phase 4 — Skills layer
 - [ ] Create `.claude/skills/crossplane-troubleshoot/` skill
-- [ ] Create `.claude/skills/flux-troubleshoot/` skill
-- [ ] Create `.claude/skills/flux-debug/` skill (human wrapper for github-actions agent)
+- [ ] Create `.claude/skills/flux-troubleshoot/` skill — deferred until after #71
+- [ ] Create `.claude/skills/flux-debug/` skill — deferred until after #71
 
 ### Phase 5 — kagent
 - [ ] Design kagent tool interface for crossplane-troubleshoot skill

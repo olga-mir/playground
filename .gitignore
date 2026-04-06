@@ -4,6 +4,7 @@
 .vscode
 
 .claude/settings.local.json
+.claude/worktrees
 local-stash/**
 
 # Temporary files from upgrade-versions workflow
@@ -15,3 +16,4 @@ orchestrator/runs/
 
 # uv managed virtualenv
 orchestrator/.venv/
+

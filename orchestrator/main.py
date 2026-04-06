@@ -22,10 +22,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # ── paths ─────────────────────────────────────────────────────────────────────
-REPO_ROOT           = Path(__file__).resolve().parent.parent
-AGENTS_DIR          = REPO_ROOT / ".claude" / "agents"
-INSTALL_SCRIPT      = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
-CLEANUP_SCRIPT      = REPO_ROOT / "scripts" / "cleanup.sh"
+REPO_ROOT              = Path(__file__).resolve().parent.parent
+AGENTS_DIR             = REPO_ROOT / ".claude" / "agents"
+INSTALL_SCRIPT         = REPO_ROOT / "bootstrap" / "bootstrap-control-plane-cluster.sh"
+CLEANUP_SCRIPT         = REPO_ROOT / "scripts" / "cleanup.sh"
+COLLECT_STATE_SCRIPT   = REPO_ROOT / "scripts" / "collect-cluster-state.sh"
 RUNS_DIR   = REPO_ROOT / "orchestrator" / "runs"
 STATE_FILE = RUNS_DIR / "state.json"
 
@@ -279,72 +280,6 @@ def reconcile_stuck_kustomizations(phase: str) -> bool:
     return reconciled
 
 
-def get_assessment_commands(phase: str) -> list[str]:
-    """Return kubectl commands appropriate for the current phase."""
-    control_ctx = get_gke_context("control-plane")
-    apps_ctx    = get_gke_context("apps-dev")
-
-    if phase == "bootstrap":
-        return [
-            f"kubectl get pods -n crossplane-system --context {KIND_CTX} -o wide",
-            f"kubectl get providers.pkg.crossplane.io --context {KIND_CTX} -o wide",
-            f"kubectl get providerrevisions.pkg.crossplane.io --context {KIND_CTX} -o wide",
-            f"kubectl get functions.pkg.crossplane.io --context {KIND_CTX} -o wide",
-            f"kubectl get kustomizations -A --context {KIND_CTX}",
-            f"kubectl describe kustomizations -A --context {KIND_CTX}",
-            f"kubectl get gitrepositories -A --context {KIND_CTX}",
-            f"kubectl get helmreleases -A --context {KIND_CTX}",
-            f"kubectl describe providers.pkg.crossplane.io --context {KIND_CTX}",
-        ]
-
-    elif phase == "control":
-        cmds = [
-            f"kubectl get gkecluster -A --context {KIND_CTX} -o wide",
-            f"kubectl describe gkecluster -A --context {KIND_CTX}",
-            f"kubectl get managed --context {KIND_CTX} -o wide",
-            f"kubectl get providers.pkg.crossplane.io --context {KIND_CTX} -o wide",
-            f"kubectl get compositions --context {KIND_CTX} -o wide",
-            # CRD inventory: critical for provider migrations — shows which API groups are registered
-            f"kubectl get crds --context {KIND_CTX} --no-headers | grep -E 'gke\\.gcp|container\\.gcp' | awk '{{print $1}}' | sort",
-            f"kubectl get events -A --context {KIND_CTX} --sort-by=.lastTimestamp --field-selector type=Warning",
-            f"kubectl get kustomizations -A --context {KIND_CTX}",
-            f"kubectl logs -n crossplane-system --context {KIND_CTX} -l pkg.crossplane.io/revision --tail=40 --prefix",
-        ]
-        if control_ctx:
-            cmds += [
-                f"kubectl cluster-info --context {control_ctx}",
-                f"kubectl get kustomizations -A --context {control_ctx}",
-                f"kubectl get gitrepositories -A --context {control_ctx}",
-                f"kubectl get pods -n flux-system --context {control_ctx}",
-            ]
-        else:
-            cmds.append("# control-plane GKE context not yet in kubeconfig — cluster still provisioning")
-        return cmds
-
-    elif phase == "workload":
-        if not control_ctx:
-            return ["# control-plane context not available — cannot assess workload phase yet"]
-        cmds = [
-            f"kubectl get gkecluster -A --context {control_ctx} -o wide",
-            f"kubectl describe gkecluster -A --context {control_ctx}",
-            f"kubectl get managed --context {control_ctx} -o wide",
-            f"kubectl get events -A --context {control_ctx} --sort-by=.lastTimestamp --field-selector type=Warning",
-            f"kubectl get kustomizations -A --context {control_ctx}",
-            f"kubectl logs -n crossplane-system --context {control_ctx} -l pkg.crossplane.io/revision --tail=40 --prefix",
-        ]
-        if apps_ctx:
-            cmds += [
-                f"kubectl cluster-info --context {apps_ctx}",
-                f"kubectl get kustomizations -A --context {apps_ctx}",
-                f"kubectl get gitrepositories -A --context {apps_ctx}",
-                f"kubectl get pods -n flux-system --context {apps_ctx}",
-            ]
-        else:
-            cmds.append("# apps-dev GKE context not yet in kubeconfig — cluster still provisioning")
-        return cmds
-
-    return []
-
 # ── command execution ─────────────────────────────────────────────────────────
 def run_command(cmd: str, timeout: int = 60) -> str:
     """Run a shell command, return combined stdout+stderr."""
@@ -372,15 +307,21 @@ def get_install_status() -> str:
         return f"install script: completed successfully — log: {_install_log_path}"
     return f"install script: FAILED (exit {rc}) — log: {_install_log_path}"
 
-def collect_cluster_state(phase: str) -> str:
-    """Run all assessment commands and format output for the agent."""
-    commands = get_assessment_commands(phase)
-    parts = [f"## Install status\n{get_install_status()}\n"]
-    for cmd in commands:
-        parts.append(f"$ {cmd}")
-        parts.append(run_command(cmd))
-        parts.append("")
-    return "\n".join(parts)
+def snapshot_cluster_state(phase: str) -> None:
+    """Run collect-cluster-state.sh for a timestamped snapshot (reference/evidence only).
+
+    The snapshot is NOT passed to agents — agents use kubectl tools directly.
+    Output is suppressed; the script writes to orchestrator/runs/ itself.
+    """
+    try:
+        result = subprocess.run(
+            [str(COLLECT_STATE_SCRIPT), phase],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode != 0:
+            log(f"   collect-cluster-state.sh exited {result.returncode} — snapshot may be incomplete")
+    except subprocess.TimeoutExpired:
+        log("   collect-cluster-state.sh timed out — snapshot skipped")
 
 # ── agent helpers ─────────────────────────────────────────────────────────────
 def load_mission(path: Path | None) -> str:
@@ -464,14 +405,17 @@ def log(msg: str) -> None:
     print(f"[{ts}] {msg}", flush=True)
 
 # ── phase runner ──────────────────────────────────────────────────────────────
-def run_phase(phase: str) -> tuple[str, list, str]:
+def run_phase(phase: str) -> tuple[str, list]:
     """
     Poll a phase until healthy, timeout, or hard failure.
 
-    Returns (outcome, errors, last_cluster_state) where outcome is one of:
+    Returns (outcome, errors) where outcome is one of:
         healthy | timeout | degraded | teardown
     errors is the list from the last verdict (empty if healthy).
-    last_cluster_state is the kubectl output from the final check cycle.
+
+    The phase-checker agent uses kubectl tools directly rather than receiving
+    pre-collected state — this gives it the freedom to drill into exactly what
+    it needs without processing unrelated output.
     """
     defn     = PHASE_DEFINITIONS[phase]
     deadline = datetime.now() + timedelta(minutes=defn["max_wait_minutes"])
@@ -480,25 +424,21 @@ def run_phase(phase: str) -> tuple[str, list, str]:
     log(f"── Phase: {phase} ({defn['description']})")
     log(f"   Deadline: {deadline.strftime('%H:%M:%S')} ({defn['max_wait_minutes']}min window)")
 
-    last_errors: list       = []
-    last_cluster_state: str = ""
-    check_number   = 0
-    phase_start    = datetime.now()
+    last_errors: list = []
+    check_number      = 0
+    phase_start       = datetime.now()
 
     while datetime.now() < deadline:
         check_number += 1
         elapsed_min   = int((datetime.now() - phase_start).total_seconds() / 60)
 
-        log("   Collecting cluster state...")
-        cluster_state      = collect_cluster_state(phase)
-        last_cluster_state = cluster_state
-
         user_msg = (
             f"Phase: {phase}\n"
             f"Description: {defn['description']}\n"
-            f"Check number: {check_number} (elapsed: {elapsed_min}min into a {defn['max_wait_minutes']}min window)\n\n"
+            f"Check number: {check_number} (elapsed: {elapsed_min}min into a {defn['max_wait_minutes']}min window)\n"
+            f"Install status: {get_install_status()}\n\n"
             f"Healthy criteria:\n{defn['healthy_criteria']}\n\n"
-            f"Current cluster state:\n{cluster_state}"
+            f"Use kubectl to inspect the cluster(s) for this phase and assess their health."
         )
 
         log("   Calling phase-checker agent...")
@@ -519,20 +459,24 @@ def run_phase(phase: str) -> tuple[str, list, str]:
         status         = verdict.get("status", "unknown")
         recommendation = verdict.get("recommendation", "wait")
         last_errors    = verdict.get("errors", [])
+        problem_domain = verdict.get("problem_domain", "unknown")
 
-        log(f"   status={status}  recommendation={recommendation}")
+        log(f"   status={status}  recommendation={recommendation}  domain={problem_domain}")
         if verdict.get("analysis"):
             log(f"   {verdict['analysis']}")
 
         if status == "healthy":
-            return "healthy", [], last_cluster_state
+            return "healthy", []
 
         if recommendation == "teardown":
             log("   Agent recommends immediate teardown.")
-            return "teardown", last_errors, last_cluster_state
+            return "teardown", last_errors
 
         if recommendation == "diagnose":
-            return "degraded", last_errors, last_cluster_state
+            # Attach domain for routing in handle_failure
+            for e in last_errors:
+                e.setdefault("_domain", problem_domain)
+            return "degraded", last_errors
 
         # recommendation == "wait" — sleep and loop
         remaining = (deadline - datetime.now()).total_seconds()
@@ -542,7 +486,7 @@ def run_phase(phase: str) -> tuple[str, list, str]:
         log(f"   Waiting {int(wait_s / 60)}min before next check...")
         time.sleep(wait_s)
 
-    return "timeout", last_errors, last_cluster_state
+    return "timeout", last_errors
 
 # ── diagnostics runner ────────────────────────────────────────────────────────
 def handle_failure(
@@ -610,17 +554,29 @@ def handle_failure(
             return "retry_live"
         log("   No stuck kustomizations found — falling through to diagnostics agent")
 
-    system = read_agent_prompt("diagnostics")
+    # ── route to specialist based on problem_domain ───────────────────────────
+    # domain is attached to each error entry by run_phase
+    domain = next((e.get("_domain", "unknown") for e in errors), "unknown")
+    domain_to_agent = {
+        "crossplane":     "crossplane-diagnostics",
+        "flux":           "diagnostics",        # flux-diagnostics agent is a future specialisation
+        "github-actions": "diagnostics",        # github-actions-flux-debugger wiring deferred
+        "unknown":        "diagnostics",
+    }
+    agent_name = domain_to_agent.get(domain, "diagnostics")
+    log(f"   Routing to agent '{agent_name}' (domain={domain})")
+
+    system = read_agent_prompt(agent_name)
     user_msg = (
         f"Phase: {phase}\n\n"
         f"Errors:\n{json.dumps(errors, indent=2)}\n\n"
         f"Fix attempts so far for this error: {attempt_count}/{MAX_FIX_ATTEMPTS}\n\n"
-        f"Current cluster state:\n{collect_cluster_state(phase)}"
+        f"Use kubectl to investigate the cluster state for this phase."
     )
 
-    log("   Calling diagnostics agent...")
+    log(f"   Calling {agent_name} agent...")
     try:
-        raw = call_claude(system, user_msg, agent_name="diagnostics")
+        raw = call_claude(system, user_msg, agent_name=agent_name)
     except RuntimeError as e:
         log(f"   Diagnostics agent failed: {e} — escalating")
         return "escalate"
@@ -709,22 +665,15 @@ def wait_before_first_check(seconds: int) -> bool:
     return True
 
 
-def save_state_snapshot(label: str, phase: str, cluster_state: str) -> None:
-    """Save cluster state snapshot to runs/snapshot-<label>-<ts>.txt.
+def save_state_snapshot(label: str, phase: str) -> None:
+    """Run collect-cluster-state.sh and save a timestamped snapshot.
 
-    Uses the already-collected cluster_state (same data the phase-checker agent saw).
-    check-fleet-health.sh is not used here: it relies on grep pipelines that fail with
-    set -eou pipefail when GKE contexts are absent (e.g. during bootstrap phase).
+    Snapshot is for reference and release evidence only — not passed to agents.
+    collect-cluster-state.sh writes the file itself; we just invoke it here with
+    a label-specific env hint via the filename convention.
     """
-    RUNS_DIR.mkdir(parents=True, exist_ok=True)
-    ts   = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    path = RUNS_DIR / f"snapshot-{label}-{ts}.txt"
-    log(f"   Saving fleet state snapshot → {path.name}")
-    path.write_text(
-        f"# Fleet State Snapshot — {label}\n"
-        f"# Phase: {phase}  |  {ts}\n\n"
-        f"{cluster_state}\n"
-    )
+    log(f"   Saving fleet state snapshot ({label})...")
+    snapshot_cluster_state(phase)
 
 
 def run_cleanup() -> None:
@@ -795,17 +744,17 @@ def main() -> None:
                 write_summary(state, "FAILED", phase)
                 sys.exit(1)
 
-        outcome, errors, cluster_state = run_phase(phase)
+        outcome, errors = run_phase(phase)
 
         if outcome == "healthy":
             log(f"✓ Phase '{phase}' healthy.")
-            save_state_snapshot(f"{phase}-healthy", phase, cluster_state)
+            save_state_snapshot(f"{phase}-healthy", phase)
             phase_index += 1
             continue
 
         # ── unhealthy path ────────────────────────────────────────────────────
         if outcome == "teardown":
-            save_state_snapshot(f"{phase}-teardown", phase, cluster_state)
+            save_state_snapshot(f"{phase}-teardown", phase)
             run_cleanup()
             write_summary(state, "TEARDOWN", phase)
             sys.exit(1)
@@ -815,7 +764,7 @@ def main() -> None:
             errors = [{"resource": "unknown", "kind": "unknown",
                        "message": f"phase '{phase}' result: {outcome}"}]
 
-        save_state_snapshot(f"{phase}-pre-diagnostics", phase, cluster_state)
+        save_state_snapshot(f"{phase}-pre-diagnostics", phase)
         action = handle_failure(phase, errors, state)
 
         if action == "retry":

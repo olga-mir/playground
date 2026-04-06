@@ -21,6 +21,9 @@ spec:
     kind: GitRepository
     name: flux-system
   postBuild:
+    substitute:
+      GKE_CONTROL_PLANE_CLUSTER: "control-plane"
+      CONTROL_PLANE_SUBNET_NAME: "gke-control-plane-subnet"
     substituteFrom:
       - kind: ConfigMap
         name: platform-config

@@ -9,9 +9,9 @@ spec:
   interval: 1m0s
   ref:
     branch: develop
+  provider: github
   secretRef:
     name: flux-system
-  provider: github
   url: https://github.com/olga-mir/playground.git
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1

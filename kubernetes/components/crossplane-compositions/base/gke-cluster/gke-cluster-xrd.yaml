@@ -1,4 +1,4 @@
-apiVersion: apiextensions.crossplane.io/v2 # Corrected: v2 is for Crossplane v1.16+ / v2.x
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: gkeclusters.platform.tornado-demo.io
