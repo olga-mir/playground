@@ -2,4 +2,13 @@
 name = "orchestrator"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    # OTEL core + GCP-native exporters. Authenticates via Application Default
+    # Credentials (the gcloud user session on this laptop). The Claude Code
+    # CLI speaks OTLP directly and gets a gcloud access token per invocation —
+    # see telemetry.claude_cli_otel_env().
+    "opentelemetry-api>=1.41.0",
+    "opentelemetry-sdk>=1.41.0",
+    "opentelemetry-exporter-gcp-trace>=1.11.0",
+    "opentelemetry-exporter-gcp-monitoring>=1.11.0a0",
+]
