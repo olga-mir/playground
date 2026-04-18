@@ -12,6 +12,7 @@ Usage:
 """
 import argparse
 import json
+import os
 import re
 import signal
 import subprocess
@@ -19,8 +20,6 @@ import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-
-import anthropic
 
 # ── paths ─────────────────────────────────────────────────────────────────────
 REPO_ROOT              = Path(__file__).resolve().parent.parent
@@ -282,11 +281,11 @@ def reconcile_stuck_kustomizations(phase: str) -> bool:
 
 
 # ── command execution ─────────────────────────────────────────────────────────
-def run_command(cmd: str, timeout: int = 60, cwd: str | None = None) -> str:
+def run_command(cmd: str, timeout: int = 60) -> str:
     """Run a shell command, return combined stdout+stderr."""
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=timeout, cwd=cwd,
+            cmd, shell=True, capture_output=True, text=True, timeout=timeout,
         )
         out = result.stdout.strip()
         if result.returncode != 0 and result.stderr.strip():
@@ -324,162 +323,6 @@ def snapshot_cluster_state(phase: str) -> None:
     except subprocess.TimeoutExpired:
         log("   collect-cluster-state.sh timed out — snapshot skipped")
 
-# ── Anthropic SDK tool definitions ────────────────────────────────────────────
-CLAUDE_TOOLS: list[dict] = [
-    {
-        "name": "Bash",
-        "description": (
-            "Execute a shell command and return its output. "
-            "Use for kubectl, git, helm, and other CLI tools. "
-            "Commands run from the repository root."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "command": {"type": "string", "description": "The shell command to execute"},
-                "timeout": {"type": "integer", "description": "Timeout in seconds (default: 120)"},
-            },
-            "required": ["command"],
-        },
-    },
-    {
-        "name": "Read",
-        "description": "Read the contents of a file.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "file_path": {"type": "string", "description": "Absolute or repo-relative path"},
-                "offset": {"type": "integer", "description": "Line number to start reading from (1-indexed)"},
-                "limit": {"type": "integer", "description": "Maximum number of lines to read"},
-            },
-            "required": ["file_path"],
-        },
-    },
-    {
-        "name": "Write",
-        "description": "Write content to a file, creating it or overwriting it.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "file_path": {"type": "string", "description": "Path of the file to write"},
-                "content": {"type": "string", "description": "Content to write"},
-            },
-            "required": ["file_path", "content"],
-        },
-    },
-    {
-        "name": "Edit",
-        "description": "Replace an exact unique string in a file with new text.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "file_path": {"type": "string", "description": "Path of the file to edit"},
-                "old_string": {"type": "string", "description": "Exact text to replace (must be unique in the file)"},
-                "new_string": {"type": "string", "description": "Replacement text"},
-            },
-            "required": ["file_path", "old_string", "new_string"],
-        },
-    },
-    {
-        "name": "Glob",
-        "description": "Find files matching a glob pattern.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "pattern": {"type": "string", "description": "Glob pattern (e.g. '**/*.yaml')"},
-                "path": {"type": "string", "description": "Directory to search in (default: repo root)"},
-            },
-            "required": ["pattern"],
-        },
-    },
-    {
-        "name": "Grep",
-        "description": "Search file contents using a regex pattern.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "pattern": {"type": "string", "description": "Regex pattern to search for"},
-                "path": {"type": "string", "description": "File or directory to search in (default: repo root)"},
-                "glob": {"type": "string", "description": "File filter pattern (e.g. '*.yaml')"},
-                "-i": {"type": "boolean", "description": "Case-insensitive search"},
-            },
-            "required": ["pattern"],
-        },
-    },
-]
-
-
-def _resolve_path(file_path: str) -> Path:
-    """Resolve a path: absolute paths as-is, relative paths anchored at REPO_ROOT."""
-    p = Path(file_path)
-    return p if p.is_absolute() else REPO_ROOT / p
-
-
-def _execute_tool(name: str, input_data: dict) -> str:
-    """Dispatch and execute a tool call, returning the result as a string."""
-    if name == "Bash":
-        return run_command(
-            input_data["command"],
-            timeout=input_data.get("timeout", 120),
-            cwd=str(REPO_ROOT),
-        )
-
-    if name == "Read":
-        path = _resolve_path(input_data["file_path"])
-        try:
-            lines = path.read_text().splitlines(keepends=True)
-            start = max(0, (input_data.get("offset") or 1) - 1)
-            limit = input_data.get("limit")
-            lines = lines[start : (start + limit) if limit else None]
-            return "".join(lines) or "(empty file)"
-        except Exception as e:
-            return f"[read error: {e}]"
-
-    if name == "Write":
-        path = _resolve_path(input_data["file_path"])
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(input_data["content"])
-            return f"Written: {path}"
-        except Exception as e:
-            return f"[write error: {e}]"
-
-    if name == "Edit":
-        path = _resolve_path(input_data["file_path"])
-        old, new = input_data["old_string"], input_data["new_string"]
-        try:
-            text = path.read_text()
-            count = text.count(old)
-            if count == 0:
-                return f"[edit error: old_string not found in {path}]"
-            if count > 1:
-                return f"[edit error: old_string is not unique ({count} occurrences) — add more context]"
-            path.write_text(text.replace(old, new, 1))
-            return f"Edited: {path}"
-        except Exception as e:
-            return f"[edit error: {e}]"
-
-    if name == "Glob":
-        search_root = _resolve_path(input_data.get("path", "."))
-        try:
-            matches = sorted(str(m) for m in search_root.rglob(input_data["pattern"]))
-            return "\n".join(matches) or "(no matches)"
-        except Exception as e:
-            return f"[glob error: {e}]"
-
-    if name == "Grep":
-        target = _resolve_path(input_data.get("path", "."))
-        parts = ["rg", "--no-heading", "-n"]
-        if input_data.get("-i"):
-            parts.append("-i")
-        if input_data.get("glob"):
-            parts += ["--glob", input_data["glob"]]
-        parts += [input_data["pattern"], str(target)]
-        return run_command(" ".join(parts), cwd=str(REPO_ROOT))
-
-    return f"[unknown tool: {name}]"
-
-
 # ── agent helpers ─────────────────────────────────────────────────────────────
 def load_mission(path: Path | None) -> str:
     """Load mission context file. Falls back to orchestrator/mission.md if present."""
@@ -501,62 +344,43 @@ def read_agent_prompt(name: str) -> str:
     return text
 
 def call_claude(system: str, user: str, agent_name: str = "agent") -> str:
-    """Call Claude via the Anthropic SDK (metered API — requires ANTHROPIC_API_KEY).
+    """Call Claude via the claude CLI (uses Claude Code subscription, no API billing).
 
-    Runs an agentic loop: Claude may call Bash, Read, Write, Edit, Glob, and Grep
-    tools which are executed locally with cwd=REPO_ROOT.  Tool calls and outputs
-    are written to orchestrator/runs/agent-<name>-<ts>.log for debugging.
+    --system-prompt forces direct API mode (requires ANTHROPIC_API_KEY), so we fold
+    the agent instructions into the message instead. Claude Code then also loads
+    CLAUDE.md / AGENTS.md automatically, which gives agents useful project context.
+
+    Runs with cwd=REPO_ROOT so tool-using agents resolve file paths correctly.
+    User message is piped via stdin to avoid OS arg-length limits.
+
+    Debug logs (tool calls, hook output, API traffic) are written to
+    orchestrator/runs/agent-<name>-<ts>.log — tail -f to follow in real time.
     """
     if _mission_context:
         user = f"## Current Mission\n\n{_mission_context}\n\n---\n\n{user}"
-
+    message = f"{system}\n\n---\n\n{user}"
+    # Strip ANTHROPIC_API_KEY so Claude Code uses subscription auth, not the API key
+    # (the key may be set for other tools like kagent but breaks claude -p)
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     ts        = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     debug_log = RUNS_DIR / f"agent-{agent_name}-{ts}.log"
-    log(f"   Agent debug log → {debug_log}")
-
-    client   = anthropic.Anthropic()          # reads ANTHROPIC_API_KEY from environment
-    messages = [{"role": "user", "content": user}]
-    deadline = time.time() + 900              # 15-minute hard ceiling
-
-    while time.time() < deadline:
-        response = client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=16000,
-            system=system,
-            tools=CLAUDE_TOOLS,               # type: ignore[arg-type]
-            messages=messages,                # type: ignore[arg-type]
+    log(f"   Agent debug log → tail -f {debug_log}")
+    try:
+        result = subprocess.run(
+            ["claude", "-p", "--output-format", "json", "--debug-file", str(debug_log)],
+            input=message,
+            capture_output=True, text=True,
+            timeout=900,        # tool-using agents need time: file reads, git ops, kubectl
+            cwd=str(REPO_ROOT), # agents resolve paths relative to repo root
+            env=env,
         )
-
-        if response.stop_reason == "end_turn":
-            for block in response.content:
-                if block.type == "text":
-                    return block.text
-            return ""
-
-        if response.stop_reason != "tool_use":
-            raise RuntimeError(
-                f"Agent '{agent_name}': unexpected stop_reason '{response.stop_reason}'"
-            )
-
-        messages.append({"role": "assistant", "content": response.content})  # type: ignore[arg-type]
-
-        tool_results = []
-        for block in response.content:
-            if block.type != "tool_use":
-                continue
-            result = _execute_tool(block.name, block.input)
-            with open(debug_log, "a") as fh:
-                fh.write(f"\n=== {block.name} ===\nInput: {json.dumps(block.input, indent=2)}\nOutput:\n{str(result)[:4000]}\n")
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": result,
-            })
-
-        messages.append({"role": "user", "content": tool_results})
-
-    raise RuntimeError(f"Agent '{agent_name}' exceeded 15-minute deadline")
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"claude agent '{agent_name}' timed out after {e.timeout}s") from e
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "(no output)")[:500]
+        raise RuntimeError(f"claude exited {result.returncode}:\n{detail}")
+    return json.loads(result.stdout)["result"]
 
 def parse_json_response(text: str) -> dict:
     start = text.find("{")
