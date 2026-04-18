@@ -6,7 +6,7 @@ name: Upgrade Component Versions
 # Bash scripts handle version discovery and GitHub API calls (cheap, no LLM tokens).
 # Claude reads the pre-computed report and applies targeted edits (fast, low token cost).
 #
-# Required secrets: ANTHROPIC_API_KEY, GCS_LOG_BUCKET, WIF_PROVIDER, WIF_SERVICE_ACCOUNT
+# Required secrets: KAGENT_ANTHROPIC_API_KEY, GCS_LOG_BUCKET, WIF_PROVIDER, WIF_SERVICE_ACCOUNT
 # See docs/upgrade-versions.md for full process documentation.
 
 on:
@@ -44,7 +44,7 @@ jobs:
       - name: Apply version updates
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.KAGENT_ANTHROPIC_API_KEY }}
 
           # there's an open issue (#860) that track_progress: true merges in 18 additional write tools (Edit, MultiEdit, git commands) that override `--allowedTools` because the merge is additive, not restrictive
           # track_progress is only supported for events: pull_request, issues, issue_comment, pull_request_review_comment, pull_request_review. Current event: workflow_dispatch
