@@ -17,13 +17,9 @@ spec:
     kind: GitRepository
     name: flux-system
   postBuild:
-    substitute:
-      GKE_CONTROL_PLANE_CLUSTER: "control-plane"
-      CONTROL_PLANE_SUBNET_NAME: "gke-mgmt-subnet"
     substituteFrom:
       - kind: ConfigMap
         name: platform-config
-  # Depend on both compositions and platform (for alerts) to ensure everything is ready for cluster provisioning
   dependsOn:
     - name: crossplane-compositions
     - name: platform
