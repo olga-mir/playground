@@ -2,13 +2,14 @@
 """
 AI Agent orchestrator which is used to monitor and troubleshoot project provisioning.
 
-Drives: kind (bootstrap) → GKE control-plane → GKE apps-dev
+Drives: kind (bootstrap) → GKE control-plane → GKE workload cluster (cluster-01, cluster-02, etc.)
 Delegates phase assessment and diagnostics to Claude agents via Anthropic SDK (or `claude -p` directly to use subscription instead of API key))
 
 Usage:
     uv run python main.py
     uv run python main.py --skip-install
     uv run python main.py --start-phase control
+    uv run python main.py --workload-cluster cluster-01
 """
 import argparse
 import json
@@ -35,6 +36,10 @@ STATE_FILE = RUNS_DIR / "state.json"
 PHASES = ["bootstrap", "control", "workload"]
 MAX_FIX_ATTEMPTS  = 3   # same error signature → escalate instead of looping
 DEFAULT_MISSION   = REPO_ROOT / "orchestrator" / "mission.md"
+
+# Workload cluster name (cattle: numbered, disposable). Can be set via env var or --workload-cluster arg.
+# Defaults to cluster-01 but supports cluster-02, cluster-03, etc. for multi-cluster deployments.
+WORKLOAD_CLUSTER  = os.environ.get("WORKLOAD_CLUSTER", "cluster-01")
 
 # ── module-level state (signal handler + mission) ─────────────────────────────
 _interrupt_state: dict              = {}
@@ -90,15 +95,15 @@ PHASE_DEFINITIONS: dict[str, dict] = {
 """,
     },
     "workload": {
-        "description": "GKE apps-dev cluster provisioned by Crossplane on control-plane; Flux bootstrapped",
+        "description": "GKE workload cluster provisioned by Crossplane on control-plane; Flux bootstrapped",
         "check_interval_minutes": 10,
         "max_wait_minutes": 70,
         "healthy_criteria": """
-- GKECluster XR for apps-dev: READY=True, SYNCED=True
-- All managed resources for apps-dev: READY=True, no Err state
-- apps-dev GKE kubeconfig context reachable
-- Flux Kustomizations on apps-dev cluster: Ready=True, not suspended
-- GitRepository on apps-dev: Ready=True
+- GKECluster XR for workload cluster: READY=True, SYNCED=True
+- All managed resources for workload cluster: READY=True, no Err state
+- Workload cluster GKE kubeconfig context reachable
+- Flux Kustomizations on workload cluster: Ready=True, not suspended
+- GitRepository on workload cluster: Ready=True
 """,
     },
 }
@@ -161,7 +166,7 @@ def patch_provider_github(phase: str) -> bool:
         if ctx:
             contexts.append(ctx)
     if phase == "workload":
-        ctx = get_gke_context("apps-dev")
+        ctx = get_gke_context(WORKLOAD_CLUSTER)
         if ctx:
             contexts.append(ctx)
 
@@ -878,12 +883,17 @@ def main() -> None:
         "--initial-wait", type=int, default=300, metavar="SECONDS",
         help="Seconds to wait after starting install before the first phase check (default: 300 = 5min)",
     )
+    parser.add_argument(
+        "--workload-cluster", default=None, metavar="NAME",
+        help="Workload cluster name (default: cluster-01, set via WORKLOAD_CLUSTER env or --workload-cluster)",
+    )
     args = parser.parse_args()
 
     state = load_state()
 
-    global _interrupt_state, _interrupt_phase, _mission_context
+    global _interrupt_state, _interrupt_phase, _mission_context, WORKLOAD_CLUSTER
     _mission_context = load_mission(args.mission)
+    WORKLOAD_CLUSTER = args.workload_cluster or WORKLOAD_CLUSTER
     _interrupt_state = state
     _interrupt_phase = args.start_phase
     signal.signal(signal.SIGINT, _on_sigint)
@@ -900,6 +910,7 @@ def main() -> None:
     log("══════════════════════════════════════════════")
     log("  Cluster Provisioning Orchestrator")
     log(f"  Start phase  : {args.start_phase}")
+    log(f"  Workload cluster : {WORKLOAD_CLUSTER}")
     log(f"  Skip install : {args.skip_install}")
     log(f"  Initial wait : {args.initial_wait}s")
     log("══════════════════════════════════════════════")
@@ -912,6 +923,7 @@ def main() -> None:
         "orchestrator.run",
         **{
             "start_phase": args.start_phase,
+            "workload_cluster": WORKLOAD_CLUSTER,
             "skip_install": args.skip_install,
             "initial_wait_s": args.initial_wait,
         },
