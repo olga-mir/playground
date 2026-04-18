@@ -12,6 +12,7 @@ Usage:
 """
 import argparse
 import json
+import os
 import re
 import signal
 import subprocess
@@ -20,7 +21,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import anthropic
+import telemetry
 
 # ── paths ─────────────────────────────────────────────────────────────────────
 REPO_ROOT              = Path(__file__).resolve().parent.parent
@@ -51,6 +52,10 @@ def _on_sigint(signum, frame):  # noqa: ARG001
     if _install_log_fh:
         _install_log_fh.close()
     write_summary(_interrupt_state, "INTERRUPTED", _interrupt_phase)
+    try:
+        telemetry.shutdown()
+    except Exception:
+        pass
     sys.exit(0)
 
 # ── phase definitions ─────────────────────────────────────────────────────────
@@ -282,20 +287,33 @@ def reconcile_stuck_kustomizations(phase: str) -> bool:
 
 
 # ── command execution ─────────────────────────────────────────────────────────
-def run_command(cmd: str, timeout: int = 60, cwd: str | None = None) -> str:
-    """Run a shell command, return combined stdout+stderr."""
-    try:
-        result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=timeout, cwd=cwd,
-        )
-        out = result.stdout.strip()
-        if result.returncode != 0 and result.stderr.strip():
-            out += f"\n[stderr] {result.stderr.strip()}"
-        return out or "(no output)"
-    except subprocess.TimeoutExpired:
-        return f"[timed out after {timeout}s]"
-    except Exception as e:
-        return f"[error: {e}]"
+def run_command(cmd: str, timeout: int = 60) -> str:
+    """Run a shell command, return combined stdout+stderr.
+
+    Wrapped in a span so every kubectl/gcloud/patch call shows up in Cloud
+    Trace under the current phase/agent span. The shell verb (first word) is
+    recorded as a label so metrics aggregate by `kubectl`/`gcloud`/etc.
+    """
+    verb = cmd.strip().split(None, 1)[0] if cmd.strip() else "shell"
+    with telemetry.span("shell", **{"shell.verb": verb, "shell.timeout_s": timeout}) as s:
+        try:
+            result = subprocess.run(
+                cmd, shell=True, capture_output=True, text=True, timeout=timeout,
+            )
+            out = result.stdout.strip()
+            if result.returncode != 0 and result.stderr.strip():
+                out += f"\n[stderr] {result.stderr.strip()}"
+            status = "ok" if result.returncode == 0 else "error"
+            if s is not None:
+                s.set_attribute("shell.exit_code", result.returncode)
+            telemetry.record_shell(verb, status)
+            return out or "(no output)"
+        except subprocess.TimeoutExpired:
+            telemetry.record_shell(verb, "timeout")
+            return f"[timed out after {timeout}s]"
+        except Exception as e:
+            telemetry.record_shell(verb, "error")
+            return f"[error: {e}]"
 
 def get_install_status() -> str:
     """Return a one-line install script status for inclusion in agent context."""
@@ -324,162 +342,6 @@ def snapshot_cluster_state(phase: str) -> None:
     except subprocess.TimeoutExpired:
         log("   collect-cluster-state.sh timed out — snapshot skipped")
 
-# ── Anthropic SDK tool definitions ────────────────────────────────────────────
-CLAUDE_TOOLS: list[dict] = [
-    {
-        "name": "Bash",
-        "description": (
-            "Execute a shell command and return its output. "
-            "Use for kubectl, git, helm, and other CLI tools. "
-            "Commands run from the repository root."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "command": {"type": "string", "description": "The shell command to execute"},
-                "timeout": {"type": "integer", "description": "Timeout in seconds (default: 120)"},
-            },
-            "required": ["command"],
-        },
-    },
-    {
-        "name": "Read",
-        "description": "Read the contents of a file.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "file_path": {"type": "string", "description": "Absolute or repo-relative path"},
-                "offset": {"type": "integer", "description": "Line number to start reading from (1-indexed)"},
-                "limit": {"type": "integer", "description": "Maximum number of lines to read"},
-            },
-            "required": ["file_path"],
-        },
-    },
-    {
-        "name": "Write",
-        "description": "Write content to a file, creating it or overwriting it.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "file_path": {"type": "string", "description": "Path of the file to write"},
-                "content": {"type": "string", "description": "Content to write"},
-            },
-            "required": ["file_path", "content"],
-        },
-    },
-    {
-        "name": "Edit",
-        "description": "Replace an exact unique string in a file with new text.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "file_path": {"type": "string", "description": "Path of the file to edit"},
-                "old_string": {"type": "string", "description": "Exact text to replace (must be unique in the file)"},
-                "new_string": {"type": "string", "description": "Replacement text"},
-            },
-            "required": ["file_path", "old_string", "new_string"],
-        },
-    },
-    {
-        "name": "Glob",
-        "description": "Find files matching a glob pattern.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "pattern": {"type": "string", "description": "Glob pattern (e.g. '**/*.yaml')"},
-                "path": {"type": "string", "description": "Directory to search in (default: repo root)"},
-            },
-            "required": ["pattern"],
-        },
-    },
-    {
-        "name": "Grep",
-        "description": "Search file contents using a regex pattern.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "pattern": {"type": "string", "description": "Regex pattern to search for"},
-                "path": {"type": "string", "description": "File or directory to search in (default: repo root)"},
-                "glob": {"type": "string", "description": "File filter pattern (e.g. '*.yaml')"},
-                "-i": {"type": "boolean", "description": "Case-insensitive search"},
-            },
-            "required": ["pattern"],
-        },
-    },
-]
-
-
-def _resolve_path(file_path: str) -> Path:
-    """Resolve a path: absolute paths as-is, relative paths anchored at REPO_ROOT."""
-    p = Path(file_path)
-    return p if p.is_absolute() else REPO_ROOT / p
-
-
-def _execute_tool(name: str, input_data: dict) -> str:
-    """Dispatch and execute a tool call, returning the result as a string."""
-    if name == "Bash":
-        return run_command(
-            input_data["command"],
-            timeout=input_data.get("timeout", 120),
-            cwd=str(REPO_ROOT),
-        )
-
-    if name == "Read":
-        path = _resolve_path(input_data["file_path"])
-        try:
-            lines = path.read_text().splitlines(keepends=True)
-            start = max(0, (input_data.get("offset") or 1) - 1)
-            limit = input_data.get("limit")
-            lines = lines[start : (start + limit) if limit else None]
-            return "".join(lines) or "(empty file)"
-        except Exception as e:
-            return f"[read error: {e}]"
-
-    if name == "Write":
-        path = _resolve_path(input_data["file_path"])
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(input_data["content"])
-            return f"Written: {path}"
-        except Exception as e:
-            return f"[write error: {e}]"
-
-    if name == "Edit":
-        path = _resolve_path(input_data["file_path"])
-        old, new = input_data["old_string"], input_data["new_string"]
-        try:
-            text = path.read_text()
-            count = text.count(old)
-            if count == 0:
-                return f"[edit error: old_string not found in {path}]"
-            if count > 1:
-                return f"[edit error: old_string is not unique ({count} occurrences) — add more context]"
-            path.write_text(text.replace(old, new, 1))
-            return f"Edited: {path}"
-        except Exception as e:
-            return f"[edit error: {e}]"
-
-    if name == "Glob":
-        search_root = _resolve_path(input_data.get("path", "."))
-        try:
-            matches = sorted(str(m) for m in search_root.rglob(input_data["pattern"]))
-            return "\n".join(matches) or "(no matches)"
-        except Exception as e:
-            return f"[glob error: {e}]"
-
-    if name == "Grep":
-        target = _resolve_path(input_data.get("path", "."))
-        parts = ["rg", "--no-heading", "-n"]
-        if input_data.get("-i"):
-            parts.append("-i")
-        if input_data.get("glob"):
-            parts += ["--glob", input_data["glob"]]
-        parts += [input_data["pattern"], str(target)]
-        return run_command(" ".join(parts), cwd=str(REPO_ROOT))
-
-    return f"[unknown tool: {name}]"
-
-
 # ── agent helpers ─────────────────────────────────────────────────────────────
 def load_mission(path: Path | None) -> str:
     """Load mission context file. Falls back to orchestrator/mission.md if present."""
@@ -500,63 +362,63 @@ def read_agent_prompt(name: str) -> str:
         text = text[end + 3:].lstrip()
     return text
 
-def call_claude(system: str, user: str, agent_name: str = "agent") -> str:
-    """Call Claude via the Anthropic SDK (metered API — requires ANTHROPIC_API_KEY).
+def call_claude(system: str, user: str, agent_name: str = "agent", phase: str = "unknown") -> str:
+    """Call Claude via the claude CLI (uses Claude Code subscription, no API billing).
 
-    Runs an agentic loop: Claude may call Bash, Read, Write, Edit, Glob, and Grep
-    tools which are executed locally with cwd=REPO_ROOT.  Tool calls and outputs
-    are written to orchestrator/runs/agent-<name>-<ts>.log for debugging.
+    --system-prompt forces direct API mode (requires ANTHROPIC_API_KEY), so we fold
+    the agent instructions into the message instead. Claude Code then also loads
+    CLAUDE.md / AGENTS.md automatically, which gives agents useful project context.
+
+    Runs with cwd=REPO_ROOT so tool-using agents resolve file paths correctly.
+    User message is piped via stdin to avoid OS arg-length limits.
+
+    Debug logs (tool calls, hook output, API traffic) are written to
+    orchestrator/runs/agent-<name>-<ts>.log — tail -f to follow in real time.
+
+    OTEL:
+    - Orchestrator-side span `agent.<name>` records duration, exit, status.
+    - Claude CLI itself is handed OTLP env (CLAUDE_CODE_ENABLE_TELEMETRY + direct
+      OTLP to telemetry.googleapis.com with a fresh gcloud token) so its own
+      token/tool/request metrics land in GCP alongside the orchestrator's spans.
     """
     if _mission_context:
         user = f"## Current Mission\n\n{_mission_context}\n\n---\n\n{user}"
-
+    message = f"{system}\n\n---\n\n{user}"
+    # Strip ANTHROPIC_API_KEY so Claude Code uses subscription auth, not the API key
+    # (the key may be set for other tools like kagent but breaks claude -p)
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    # Hand Claude CLI its own OTEL wiring → direct OTLP to GCP.
+    env.update(telemetry.claude_cli_otel_env(agent_name, phase))
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     ts        = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     debug_log = RUNS_DIR / f"agent-{agent_name}-{ts}.log"
-    log(f"   Agent debug log → {debug_log}")
-
-    client   = anthropic.Anthropic()          # reads ANTHROPIC_API_KEY from environment
-    messages = [{"role": "user", "content": user}]
-    deadline = time.time() + 900              # 15-minute hard ceiling
-
-    while time.time() < deadline:
-        response = client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=16000,
-            system=system,
-            tools=CLAUDE_TOOLS,               # type: ignore[arg-type]
-            messages=messages,                # type: ignore[arg-type]
-        )
-
-        if response.stop_reason == "end_turn":
-            for block in response.content:
-                if block.type == "text":
-                    return block.text
-            return ""
-
-        if response.stop_reason != "tool_use":
-            raise RuntimeError(
-                f"Agent '{agent_name}': unexpected stop_reason '{response.stop_reason}'"
+    log(f"   Agent debug log → tail -f {debug_log}")
+    started = time.monotonic()
+    status  = "ok"
+    with telemetry.span(
+        f"agent.{agent_name}",
+        **{"agent.name": agent_name, "phase": phase, "claude.debug_log": str(debug_log)},
+    ):
+        try:
+            result = subprocess.run(
+                ["claude", "-p", "--output-format", "json", "--debug-file", str(debug_log)],
+                input=message,
+                capture_output=True, text=True,
+                timeout=900,        # tool-using agents need time: file reads, git ops, kubectl
+                cwd=str(REPO_ROOT), # agents resolve paths relative to repo root
+                env=env,
             )
-
-        messages.append({"role": "assistant", "content": response.content})  # type: ignore[arg-type]
-
-        tool_results = []
-        for block in response.content:
-            if block.type != "tool_use":
-                continue
-            result = _execute_tool(block.name, block.input)
-            with open(debug_log, "a") as fh:
-                fh.write(f"\n=== {block.name} ===\nInput: {json.dumps(block.input, indent=2)}\nOutput:\n{str(result)[:4000]}\n")
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": result,
-            })
-
-        messages.append({"role": "user", "content": tool_results})
-
-    raise RuntimeError(f"Agent '{agent_name}' exceeded 15-minute deadline")
+        except subprocess.TimeoutExpired as e:
+            status = "timeout"
+            telemetry.record_claude(agent_name, time.monotonic() - started, status)
+            raise RuntimeError(f"claude agent '{agent_name}' timed out after {e.timeout}s") from e
+        if result.returncode != 0:
+            status = "error"
+            telemetry.record_claude(agent_name, time.monotonic() - started, status)
+            detail = (result.stderr or result.stdout or "(no output)")[:500]
+            raise RuntimeError(f"claude exited {result.returncode}:\n{detail}")
+    telemetry.record_claude(agent_name, time.monotonic() - started, status)
+    return json.loads(result.stdout)["result"]
 
 def parse_json_response(text: str) -> dict:
     start = text.find("{")
@@ -604,65 +466,101 @@ def run_phase(phase: str) -> tuple[str, list]:
     check_number      = 0
     phase_start       = datetime.now()
 
-    while datetime.now() < deadline:
-        check_number += 1
-        elapsed_min   = int((datetime.now() - phase_start).total_seconds() / 60)
+    # Phase span wraps all checks, agent calls, and shell calls for this phase.
+    # Returning from inside the `with` closes the span cleanly; falling out of
+    # the while loop hits the final `return "timeout", ...`.
+    with telemetry.span(
+        f"phase.{phase}",
+        **{"phase": phase, "phase.max_wait_min": defn["max_wait_minutes"]},
+    ) as phase_span:
+        while datetime.now() < deadline:
+            check_number += 1
+            elapsed_min   = int((datetime.now() - phase_start).total_seconds() / 60)
 
-        user_msg = (
-            f"Phase: {phase}\n"
-            f"Description: {defn['description']}\n"
-            f"Check number: {check_number} (elapsed: {elapsed_min}min into a {defn['max_wait_minutes']}min window)\n"
-            f"Install status: {get_install_status()}\n\n"
-            f"Healthy criteria:\n{defn['healthy_criteria']}\n\n"
-            f"Use kubectl to inspect the cluster(s) for this phase and assess their health."
-        )
+            user_msg = (
+                f"Phase: {phase}\n"
+                f"Description: {defn['description']}\n"
+                f"Check number: {check_number} (elapsed: {elapsed_min}min into a {defn['max_wait_minutes']}min window)\n"
+                f"Install status: {get_install_status()}\n\n"
+                f"Healthy criteria:\n{defn['healthy_criteria']}\n\n"
+                f"Use kubectl to inspect the cluster(s) for this phase and assess their health."
+            )
 
-        log("   Calling phase-checker agent...")
-        try:
-            raw = call_claude(system, user_msg, agent_name="phase-checker")
-        except RuntimeError as e:
-            log(f"   Phase-checker failed: {e} — waiting 60s and retrying")
-            time.sleep(60)
-            continue
+            log("   Calling phase-checker agent...")
+            try:
+                raw = call_claude(system, user_msg, agent_name="phase-checker", phase=phase)
+            except RuntimeError as e:
+                log(f"   Phase-checker failed: {e} — waiting 60s and retrying")
+                time.sleep(60)
+                continue
 
-        try:
-            verdict = parse_json_response(raw)
-        except (ValueError, json.JSONDecodeError) as e:
-            log(f"   Parse error: {e} — waiting 60s and retrying")
-            time.sleep(60)
-            continue
+            try:
+                verdict = parse_json_response(raw)
+            except (ValueError, json.JSONDecodeError) as e:
+                log(f"   Parse error: {e} — waiting 60s and retrying")
+                time.sleep(60)
+                continue
 
-        status         = verdict.get("status", "unknown")
-        recommendation = verdict.get("recommendation", "wait")
-        last_errors    = verdict.get("errors", [])
-        problem_domain = verdict.get("problem_domain", "unknown")
+            status         = verdict.get("status", "unknown")
+            recommendation = verdict.get("recommendation", "wait")
+            last_errors    = verdict.get("errors", [])
+            problem_domain = verdict.get("problem_domain", "unknown")
 
-        log(f"   status={status}  recommendation={recommendation}  domain={problem_domain}")
-        if verdict.get("analysis"):
-            log(f"   {verdict['analysis']}")
+            log(f"   status={status}  recommendation={recommendation}  domain={problem_domain}")
+            if verdict.get("analysis"):
+                log(f"   {verdict['analysis']}")
 
-        if status == "healthy":
-            return "healthy", []
+            if phase_span is not None:
+                try:
+                    phase_span.set_attribute("phase.check_count", check_number)
+                    phase_span.set_attribute("phase.last_status", status)
+                    phase_span.set_attribute("phase.last_recommendation", recommendation)
+                    phase_span.set_attribute("phase.last_domain", problem_domain)
+                except Exception:
+                    pass
 
-        if recommendation == "teardown":
-            log("   Agent recommends immediate teardown.")
-            return "teardown", last_errors
+            if status == "healthy":
+                if phase_span is not None:
+                    try:
+                        phase_span.set_attribute("phase.outcome", "healthy")
+                    except Exception:
+                        pass
+                return "healthy", []
 
-        if recommendation == "diagnose":
-            # Attach domain for routing in handle_failure
-            for e in last_errors:
-                e.setdefault("_domain", problem_domain)
-            return "degraded", last_errors
+            if recommendation == "teardown":
+                log("   Agent recommends immediate teardown.")
+                if phase_span is not None:
+                    try:
+                        phase_span.set_attribute("phase.outcome", "teardown")
+                    except Exception:
+                        pass
+                return "teardown", last_errors
 
-        # recommendation == "wait" — sleep and loop
-        remaining = (deadline - datetime.now()).total_seconds()
-        wait_s    = min(defn["check_interval_minutes"] * 60, remaining)
-        if wait_s <= 0:
-            break
-        log(f"   Waiting {int(wait_s / 60)}min before next check...")
-        time.sleep(wait_s)
+            if recommendation == "diagnose":
+                # Attach domain for routing in handle_failure
+                for e in last_errors:
+                    e.setdefault("_domain", problem_domain)
+                if phase_span is not None:
+                    try:
+                        phase_span.set_attribute("phase.outcome", "degraded")
+                    except Exception:
+                        pass
+                return "degraded", last_errors
 
-    return "timeout", last_errors
+            # recommendation == "wait" — sleep and loop
+            remaining = (deadline - datetime.now()).total_seconds()
+            wait_s    = min(defn["check_interval_minutes"] * 60, remaining)
+            if wait_s <= 0:
+                break
+            log(f"   Waiting {int(wait_s / 60)}min before next check...")
+            time.sleep(wait_s)
+
+        if phase_span is not None:
+            try:
+                phase_span.set_attribute("phase.outcome", "timeout")
+            except Exception:
+                pass
+        return "timeout", last_errors
 
 # ── diagnostics runner ────────────────────────────────────────────────────────
 def handle_failure(
@@ -673,7 +571,18 @@ def handle_failure(
     """
     Run diagnostics agent. Returns: retry | teardown | escalate
     Tracks fix attempts per error signature to enforce the escalation limit.
+
+    Wrapped in a `diagnose.{phase}` span so traces capture the full diagnosis
+    path — known-pattern shortcuts, agent routing, and final decision.
     """
+    with telemetry.span(
+        f"diagnose.{phase}",
+        **{"phase": phase, "error_count": len(errors)},
+    ) as diag_span:
+        return _handle_failure_impl(phase, errors, state, diag_span)
+
+
+def _handle_failure_impl(phase: str, errors: list, state: dict, diag_span) -> str:
     # Stable key for this error set (order-independent).
     # Normalise out numeric values (elapsed times, counts) so that "after 90 minutes"
     # and "after 91 minutes" hash to the same signature and don't bypass the attempt limit.
@@ -684,8 +593,19 @@ def handle_failure(
     phase_attempts = state["fix_attempts"].setdefault(phase, {})
     attempt_count  = phase_attempts.get(error_key, 0)
 
+    if diag_span is not None:
+        try:
+            diag_span.set_attribute("diagnose.attempt_count", attempt_count)
+        except Exception:
+            pass
+
     if attempt_count >= MAX_FIX_ATTEMPTS:
         log(f"   Same error seen {MAX_FIX_ATTEMPTS}× — escalating instead of looping.")
+        if diag_span is not None:
+            try:
+                diag_span.set_attribute("diagnose.outcome", "escalate_max_attempts")
+            except Exception:
+                pass
         return "escalate"
 
     # ── known Catch-22: provider:github missing on live GitRepository ─────────
@@ -699,6 +619,12 @@ def handle_failure(
             save_state(state)
             log("   Live patch applied — waiting 30s for GitRepository to recover...")
             time.sleep(30)
+            if diag_span is not None:
+                try:
+                    diag_span.set_attribute("diagnose.outcome", "retry_live")
+                    diag_span.set_attribute("diagnose.known_pattern", "provider_github")
+                except Exception:
+                    pass
             return "retry_live"
         log("   No GitRepositories needed patching — falling through to diagnostics agent")
 
@@ -713,6 +639,12 @@ def handle_failure(
             save_state(state)
             log("   resourceRefs cleared — waiting 30s for Crossplane to re-reconcile...")
             time.sleep(30)
+            if diag_span is not None:
+                try:
+                    diag_span.set_attribute("diagnose.outcome", "retry_live")
+                    diag_span.set_attribute("diagnose.known_pattern", "stale_resource_refs")
+                except Exception:
+                    pass
             return "retry_live"
         log("   No XRs needed clearing — falling through to diagnostics agent")
 
@@ -727,6 +659,12 @@ def handle_failure(
             save_state(state)
             log("   Reconciliation triggered — waiting 60s for kustomizations to settle...")
             time.sleep(60)
+            if diag_span is not None:
+                try:
+                    diag_span.set_attribute("diagnose.outcome", "retry_live")
+                    diag_span.set_attribute("diagnose.known_pattern", "stuck_dependency")
+                except Exception:
+                    pass
             return "retry_live"
         log("   No stuck kustomizations found — falling through to diagnostics agent")
 
@@ -742,6 +680,13 @@ def handle_failure(
     agent_name = domain_to_agent.get(domain, "diagnostics")
     log(f"   Routing to agent '{agent_name}' (domain={domain})")
 
+    if diag_span is not None:
+        try:
+            diag_span.set_attribute("diagnose.domain", domain)
+            diag_span.set_attribute("diagnose.agent", agent_name)
+        except Exception:
+            pass
+
     system = read_agent_prompt(agent_name)
     user_msg = (
         f"Phase: {phase}\n\n"
@@ -752,15 +697,25 @@ def handle_failure(
 
     log(f"   Calling {agent_name} agent...")
     try:
-        raw = call_claude(system, user_msg, agent_name=agent_name)
+        raw = call_claude(system, user_msg, agent_name=agent_name, phase=phase)
     except RuntimeError as e:
         log(f"   Diagnostics agent failed: {e} — escalating")
+        if diag_span is not None:
+            try:
+                diag_span.set_attribute("diagnose.outcome", "escalate_agent_fail")
+            except Exception:
+                pass
         return "escalate"
 
     try:
         decision = parse_json_response(raw)
     except (ValueError, json.JSONDecodeError) as e:
         log(f"   Diagnostics parse error: {e} — escalating")
+        if diag_span is not None:
+            try:
+                diag_span.set_attribute("diagnose.outcome", "escalate_parse_fail")
+            except Exception:
+                pass
         return "escalate"
 
     action     = decision.get("decision", "escalate")
@@ -769,16 +724,37 @@ def handle_failure(
     log(f"   diagnostics: decision={action}  confidence={confidence}")
     log(f"   {rationale}")
 
+    if diag_span is not None:
+        try:
+            diag_span.set_attribute("diagnose.confidence", confidence)
+        except Exception:
+            pass
+
     if action == "fix_forward":
         # Agent handles git add/commit/push directly.
         # The guardrails PreToolUse hook does fetch+rebase before each push.
         phase_attempts[error_key] = attempt_count + 1
         save_state(state)
+        if diag_span is not None:
+            try:
+                diag_span.set_attribute("diagnose.outcome", "retry")
+            except Exception:
+                pass
         return "retry"
 
     if action == "teardown":
+        if diag_span is not None:
+            try:
+                diag_span.set_attribute("diagnose.outcome", "teardown")
+            except Exception:
+                pass
         return "teardown"
 
+    if diag_span is not None:
+        try:
+            diag_span.set_attribute("diagnose.outcome", "escalate")
+        except Exception:
+            pass
     return "escalate"
 
 # ── summary ───────────────────────────────────────────────────────────────────
@@ -798,22 +774,45 @@ def write_summary(state: dict, outcome: str, phase: str) -> None:
 # ── install / cleanup ─────────────────────────────────────────────────────────
 def run_install_background() -> bool:
     """Launch install script in background. Logs to orchestrator/runs/install-<ts>.log.
-    Returns False immediately if the script fails to start."""
+    Returns False immediately if the script fails to start.
+
+    The Popen launch itself is instrumented with a short span; the install runs
+    for many minutes in the background, so the span is not kept open for its
+    full lifetime — phase spans + shell.call spans carry the ongoing signal.
+    """
     global _install_proc, _install_log_path, _install_log_fh
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     _install_log_path = RUNS_DIR / f"install-{ts}.log"
     _install_log_fh   = open(_install_log_path, "w")
-    try:
-        _install_proc = subprocess.Popen(
-            [str(INSTALL_SCRIPT)],
-            stdout=_install_log_fh,
-            stderr=subprocess.STDOUT,
-        )
-    except OSError as e:
-        log(f"Failed to start install script: {e}")
-        _install_log_fh.close()
-        return False
+    with telemetry.span(
+        "install.launch",
+        **{"script": INSTALL_SCRIPT.name, "log_path": str(_install_log_path)},
+    ) as launch_span:
+        try:
+            _install_proc = subprocess.Popen(
+                [str(INSTALL_SCRIPT)],
+                stdout=_install_log_fh,
+                stderr=subprocess.STDOUT,
+            )
+        except OSError as e:
+            log(f"Failed to start install script: {e}")
+            _install_log_fh.close()
+            telemetry.record_shell("install", "start_failed")
+            if launch_span is not None:
+                try:
+                    launch_span.set_attribute("install.start_ok", False)
+                    launch_span.set_attribute("install.error", str(e)[:200])
+                except Exception:
+                    pass
+            return False
+        if launch_span is not None:
+            try:
+                launch_span.set_attribute("install.start_ok", True)
+                launch_span.set_attribute("install.pid", _install_proc.pid)
+            except Exception:
+                pass
+    telemetry.record_shell("install", "started")
     log(f"Install script running in background  PID={_install_proc.pid}")
     log(f"Log: {_install_log_path}   (tail -f to follow)")
     return True
@@ -889,6 +888,15 @@ def main() -> None:
     _interrupt_phase = args.start_phase
     signal.signal(signal.SIGINT, _on_sigint)
 
+    # Configure OTEL before the first span. setup_otel() is safe to call
+    # unconditionally — it returns (False, reason) if deps or PROJECT_ID are
+    # missing and the module stays in no-op mode.
+    otel_ok, otel_reason = telemetry.setup_otel()
+    if otel_ok:
+        log(f"  OTEL         : enabled ({otel_reason})")
+    else:
+        log(f"  OTEL         : disabled ({otel_reason})")
+
     log("══════════════════════════════════════════════")
     log("  Cluster Provisioning Orchestrator")
     log(f"  Start phase  : {args.start_phase}")
@@ -896,7 +904,19 @@ def main() -> None:
     log(f"  Initial wait : {args.initial_wait}s")
     log("══════════════════════════════════════════════")
 
-    if not args.skip_install:
+    # Root span covers install + phase loop + success summary. All child spans
+    # (phase.*, agent.*, diagnose.*, shell.call) attach to this trace so GCP
+    # shows the full run as one tree. SystemExit propagates normally — the span
+    # closes with ERROR status on non-zero exits.
+    with telemetry.span(
+        "orchestrator.run",
+        **{
+            "start_phase": args.start_phase,
+            "skip_install": args.skip_install,
+            "initial_wait_s": args.initial_wait,
+        },
+    ) as root_span:
+      if not args.skip_install:
         if not run_install_background():
             log("Failed to launch install script.")
             sys.exit(1)
@@ -905,9 +925,9 @@ def main() -> None:
             write_summary(state, "FAILED", args.start_phase)
             sys.exit(1)
 
-    phase_index = PHASES.index(args.start_phase)
+      phase_index = PHASES.index(args.start_phase)
 
-    while phase_index < len(PHASES):
+      while phase_index < len(PHASES):
         phase            = PHASES[phase_index]
         _interrupt_phase = phase
 
@@ -978,10 +998,22 @@ def main() -> None:
         log(f"Escalation at phase '{phase}'. Manual intervention required.")
         sys.exit(1)
 
-    log("══════════════════════════════════════════════")
-    log("  ALL PHASES HEALTHY")
-    log("══════════════════════════════════════════════")
-    write_summary(state, "SUCCESS", "all")
+      log("══════════════════════════════════════════════")
+      log("  ALL PHASES HEALTHY")
+      log("══════════════════════════════════════════════")
+      write_summary(state, "SUCCESS", "all")
+      if root_span is not None:
+          try:
+              root_span.set_attribute("orchestrator.outcome", "success")
+          except Exception:
+              pass
+
+    # Flush any pending spans/metrics. BatchSpanProcessor has an atexit hook,
+    # so this is belt-and-suspenders — but cleaner on SIGINT paths too.
+    try:
+        telemetry.shutdown()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
