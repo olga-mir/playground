@@ -204,7 +204,7 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
         "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
         "OTEL_EXPORTER_OTLP_ENDPOINT": endpoint,
         "OTEL_EXPORTER_OTLP_HEADERS": headers,
-        "OTEL_SERVICE_NAME": "claude-code",
+        "OTEL_SERVICE_NAME": "playground-orchestrator",
         "OTEL_RESOURCE_ATTRIBUTES": resource_attrs,
     }
 
