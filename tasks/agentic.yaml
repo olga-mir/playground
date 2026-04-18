@@ -6,20 +6,20 @@ tasks:
     preconditions:
       - sh: test -n "$PROJECT_ID"
         msg: "PROJECT_ID is not set"
-      - sh: test -n "$ANTHROPIC_API_KEY"
-        msg: "ANTHROPIC_API_KEY is not set"
       - sh: command -v uv
         msg: "uv not found — install from https://docs.astral.sh/uv/"
+      - sh: command -v claude
+        msg: "claude CLI not found — install Claude Code first"
     cmds:
       - uv run --directory {{.ROOT_DIR}}/orchestrator python main.py
 
   check:
     desc: "Check current cluster state without install (skips initial wait)"
     preconditions:
-      - sh: test -n "$ANTHROPIC_API_KEY"
-        msg: "ANTHROPIC_API_KEY is not set"
       - sh: command -v uv
         msg: "uv not found — install from https://docs.astral.sh/uv/"
+      - sh: command -v claude
+        msg: "claude CLI not found — install Claude Code first"
     cmds:
       - uv run --directory {{.ROOT_DIR}}/orchestrator python main.py --skip-install
 
@@ -28,10 +28,10 @@ tasks:
     preconditions:
       - sh: test -n "{{.PHASE}}"
         msg: "PHASE is required — usage: task agentic:resume PHASE=bootstrap|control|workload"
-      - sh: test -n "$ANTHROPIC_API_KEY"
-        msg: "ANTHROPIC_API_KEY is not set"
       - sh: command -v uv
         msg: "uv not found — install from https://docs.astral.sh/uv/"
+      - sh: command -v claude
+        msg: "claude CLI not found — install Claude Code first"
     vars:
       PHASE: '{{.PHASE | default "bootstrap"}}'
     cmds:
