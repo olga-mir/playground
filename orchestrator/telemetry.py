@@ -137,6 +137,8 @@ def span(name: str, **attrs) -> Iterator[object]:
         return
     with _tracer.start_as_current_span(name, attributes=attrs) as s:
         try:
+            s.set_attribute("service.name", SERVICE_NAME)
+            s.set_attribute("service.namespace", "playground")
             yield s
         except Exception as e:
             # Record exception but re-raise — caller controls flow.
