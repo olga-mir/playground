@@ -24,6 +24,12 @@ if echo "$cmd" | grep -Eq '\bkubectl\b.*(apply|delete|patch|create|edit|replace|
   exit 2
 fi
 
+# ── block ambiguous kubectl queries ──────────────────────────────────────────
+if echo "$cmd" | grep -Eq '\bkubectl\b.*\bget\b.*\b(providers|clusters)(\s|$)' && ! echo "$cmd" | grep -Eq '\b(providers\.pkg\.crossplane\.io|clusters\.container\.gcp\.m\.upbound\.io)\b'; then
+  echo "[guardrails] BLOCKED: ambiguous resource name. Use fully qualified names like 'providers.pkg.crossplane.io' or 'clusters.container.gcp.m.upbound.io'." >&2
+  exit 2
+fi
+
 # ── block git push to any branch other than develop or chore/* ────────────────
 if echo "$cmd" | grep -Eq '\bgit push\b'; then
   if ! echo "$cmd" | grep -Eq '\bgit push\b[^|&;]*\b(develop|chore/.+)'; then
