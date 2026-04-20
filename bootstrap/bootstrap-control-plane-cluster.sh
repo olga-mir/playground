@@ -8,6 +8,9 @@ CROSSPLANE_VERSION="v2.2.0"
 FLUX_VERSION="v2.8.3"
 KIND_CLUSTER_CONTEXT="kind-${KIND_TEST_CLUSTER_NAME}"
 
+echo "Setting up GCP infrastructure (VPC and subnets)..."
+"${REPO_ROOT}/scripts/setup-gcp-once.sh"
+
 # Create kind cluster if it doesn't exist
 if ! kind get clusters | grep -q $KIND_TEST_CLUSTER_NAME; then
   echo "Cluster $KIND_TEST_CLUSTER_NAME does not exist. Creating..."
