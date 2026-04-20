@@ -180,21 +180,24 @@ else
     echo "   You can check progress with: flux get kustomizations -A"
 fi
 
-# Wait for clusters kustomization (creates control-plane namespace) then copy gcp-creds
-echo "Waiting for clusters kustomization to create XR namespaces..."
+# Pre-create XR namespaces and copy gcp-creds BEFORE clusters kustomization applies GKECluster XRs
+# This ensures ProviderConfigs can authenticate before managed resources try to provision
+echo "Pre-creating XR namespaces and copying GCP credentials..."
+for ns in control-plane apps-dev; do
+    kubectl --context "${KIND_CLUSTER_CONTEXT}" create namespace "${ns}" --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+done
+
+# Copy gcp-creds secret to each namespace before clusters kustomization applies
+secret_json=$(kubectl --context "${KIND_CLUSTER_CONTEXT}" get secret gcp-creds -n crossplane-system -o json \
+    | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)')
+for ns in control-plane apps-dev; do
+    echo "Copying gcp-creds to namespace ${ns}..."
+    echo "${secret_json}" | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -n "${ns}" -f -
+done
+
+# Wait for clusters kustomization
+echo "Waiting for clusters kustomization to apply GKECluster XRs..."
 kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=ready kustomization/clusters -n flux-system --timeout=300s || true
-copy_gcp_creds_to_xr_namespaces() {
-    local secret_json
-    secret_json=$(kubectl --context "${KIND_CLUSTER_CONTEXT}" get secret gcp-creds -n crossplane-system -o json \
-        | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)')
-    for ns in control-plane apps-dev; do
-        if kubectl --context "${KIND_CLUSTER_CONTEXT}" get namespace "${ns}" &>/dev/null; then
-            echo "Copying gcp-creds to namespace ${ns}..."
-            echo "${secret_json}" | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -n "${ns}" -f -
-        fi
-    done
-}
-copy_gcp_creds_to_xr_namespaces
 
 # Function to wait for a cluster to be ready using Composite Resources
 wait_for_cluster_ready() {
