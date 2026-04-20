@@ -387,6 +387,9 @@ def call_claude(system: str, user: str, agent_name: str = "agent", phase: str = 
     # Strip ANTHROPIC_API_KEY so Claude Code uses subscription auth, not the API key
     # (the key may be set for other tools like kagent but breaks claude -p)
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    # Fix headless shell issues
+    env["TERM"]  = "xterm-256color"
+    env["PAGER"] = "cat"
     # Hand Claude CLI its own OTEL wiring → direct OTLP to GCP.
     env.update(telemetry.claude_cli_otel_env(agent_name, phase))
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
@@ -401,7 +404,7 @@ def call_claude(system: str, user: str, agent_name: str = "agent", phase: str = 
     ):
         try:
             result = subprocess.run(
-                ["claude", "-p", "--output-format", "json", "--debug-file", str(debug_log)],
+                ["claude", "-p", "--model", "claude-sonnet-4-6", "--output-format", "json", "--debug-file", str(debug_log)],
                 input=message,
                 capture_output=True, text=True,
                 timeout=900,        # tool-using agents need time: file reads, git ops, kubectl
