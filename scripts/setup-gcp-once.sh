@@ -2,9 +2,6 @@
 
 set -eoux pipefail
 
-echo THIS SETUP ONLY NEEDED ONCE
-exit 0
-
 # Create Workload Identity Pool
 gcloud iam workload-identity-pools create github-pool \
     --project=$PROJECT_ID \
@@ -75,31 +72,46 @@ gcloud iam service-accounts keys create crossplane-gke-sa-key.json \
     --iam-account=crossplane-gke-sa@${PROJECT_ID}.iam.gserviceaccount.com
 
 echo "Creating VPC network: $GKE_VPC"
-gcloud compute networks create $GKE_VPC \
-    --project=$PROJECT_ID \
-    --subnet-mode=custom
+if ! gcloud compute networks describe $GKE_VPC --project=$PROJECT_ID &>/dev/null; then
+  gcloud compute networks create $GKE_VPC \
+      --project=$PROJECT_ID \
+      --subnet-mode=custom
+  echo "✓ VPC $GKE_VPC created"
+else
+  echo "✓ VPC $GKE_VPC already exists"
+fi
 
 # Create management subnet
 # Using 10.1.0.0/24 for the primary range (plenty for 20 nodes)
 # Using 10.1.1.0/24 for services (can accommodate ~250 services)
 # Using 10.1.4.0/22 for pods (can accommodate ~1000 pods)
-gcloud compute networks subnets create "${CONTROL_PLANE_SUBNET_NAME}" \
-  --project=$PROJECT_ID \
-  --network=$GKE_VPC \
-  --region=$REGION \
-  --range=10.1.0.0/24 \
-  --secondary-range=services-range=10.1.1.0/24,pods-range=10.1.4.0/22
+if ! gcloud compute networks subnets describe "${CONTROL_PLANE_SUBNET_NAME}" --region=$REGION --project=$PROJECT_ID &>/dev/null; then
+  gcloud compute networks subnets create "${CONTROL_PLANE_SUBNET_NAME}" \
+    --project=$PROJECT_ID \
+    --network=$GKE_VPC \
+    --region=$REGION \
+    --range=10.1.0.0/24 \
+    --secondary-range=services-range=10.1.1.0/24,pods-range=10.1.4.0/22
+  echo "✓ Control Plane Subnet created"
+else
+  echo "✓ Control Plane Subnet already exists"
+fi
 
 # Create apps development subnet
 # Using 10.2.0.0/24 for the primary range (plenty for 20 nodes)
 # Using 10.2.1.0/24 for services (can accommodate ~250 services)
 # Using 10.2.4.0/22 for pods (can accommodate ~1000 pods)
-gcloud compute networks subnets create "${APPS_DEV_SUBNET_NAME}" \
-  --project=$PROJECT_ID \
-  --network=$GKE_VPC \
-  --region=$REGION \
-  --range=10.2.0.0/24 \
-  --secondary-range=services-range=10.2.1.0/24,pods-range=10.2.4.0/22
+if ! gcloud compute networks subnets describe "${APPS_DEV_SUBNET_NAME}" --region=$REGION --project=$PROJECT_ID &>/dev/null; then
+  gcloud compute networks subnets create "${APPS_DEV_SUBNET_NAME}" \
+    --project=$PROJECT_ID \
+    --network=$GKE_VPC \
+    --region=$REGION \
+    --range=10.2.0.0/24 \
+    --secondary-range=services-range=10.2.1.0/24,pods-range=10.2.4.0/22
+  echo "✓ Apps Dev Subnet created"
+else
+  echo "✓ Apps Dev Subnet already exists"
+fi
 
 echo "Subnet creation complete!"
 echo "VPC: $GKE_VPC"

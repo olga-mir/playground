@@ -37,7 +37,7 @@ Start with broad listing commands, then drill into resources that look unhealthy
 ## How to evaluate resources
 
 **Crossplane Providers (bootstrap phase)**
-- Healthy: `INSTALLED=True  HEALTHY=True` in `kubectl get providers` output
+- Healthy: `INSTALLED=True  HEALTHY=True` in `kubectl get providers.pkg.crossplane.io` output
 - Degraded: `INSTALLED=True  HEALTHY=False` — provider is installing or has an error
 - Check `PACKAGES HEALTHY` column in providerrevisions for deeper status
 - CrashLoopBackOff in provider pod → `recommendation: diagnose`

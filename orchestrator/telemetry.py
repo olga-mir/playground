@@ -46,7 +46,7 @@ except Exception as e:  # pragma: no cover — missing deps path
     _OTEL_AVAILABLE = False
     _IMPORT_ERR = e
 
-SERVICE_NAME = "orchestrator"
+SERVICE_NAME = "playground-orchestrator"
 
 # ── module-level state populated by setup_otel() ──────────────────────────────
 _tracer = None
@@ -137,6 +137,8 @@ def span(name: str, **attrs) -> Iterator[object]:
         return
     with _tracer.start_as_current_span(name, attributes=attrs) as s:
         try:
+            s.set_attribute("service.name", SERVICE_NAME)
+            s.set_attribute("service.namespace", "playground")
             yield s
         except Exception as e:
             # Record exception but re-raise — caller controls flow.
@@ -187,10 +189,10 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
     if not token:
         return {}
 
-    endpoint = "https://telemetry.googleapis.com"
+    endpoint = "https://otlp.googleapis.com"
     headers = f"Authorization=Bearer {token},x-goog-user-project={_project_id}"
     resource_attrs = (
-        f"service.name=claude-code,"
+        f"service.name={SERVICE_NAME},"
         f"service.namespace=playground,"
         f"orchestrator.agent={agent_name},"
         f"orchestrator.phase={phase},"
@@ -204,7 +206,6 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
         "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
         "OTEL_EXPORTER_OTLP_ENDPOINT": endpoint,
         "OTEL_EXPORTER_OTLP_HEADERS": headers,
-        "OTEL_SERVICE_NAME": "playground-orchestrator",
         "OTEL_RESOURCE_ATTRIBUTES": resource_attrs,
     }
 
