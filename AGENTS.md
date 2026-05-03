@@ -58,3 +58,10 @@ Deep-dive context for specific areas — read the relevant doc when working in t
 # Variables
 
 Env vars in `.setup-env` are sourced in the working terminal but are not accessible to agents. Required vars are documented in each domain doc.
+
+# Secrets and Keys
+
+Critical distinction for AI agents:
+- **`ANTHROPIC_API_KEY`**: Used by GitHub Actions and local `claude` CLI for repo-level automations.
+- **`KAGENT_ANTHROPIC_API_KEY`**: A separate, specific key used by **kagent** workloads running inside the Kubernetes cluster.
+**NEVER** conflate these or swap their names in manifests or workflows.

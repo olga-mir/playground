@@ -17,6 +17,10 @@ scan-versions.sh → fetch-latest-versions.sh → .version-report.md → Claude 
 The Claude step uses `defaultMode: "acceptEdits"` (set in the workflow `settings`) so file edits
 are auto-approved without interactive prompts. The skill is at `.claude/skills/upgrade-versions/SKILL.md`.
 
+Required secrets for the GitHub workflow: `ANTHROPIC_API_KEY` (for the action), `GCS_LOG_BUCKET`, `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`.
+
+Note: Do not confuse the workflow's `ANTHROPIC_API_KEY` with the in-cluster `KAGENT_ANTHROPIC_API_KEY` used by kagent workloads.
+
 ### scan-versions.sh
 
 Discovers versioned components by inspecting the repo structure — no hardcoded file list.
