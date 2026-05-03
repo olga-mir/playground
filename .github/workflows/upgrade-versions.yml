@@ -42,9 +42,10 @@ jobs:
           cat .version-report.md
 
       - name: Apply version updates
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa # v1.0.111
         with:
           anthropic_api_key: ${{ secrets.KAGENT_ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
 
           # there's an open issue (#860) that track_progress: true merges in 18 additional write tools (Edit, MultiEdit, git commands) that override `--allowedTools` because the merge is additive, not restrictive
           # track_progress is only supported for events: pull_request, issues, issue_comment, pull_request_review_comment, pull_request_review. Current event: workflow_dispatch
@@ -73,7 +74,7 @@ jobs:
               }
             }
           prompt: "/upgrade-versions"
-          display_report: "true"
+          display_report: true
 
       - name: Mask sensitive values
         if: always()

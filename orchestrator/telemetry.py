@@ -75,10 +75,13 @@ def setup_otel(project_id: str | None = None) -> tuple[bool, str]:
         return False, "PROJECT_ID is not set — skipping OTEL setup"
 
     try:
+        # Include process.id to avoid "points written too frequently" errors in Cloud Monitoring
+        # if multiple orchestrator instances or quick restarts occur.
         resource = Resource.create({
             "service.name": SERVICE_NAME,
             "service.namespace": "playground",
             "gcp.project_id": project_id,
+            "process.id": os.getpid(),
         })
 
         tracer_provider = TracerProvider(resource=resource)
@@ -87,6 +90,7 @@ def setup_otel(project_id: str | None = None) -> tuple[bool, str]:
         )
         trace.set_tracer_provider(tracer_provider)
 
+        # 60s is good for GCM, but we ensure it's explicit.
         metric_reader = PeriodicExportingMetricReader(
             CloudMonitoringMetricsExporter(project_id=project_id),
             export_interval_millis=60_000,
@@ -137,8 +141,6 @@ def span(name: str, **attrs) -> Iterator[object]:
         return
     with _tracer.start_as_current_span(name, attributes=attrs) as s:
         try:
-            s.set_attribute("service.name", SERVICE_NAME)
-            s.set_attribute("service.namespace", "playground")
             yield s
         except Exception as e:
             # Record exception but re-raise — caller controls flow.
@@ -189,10 +191,15 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
     if not token:
         return {}
 
-    endpoint = "https://otlp.googleapis.com"
+    endpoint = "https://telemetry.googleapis.com"
     headers = f"Authorization=Bearer {token},x-goog-user-project={_project_id}"
+
+    # We use a specific service name for Claude to distinguish it from orchestrator
+    # while keeping it in the same namespace.
+    claude_service_name = f"claude-{agent_name}"
+
     resource_attrs = (
-        f"service.name={SERVICE_NAME},"
+        f"service.name={claude_service_name},"
         f"service.namespace=playground,"
         f"orchestrator.agent={agent_name},"
         f"orchestrator.phase={phase},"
@@ -200,6 +207,7 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
     )
     return {
         "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+        "OTEL_SERVICE_NAME": claude_service_name,
         "OTEL_METRICS_EXPORTER": "otlp",
         "OTEL_LOGS_EXPORTER": "otlp",
         "OTEL_TRACES_EXPORTER": "otlp",
@@ -208,6 +216,7 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
         "OTEL_EXPORTER_OTLP_HEADERS": headers,
         "OTEL_RESOURCE_ATTRIBUTES": resource_attrs,
     }
+
 
 
 def shutdown() -> None:
