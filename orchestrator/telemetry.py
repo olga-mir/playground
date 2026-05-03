@@ -203,8 +203,7 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
         f"service.namespace=playground,"
         f"orchestrator.agent={agent_name},"
         f"orchestrator.phase={phase},"
-        f"gcp.project_id={_project_id},"
-        f"process.id={os.getpid()}"
+        f"gcp.project_id={_project_id}"
     )
     return {
         "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
