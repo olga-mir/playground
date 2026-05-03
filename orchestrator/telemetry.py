@@ -189,7 +189,7 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
     if not token:
         return {}
 
-    endpoint = "https://otlp.googleapis.com"
+    endpoint = "https://telemetry.googleapis.com"
     headers = f"Authorization=Bearer {token},x-goog-user-project={_project_id}"
     resource_attrs = (
         f"service.name={SERVICE_NAME},"
