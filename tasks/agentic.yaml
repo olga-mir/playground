@@ -10,6 +10,8 @@ tasks:
         msg: "uv not found — install from https://docs.astral.sh/uv/"
       - sh: command -v claude
         msg: "claude CLI not found — install Claude Code first"
+    env:
+      GRPC_VERBOSITY: error
     cmds:
       - uv run --directory {{.ROOT_DIR}}/orchestrator python main.py
 
@@ -20,6 +22,8 @@ tasks:
         msg: "uv not found — install from https://docs.astral.sh/uv/"
       - sh: command -v claude
         msg: "claude CLI not found — install Claude Code first"
+    env:
+      GRPC_VERBOSITY: error
     cmds:
       - uv run --directory {{.ROOT_DIR}}/orchestrator python main.py --skip-install
 
@@ -34,6 +38,8 @@ tasks:
         msg: "claude CLI not found — install Claude Code first"
     vars:
       PHASE: '{{.PHASE | default "bootstrap"}}'
+    env:
+      GRPC_VERBOSITY: error
     cmds:
       - uv run --directory {{.ROOT_DIR}}/orchestrator python main.py --skip-install --start-phase {{.PHASE}}
 
