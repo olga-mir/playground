@@ -34,7 +34,7 @@ from typing import Iterator
 log = logging.getLogger("orchestrator.telemetry")
 
 try:
-    from opentelemetry import trace, metrics
+    from opentelemetry import trace, metrics, propagate
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -217,7 +217,7 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
         f"orchestrator.phase={phase},"
         f"gcp.project_id={_project_id}"
     )
-    return {
+    env = {
         "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
         "OTEL_SERVICE_NAME": claude_service_name,
         "OTEL_METRICS_EXPORTER": "otlp",
@@ -228,6 +228,19 @@ def claude_cli_otel_env(agent_name: str, phase: str) -> dict[str, str]:
         "OTEL_EXPORTER_OTLP_HEADERS": headers,
         "OTEL_RESOURCE_ATTRIBUTES": resource_attrs,
     }
+
+    # Inject standard W3C Trace Context (traceparent, tracestate) into env.
+    # The default propagator is W3C, which populates the carrier with
+    # lowercase 'traceparent'/'tracestate'. Standard OTEL SDKs (including Node)
+    # read these from the environment as uppercase TRACEPARENT/TRACESTATE.
+    carrier = {}
+    propagate.inject(carrier)
+    if "traceparent" in carrier:
+        env["TRACEPARENT"] = carrier["traceparent"]
+    if "tracestate" in carrier:
+        env["TRACESTATE"] = carrier["tracestate"]
+
+    return env
 
 
 
