@@ -19,12 +19,14 @@ Design principles:
   no ADC, no PROJECT_ID, quota errors), fall back to no-op tracers/meters.
 - Small, readable surface: three counters/histograms + a `span()` context
   manager + `claude_cli_otel_env()` for subprocess env injection.
-- One shared Resource: `service.name=orchestrator`, `gcp.project_id=<id>`,
-  `service.namespace=playground`. All signals share it so GCP dashboards can
-  join traces/metrics by resource.
+- One shared Resource: `service.name=playground-orchestrator`, `service.instance.id=<host>-<pid>`,
+  `service.namespace=playground`. This triggers the generic_task monitored resource type in GCM
+  (vs generic_node with empty node_id), which surfaces service.name correctly in Cloud Trace
+  and isolates each run's metric time series to avoid "points written too frequently" errors.
 """
 import logging
 import os
+import socket
 import subprocess
 from contextlib import contextmanager
 from typing import Iterator
@@ -38,6 +40,7 @@ try:
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.metrics.view import View, DropAggregation
     from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
     from opentelemetry.exporter.cloud_monitoring import CloudMonitoringMetricsExporter
     _OTEL_AVAILABLE = True
@@ -75,13 +78,15 @@ def setup_otel(project_id: str | None = None) -> tuple[bool, str]:
         return False, "PROJECT_ID is not set — skipping OTEL setup"
 
     try:
-        # Include process.id to avoid "points written too frequently" errors in Cloud Monitoring
-        # if multiple orchestrator instances or quick restarts occur.
+        # service.instance.id triggers the generic_task monitored resource type in GCM
+        # (instead of generic_node with empty node_id). This surfaces service.name correctly
+        # in Cloud Trace and gives each run its own time series so rapid restarts don't
+        # produce "points written too frequently" errors.
         resource = Resource.create({
             "service.name": SERVICE_NAME,
             "service.namespace": "playground",
+            "service.instance.id": f"{socket.gethostname()}-{os.getpid()}",
             "gcp.project_id": project_id,
-            "process.id": os.getpid(),
         })
 
         tracer_provider = TracerProvider(resource=resource)
@@ -95,7 +100,14 @@ def setup_otel(project_id: str | None = None) -> tuple[bool, str]:
             CloudMonitoringMetricsExporter(project_id=project_id),
             export_interval_millis=60_000,
         )
-        meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+        # Drop otel.sdk.* internal self-observability metrics: they're written at sub-second
+        # granularity and are the root cause of the "points written too frequently" error
+        # from Cloud Monitoring when the shutdown flush fires close to the last scheduled export.
+        meter_provider = MeterProvider(
+            resource=resource,
+            metric_readers=[metric_reader],
+            views=[View(instrument_name="otel.sdk.*", aggregation=DropAggregation())],
+        )
         metrics.set_meter_provider(meter_provider)
     except Exception as e:
         return False, f"OTEL provider setup failed: {e!r}"
