@@ -3,6 +3,8 @@ kind: GKECluster
 metadata:
   name: control-plane-cluster
   namespace: control-plane
+  annotations:
+    platform.tornado-demo.io/bootstrap-trigger: "flux-operator"
 spec:
   parameters:
     clusterName: "${GKE_CONTROL_PLANE_CLUSTER}"
