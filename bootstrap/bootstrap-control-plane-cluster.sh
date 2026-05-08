@@ -5,7 +5,6 @@ set -eoux pipefail
 KIND_TEST_CLUSTER_NAME=kind-test-cluster
 REPO_ROOT=$(git rev-parse --show-toplevel)
 CROSSPLANE_VERSION="v2.2.0"
-FLUX_VERSION="v2.8.3"
 KIND_CLUSTER_CONTEXT="kind-${KIND_TEST_CLUSTER_NAME}"
 
 # echo "Setting up GCP infrastructure (VPC and subnets)..."
@@ -19,25 +18,13 @@ else
   echo "Cluster $KIND_TEST_CLUSTER_NAME already exists."
 fi
 
-# Upgrade FluxCD CLI using brew if installed via brew
-if command -v flux &> /dev/null; then
-    echo "FluxCD CLI found, checking version..."
-    if ! flux version --client 2>/dev/null | grep -q "${FLUX_VERSION}"; then
-        echo "Upgrading FluxCD CLI to ${FLUX_VERSION}..."
-        brew upgrade fluxcd/tap/flux
-    else
-        echo "FluxCD CLI ${FLUX_VERSION} already installed"
-    fi
-else
+# Verify flux CLI is available (used for reconciliation checks later)
+if ! command -v flux &> /dev/null; then
     echo "FluxCD CLI not found. Please install flux CLI first."
     exit 1
 fi
 
-# Verify FluxCD CLI installation
-set +x
-flux version --client
-
-echo "Pre-creating required secrets and configmaps before Flux bootstrap..."
+echo "Pre-creating required secrets and configmaps before Flux Operator install..."
 
 # Create flux-system namespace if it doesn't exist (needed for secrets/configmaps)
 kubectl --context "${KIND_CLUSTER_CONTEXT}" create namespace flux-system --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
@@ -70,28 +57,9 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic github-webhook
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
 unset BASE64_ENCODED_GCP_CREDS
 
-
-echo "Removing any pre-existing flux-system secret before bootstrap..."
-# On re-bootstrap the secret may retain GitHub App credentials.  flux bootstrap
-# uses kubectl apply (3-way merge) which does NOT remove extra keys absent from
-# its own last-applied-configuration, so githubAppID and friends survive in the
-# secret.  source-controller then rejects the GitRepository with "has github
-# app data but provider is not set to github", the bootstrap wait times out,
-# and we never reach the step that patches provider.
-kubectl --context "${KIND_CLUSTER_CONTEXT}" delete secret flux-system -n flux-system --ignore-not-found
-
-echo "Bootstrapping FluxCD..."
-GITHUB_TOKEN="${GITHUB_FLUX_PLAYGROUND_PAT}" flux bootstrap github \
-    --token-auth \
-    --owner=${GITHUB_DEMO_REPO_OWNER} \
-    --repository=${GITHUB_DEMO_REPO_NAME} \
-    --branch=develop \
-    --path=./kubernetes/clusters/kind \
-    --personal \
-    --components-extra=image-reflector-controller,image-automation-controller
-# Replace the bootstrap token secret with permanent GitHub App credentials.
-# source-controller natively handles App token refresh using these fields.
-echo "Replacing flux-system secret with GitHub App credentials..."
+echo "Creating flux-system secret with GitHub App credentials..."
+# The FluxInstance references this secret via spec.sync.pullSecret and spec.sync.provider: github.
+# The Flux Operator never overwrites this secret, so GitHub App credentials persist across reconciliations.
 kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic flux-system \
     --namespace flux-system \
     --from-literal=githubAppID="${GITHUB_APP_ID}" \
@@ -99,36 +67,23 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic flux-system \
     --from-file=githubAppPrivateKey="${GITHUB_APP_PRIVATE_KEY_FILE}" \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
 
-set -x
+echo "Installing Flux Operator via Helm..."
+helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.48.0 \
+    --namespace flux-system \
+    --kube-context "${KIND_CLUSTER_CONTEXT}" \
+    --wait \
+    --timeout=5m
 
-# flux bootstrap regenerates gotk-sync.yaml without the provider field.
-# Patch all GitRepositories referencing flux-system secret to set provider: github
-# so source-controller uses the GitHub App credentials correctly.
-for repo in $(kubectl --context "${KIND_CLUSTER_CONTEXT}" get gitrepository -n flux-system -o name); do
-    secret=$(kubectl --context "${KIND_CLUSTER_CONTEXT}" get -n flux-system "${repo}" -o jsonpath='{.spec.secretRef.name}' 2>/dev/null || true)
-    if [ "${secret}" = "flux-system" ]; then
-        kubectl --context "${KIND_CLUSTER_CONTEXT}" patch -n flux-system "${repo}" --type=merge -p '{"spec":{"provider":"github"}}'
-    fi
-done
+echo "Applying FluxInstance manifest..."
+kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f "${REPO_ROOT}/kubernetes/clusters/kind/flux-system/flux-instance.yaml"
 
-# Commit provider: github back to git.
-# flux bootstrap always rewrites gotk-sync.yaml without provider: github.
-# Without committing the fix, kustomize-controller will revert the live patch
-# on the next reconciliation interval (10 min), breaking GitHub App auth again.
-SYNC_FILE="${REPO_ROOT}/kubernetes/clusters/kind/flux-system/gotk-sync.yaml"
-if grep -q 'provider: github' "${SYNC_FILE}"; then
-    echo "provider: github already present in ${SYNC_FILE}, no commit needed"
-else
-    perl -i -pe 's|  secretRef:|  provider: github\n  secretRef:|' "${SYNC_FILE}"
-    git -C "${REPO_ROOT}" add "${SYNC_FILE}"
-    git -C "${REPO_ROOT}" commit -m "fix: restore provider: github in kind gotk-sync.yaml after flux bootstrap"
-    git -C "${REPO_ROOT}" push origin HEAD:develop
-fi
+echo "Waiting for FluxInstance to be ready (installs Flux components and begins sync)..."
+kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=Ready fluxinstance/flux -n flux-system --timeout=600s
 
 echo "FluxCD bootstrap completed successfully!"
 
-# Wait for FluxCD to be ready
-echo "Waiting for FluxCD to be ready..."
+# Wait for FluxCD controllers to be ready
+echo "Waiting for FluxCD controllers to be ready..."
 kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=ready pod -l app=source-controller -n flux-system --timeout=300s
 kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=ready pod -l app=kustomize-controller -n flux-system --timeout=300s
 kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=ready pod -l app=helm-controller -n flux-system --timeout=100s

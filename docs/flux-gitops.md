@@ -14,6 +14,66 @@ Flux PostBuild substitution (`substituteFrom`) is used for environment-specific 
 - `platform-config` ConfigMap — non-secret values (PROJECT_ID, region, cluster names)
 - `platform-secrets` Secret — sensitive values (PATs, GCP credentials base64)
 
+## Flux Operator and FluxInstance
+
+Flux is installed and managed by the **Flux Operator** (`controlplaneio-fluxcd/flux-operator`) via a `FluxInstance` CRD in each cluster's `flux-system/` directory. The operator replaces the old `flux bootstrap` approach.
+
+### Why Flux Operator
+
+The old `flux bootstrap github` command wrote `gotk-sync.yaml` to git on every run, always stripping the `provider: github` field. This required a fragile post-bootstrap patch loop and git commit to restore the field. With the operator:
+
+- `provider: github` is set once in `flux-instance.yaml` and never overwritten
+- No git writes are needed from the bootstrap process — `contents: write` permission dropped from the workflow
+- A single `helm upgrade --install` + `kubectl apply` replaces the entire bootstrap dance
+- The operator manages Flux component rollouts; `spec.distribution.version` is the single version pin
+
+### FluxInstance structure
+
+Each cluster has `kubernetes/clusters/{cluster}/flux-system/flux-instance.yaml`:
+
+```yaml
+apiVersion: fluxcd.controlplane.io/v1
+kind: FluxInstance
+metadata:
+  name: flux
+  namespace: flux-system
+spec:
+  distribution:
+    version: "2.8.x"        # minor-pinned semver range
+    registry: ghcr.io/fluxcd
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+    - notification-controller
+    - image-reflector-controller
+    - image-automation-controller
+  cluster:
+    networkPolicy: true
+    type: gcp               # "kubernetes" for kind
+  sync:
+    kind: GitRepository
+    url: "https://github.com/olga-mir/playground.git"
+    ref: "refs/heads/develop"
+    path: "kubernetes/clusters/{cluster}"
+    pullSecret: flux-system
+    provider: github        # enables GitHub App auth — never overwritten by the operator
+```
+
+The `flux-system` secret contains the GitHub App credentials (`githubAppID`, `githubAppInstallationID`, `githubAppPrivateKey`). The `provider: github` field in the FluxInstance sync spec causes source-controller to use those credentials for automatic token refresh.
+
+### Bootstrap flow (operator-based)
+
+```
+1. Create flux-system namespace
+2. kubectl create secret generic flux-system  (GitHub App credentials)
+3. helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.48.0
+4. kubectl apply -f kubernetes/clusters/{cluster}/flux-system/flux-instance.yaml
+5. operator installs Flux components and reconciles the sync GitRepository/Kustomization
+```
+
+No git writes, no patching, no fixup commits.
+
 ## Image automation
 
 Full pipeline for automated image promotion:
@@ -32,47 +92,15 @@ image: olmigar/perf-lab:main-19700101000000-0000000 # {"$imagepolicy": "flux-sys
 
 All four resources live in `flux-system` namespace. The ImageUpdateAutomation's `sourceRef` points at the app's GitRepository, and it needs `provider: github` on that GitRepository (same as any other GitRepository using the flux-system GitHub App secret).
 
-## Known Flux quirk: `flux bootstrap` strips `provider: github`
+## Version upgrades
 
-`flux bootstrap` regenerates `gotk-sync.yaml` on every run **without** the `provider: github` field. Without this field, source-controller cannot use GitHub App credentials and all syncs fail silently — the GitRepository stays stuck on its last artifact and never picks up new commits.
+Flux component versions are managed via `spec.distribution.version` in the FluxInstance manifests. The value is a minor-pinned semver range (e.g. `"2.8.x"`). The operator selects the latest patch release within that range.
 
-**Symptoms**: GitRepository shows `has github app data but provider is not set to github`. New git commits are not picked up despite the 1m interval.
+To upgrade:
+- **Patch release** (e.g. 2.8.3 → 2.8.4): the `"2.8.x"` range already picks it up; no manifest change needed, but update README.md to reflect the current version.
+- **Minor release** (e.g. 2.8.x → 2.9.x): update the version range in all three FluxInstance files and README.md.
 
-**Fix** (manual, when a cluster is already broken):
-```bash
-# 1. Suspend so kustomize-controller stops reverting the patch
-kubectl --context <ctx> patch kustomization flux-system -n flux-system --type=merge -p '{"spec":{"suspend":true}}'
-# 2. Patch live resource
-kubectl --context <ctx> patch gitrepository flux-system -n flux-system --type=merge -p '{"spec":{"provider":"github"}}'
-# 3. Wait ~15s for GitRepository to fetch latest commits, then unsuspend
-kubectl --context <ctx> patch kustomization flux-system -n flux-system --type=merge -p '{"spec":{"suspend":false}}'
-```
-
-**Prevention**: The `flux-bootstrap.yml` workflow and `bootstrap-control-plane-cluster.sh` both patch the live resource and push a fixup commit to git after bootstrap. The committed `gotk-sync.yaml` files always include `provider: github` — but bootstrap overwrites them, so the fixup step is essential.
-
-Any GitRepository that references the `flux-system` secret (including tenant GitRepositories) also needs `provider: github` in its spec.
-
-### Re-bootstrap failure: bootstrap wait times out
-
-On **re-bootstrap** (running bootstrap against a cluster that already ran Flux), there is an additional failure mode that causes `flux bootstrap` itself to time out before the fixup step is even reached.
-
-**Root cause**: `flux bootstrap --token-auth` sets up the `flux-system` secret via `kubectl apply`. Kubernetes `apply` uses 3-way merge: fields present in the live object but absent from the previous `last-applied-configuration` are preserved. After the first successful bootstrap the secret is replaced with GitHub App credentials (`githubAppID`, `githubAppInstallationID`, `githubAppPrivateKey`). On the next bootstrap run, `flux bootstrap` applies a token-only secret — but the GitHub App fields were not in the *old* `last-applied-configuration`, so 3-way merge keeps them. The secret now has both a token **and** GitHub App data.
-
-At the same time, `flux bootstrap` pushes a fresh `gotk-sync.yaml` without `provider: github`. source-controller sees a secret with GitHub App fields but no `provider: github` declared on the GitRepository and immediately raises:
-
-```
-has github app data but provider is not set to github
-```
-
-The GitRepository never becomes Ready, the bootstrap wait (10 min) expires, and the workflow fails before it can apply the fixup.
-
-**Fix applied**: Both `flux-bootstrap.yml` and `bootstrap-control-plane-cluster.sh` now explicitly delete the `flux-system` secret with `--ignore-not-found` before calling `flux bootstrap`. This gives bootstrap a clean slate regardless of what was left by the previous run.
-
-The core problem: flux bootstrap must push gotk-sync.yaml to git, which requires write access. Because the CLI uses token auth to write,
-it regenerates the file from its internal template — a template that has no concept of `provider: github`. The operator never writes to git;
-it manages Flux components and the GitRepository/Kustomization objects purely in-cluster via a FluxInstance CRD. `provider: github`
-is set once in that CRD and it never gets overwritten.
-See https://github.com/olga-mir/playground/issues/62 and https://github.com/fluxcd/flux2/issues/5471#issuecomment-3182999417 for more detail.
+See `docs/upgrade-versions.md` for the automated weekly upgrade workflow.
 
 ## Debugging Flux
 
@@ -99,6 +127,12 @@ kubectl --context <ctx> logs -n flux-system -l app=notification-controller --tai
 ```
 Look for `"dispatching event"` (success) vs `"failed to send notification"` (error).
 
+**FluxInstance status:**
+```bash
+kubectl --context <ctx> get fluxinstance flux -n flux-system -o yaml
+kubectl --context <ctx> describe fluxinstance flux -n flux-system
+```
+
 ## Flux API versions
 
 Current versions in use:
@@ -106,9 +140,9 @@ Current versions in use:
 - `kustomize.toolkit.fluxcd.io/v1` — Kustomization
 - `helm.toolkit.fluxcd.io/v2` — HelmRelease
 - `image.toolkit.fluxcd.io/v1beta2` — ImageRepository, ImagePolicy, ImageUpdateAutomation
+- `fluxcd.controlplane.io/v1` — FluxInstance (Flux Operator CRD)
 
 ImageUpdateAutomation message template uses `.Changed.Changes` (not `.Updated.Images` which was removed in Flux v2.7+):
 ```
 'chore: update image to {{range .Changed.Changes}}{{.OldValue}} -> {{.NewValue}}{{end}}'
 ```
-
