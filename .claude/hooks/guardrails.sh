@@ -32,8 +32,13 @@ fi
 
 # ── block git push to any branch other than develop or chore/* ────────────────
 if echo "$cmd" | grep -Eq '\bgit push\b'; then
-  if ! echo "$cmd" | grep -Eq '\bgit push\b[^|&;]*\b(develop|chore/.+)'; then
-    echo "[guardrails] BLOCKED: git push is only allowed to 'develop' or 'chore/*' branches." >&2
+  # Check command text for an explicit branch name, and also check the current
+  # branch — the command may use a shell variable that we can't expand here.
+  current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+  cmd_allows=$(echo "$cmd" | grep -Eq '\bgit push\b[^|&;]*\b(develop|chore/.+)' && echo yes || echo no)
+  branch_allows=$(echo "$current_branch" | grep -Eq '^(develop|chore/)' && echo yes || echo no)
+  if [[ "$cmd_allows" != "yes" && "$branch_allows" != "yes" ]]; then
+    echo "[guardrails] BLOCKED: git push is only allowed to 'develop' or 'chore/*' branches (current: ${current_branch})." >&2
     exit 2
   fi
 fi
@@ -44,16 +49,19 @@ if echo "$cmd" | grep -Eq '\bgit push\b.*(-f|--force)\b'; then
   exit 2
 fi
 
-# ── rebase onto origin/develop before push ────────────────────────────────────
-# Intercept push (not commit) — the tree is clean at push time, so rebase works
-# without stashing. Doing it at commit time fails because the agent has staged
-# changes that git pull --rebase refuses to run over.
+# ── rebase onto origin/develop before push (develop branch only) ──────────────
+# Only rebase when pushing from the develop branch itself. chore/* branches are
+# based on main and must not be rebased onto develop — that would contaminate
+# them with develop-only commits that aren't in main.
 if echo "$cmd" | grep -Eq '\bgit push\b'; then
-  echo "[guardrails] pre-push: fetching and rebasing onto origin/develop..." >&2
-  if git fetch origin develop >&2 && git rebase origin/develop >&2; then
-    echo "[guardrails] pre-push rebase OK — proceeding with push" >&2
-  else
-    echo "[guardrails] WARNING: pre-push rebase failed — push may be rejected" >&2
+  current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+  if [[ "$current_branch" == "develop" ]]; then
+    echo "[guardrails] pre-push: fetching and rebasing onto origin/develop..." >&2
+    if git fetch origin develop >&2 && git rebase origin/develop >&2; then
+      echo "[guardrails] pre-push rebase OK — proceeding with push" >&2
+    else
+      echo "[guardrails] WARNING: pre-push rebase failed — push may be rejected" >&2
+    fi
   fi
 fi
 
