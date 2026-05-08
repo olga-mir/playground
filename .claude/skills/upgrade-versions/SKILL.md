@@ -65,11 +65,20 @@ git config user.name "github-actions[bot]"
 git checkout -b "${BRANCH}"
 git add -A
 git commit -m "chore: upgrade component versions"
+# Delete the remote branch if it exists from a prior same-day run, then push fresh.
+# --force-with-lease won't work here because the local branch has no tracking ref.
+git push origin --delete "${BRANCH}" 2>/dev/null || true
 git push origin "${BRANCH}"
-gh pr create \
-  --title "chore: upgrade component versions ${DATE}" \
-  --body "$(printf '## Summary\n\n| Component | Old | New | Files |\n|---|---|---|---|\n...')" \
-  --base main
+# Only create a PR if one doesn't already exist for this branch
+EXISTING_PR=$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number' 2>/dev/null)
+if [ -n "${EXISTING_PR}" ]; then
+  echo "PR #${EXISTING_PR} already exists for ${BRANCH} — skipping create"
+else
+  gh pr create \
+    --title "chore: upgrade component versions ${DATE}" \
+    --body "$(printf '## Summary\n\n| Component | Old | New | Files |\n|---|---|---|---|\n...')" \
+    --base main
+fi
 ```
 
 If nothing needed updating, just report that everything is up to date.
