@@ -1,10 +1,5 @@
-# Current Mission: Validation Loop
+# Current Mission: Replacing Flux Bootstrap with Flux Operator
 
-We are currently running a validation loop. The system is fully operational, and the codebase has been completely migrated to Crossplane v2 (using namespace-scoped managed resources exclusively).
+Your current mission is to implement this issue: https://github.com/olga-mir/playground/issues/71
 
-**Key assumptions for this run:**
-- Everything works as expected. This run is strictly a test to validate that the cluster provisioning and GitOps reconciliation loop complete successfully.
-- Do not assume that errors indicate a fundamental architectural issue unless repeatedly proven otherwise.
-- We have completely moved to Crossplane v2. Ignore any cluster-scoped managed resources (e.g., `*.upbound.io` where namespaced is false) and only interact with namespace-scoped managed resources (e.g., `*.m.upbound.io`).
-- Be aware of naming collisions: when querying `providers`, always use the fully qualified name `providers.pkg.crossplane.io` for Crossplane providers, as `providers` alone may resolve to Flux notification providers (`providers.notification.toolkit.fluxcd.io`).
-- Similarly, use fully qualified names for managed resources (e.g., `clusters.container.gcp.m.upbound.io`) instead of short names to avoid ambiguity.
+Note that we still have a few hiccups where user's manual intervention is required to inject secrets or platform-config maps. If you see missing credentials or resources names such as VPC, subnets, projects, etc - DO NOT try to fix it, immediately escalate explaining what is missing.
