@@ -1,10 +1,9 @@
 name: Flux Bootstrap GKE Clusters
 
 # Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY, GH_FLUX_PAT
-# bootstrap uses built-in GITHUB_TOKEN (contents: write) to run flux bootstrap;
-# App secrets are used to replace the flux-system secret so source-controller handles token refresh.
-# GH_FLUX_PAT is a PAT with repo scope used for the Flux notification provider (github-webhook-token secret).
-# See docs/github-app-setup.md for setup instructions.
+# Installs Flux Operator via Helm, then applies FluxInstance CRD which manages Flux components in-cluster.
+# GitHub App credentials are placed in the flux-system secret; FluxInstance references them via spec.sync.provider: github.
+# See docs/flux-gitops.md for full details.
 run-name: "Flux Bootstrap: ${{ github.event.client_payload.metadata.cluster || 'Unknown Cluster' }} 🚀"
 
 on:
@@ -17,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
 
 jobs:
@@ -48,9 +47,6 @@ jobs:
         echo "projectID=${PROJECT_ID}" >> $GITHUB_OUTPUT
         echo "cluster=${CLUSTER}" >> $GITHUB_OUTPUT
         echo "location=${LOCATION}" >> $GITHUB_OUTPUT
-
-    - name: Setup Flux CLI
-      uses: fluxcd/flux2/action@main
 
     - name: Authenticate to Google Cloud
       id: auth
@@ -162,48 +158,12 @@ jobs:
           --from-literal=APPS_DEV_SUBNET_NAME="gke-apps-dev-subnet" \
           --dry-run=client -o yaml | kubectl apply -f -
 
-
-    - name: Run Flux pre-installation checks
-      run: |
-        flux check --pre
-
-    - name: Reset flux-system secret before bootstrap
-      run: |
-        # On re-bootstrap the flux-system secret may still contain GitHub App
-        # credentials from a previous run.  flux bootstrap uses kubectl apply
-        # (3-way merge) which does NOT remove extra keys that are absent from
-        # its own last-applied-configuration — so githubAppID and friends stay
-        # in the secret.  source-controller then rejects the GitRepository with
-        # "has github app data but provider is not set to github", the bootstrap
-        # wait times out, and we never reach the step that patches provider.
-        # Deleting the secret first gives flux bootstrap a clean slate.
-        kubectl delete secret flux-system -n flux-system --ignore-not-found
-
-    - name: Bootstrap Flux
-      id: bootstrap
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
-
-        flux bootstrap github \
-          --token-auth \
-          --owner="${{ github.repository_owner }}" \
-          --repository="${{ github.event.repository.name }}" \
-          --branch="develop" \
-          --path="./kubernetes/clusters/${CLUSTER_NAME}" \
-          --personal \
-          --network-policy=true \
-          --components-extra=image-reflector-controller,image-automation-controller \
-          --timeout=10m0s
-
-    - name: Replace flux-system secret with GitHub App credentials
+    - name: Create flux-system secret with GitHub App credentials
       env:
         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
       run: |
-        # flux bootstrap --token-auth writes the flux-system secret with the workflow's
-        # GITHUB_TOKEN. Replace it immediately with GitHub App credentials so
-        # source-controller handles token refresh automatically going forward.
+        # The FluxInstance references this secret via spec.sync.pullSecret and spec.sync.provider: github.
+        # The operator never overwrites this secret, so GitHub App credentials persist across reconciliations.
         printf '%b' "${GH_APP_PRIVATE_KEY}" > /tmp/github-app-private-key.pem
         kubectl create secret generic flux-system \
           -n flux-system \
@@ -224,38 +184,26 @@ jobs:
           --from-literal=token="${{ secrets.GH_FLUX_PAT }}" \
           --dry-run=client -o yaml | kubectl apply -f -
 
-    - name: Set provider on GitRepository resources
+    - name: Setup Flux CLI
+      uses: fluxcd/flux2/action@main
+
+    - name: Install Flux Operator via Helm
       run: |
-        # flux bootstrap regenerates gotk-sync.yaml without the provider field,
-        # which breaks GitHub App auth. Patch it live and also fix it in git so
-        # kustomize-controller doesn't revert the live patch on the next reconciliation.
+        helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
+          --namespace flux-system \
+          --wait \
+          --timeout=5m
+
+    - name: Apply FluxInstance manifest
+      run: |
         CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
-        SYNC_FILE="./kubernetes/clusters/${CLUSTER_NAME}/flux-system/gotk-sync.yaml"
+        kubectl apply -f "./kubernetes/clusters/${CLUSTER_NAME}/flux-system/flux-instance.yaml"
 
-        # Patch live resource
-        for repo in $(kubectl get gitrepository -n flux-system -o name); do
-          secret=$(kubectl get -n flux-system "${repo}" -o jsonpath='{.spec.secretRef.name}' 2>/dev/null || true)
-          if [ "${secret}" = "flux-system" ]; then
-            kubectl patch -n flux-system "${repo}" --type=merge -p '{"spec":{"provider":"github"}}'
-          fi
-        done
-
-        # Fix the file in git so kustomize-controller doesn't revert the live patch
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git pull --rebase origin develop
-        if grep -q 'provider: github' "${SYNC_FILE}"; then
-          echo "provider: github already present in ${SYNC_FILE}, no commit needed"
-        else
-          sed -i 's|  secretRef:|  provider: github\n  secretRef:|' "${SYNC_FILE}"
-          git add "${SYNC_FILE}"
-          git commit -m "fix: restore provider: github in ${CLUSTER_NAME} gotk-sync.yaml after flux bootstrap"
-          git push origin HEAD:develop
-        fi
-
-    - name: Run Flux installation checks
+    - name: Wait for Flux components to be ready
       run: |
-        flux check
+        echo "Waiting for FluxInstance to be ready (max 10 minutes)..."
+        kubectl wait --for=condition=Ready fluxinstance/flux -n flux-system --timeout=600s
+
         echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster }}"
 
     - name: Wait for Flux reconciliation and trigger stalled kustomizations
@@ -289,3 +237,4 @@ jobs:
 
         echo "📋 Final Flux status after reconciliation:"
         flux get all -A
+

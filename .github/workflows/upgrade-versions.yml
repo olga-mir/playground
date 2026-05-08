@@ -53,10 +53,11 @@ jobs:
           # track_progress is only supported for events: pull_request, issues, issue_comment, pull_request_review_comment, pull_request_review. Current event: workflow_dispatch
           # track_progress: true
 
+          # https://platform.claude.com/docs/en/about-claude/models/overview
           claude_args: >-
             --allowedTools "Bash,Read,Glob,Grep,Skill"
             --max-turns 30
-            --model claude-haiku
+            --model claude-haiku-4-5-20251001
           settings: |
             {
               "permissions": {

@@ -1,0 +1,28 @@
+apiVersion: fluxcd.controlplane.io/v1
+kind: FluxInstance
+metadata:
+  name: flux
+  namespace: flux-system
+  annotations:
+    fluxcd.controlplane.io/reconcile: "enabled"
+spec:
+  distribution:
+    version: "2.8.x"
+    registry: ghcr.io/fluxcd
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+    - notification-controller
+    - image-reflector-controller
+    - image-automation-controller
+  cluster:
+    networkPolicy: true
+    type: kubernetes
+  sync:
+    kind: GitRepository
+    url: "https://github.com/olga-mir/playground.git"
+    ref: "refs/heads/develop"
+    path: "kubernetes/clusters/kind"
+    pullSecret: flux-system
+    provider: github

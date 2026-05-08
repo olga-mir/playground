@@ -8,7 +8,7 @@ spec:
   timeout: 30m
   path: ./kubernetes/namespaces/base/flux-system
   prune: true
-  wait: false
+  wait: true
   sourceRef:
     kind: GitRepository
     name: flux-system
