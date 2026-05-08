@@ -35,8 +35,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Export REPO_ROOT so both scripts use the same repo root path
-          export REPO_ROOT="$(pwd)"
           bash scripts/scan-versions.sh \
             | bash scripts/fetch-latest-versions.sh \
             > .version-report.md
@@ -44,7 +42,7 @@ jobs:
           cat .version-report.md
 
       - name: Apply version updates
-        uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa # v1.0.111
+        uses: anthropics/claude-code-action@034cbdb008291e7eeeac420d315fc3b45fca3781 # v1.0.117
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
@@ -57,7 +55,8 @@ jobs:
 
           claude_args: >-
             --allowedTools "Bash,Read,Glob,Grep,Skill"
-            --max-turns 25
+            --max-turns 30
+            --model claude-haiku
           settings: |
             {
               "permissions": {

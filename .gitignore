@@ -6,6 +6,7 @@
 
 .claude/settings.local.json
 .claude/worktrees
+.my-worktrees
 local-stash/**
 
 # Temporary files from upgrade-versions workflow
