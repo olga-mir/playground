@@ -9,9 +9,6 @@
 
 set -euo pipefail
 
-# Ensure REPO_ROOT is set correctly for consistent output paths
-REPO_ROOT="${REPO_ROOT:-.}"
-
 input=$(cat)
 date_str=$(date -u +%Y-%m-%d)
 
@@ -116,5 +113,5 @@ total=$(echo "$enriched" | jq '[.[] | select(.needs_update)] | length')
 echo ""
 echo "${total} component(s) need updating."
 
-# Also write the enriched JSON for potential downstream use (to repo root)
-echo "$enriched" > "${REPO_ROOT}/.version-report.json"
+# Also write the enriched JSON for potential downstream use
+echo "$enriched" > .version-report.json

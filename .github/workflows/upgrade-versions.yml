@@ -35,8 +35,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Export REPO_ROOT so both scripts use the same repo root path
-          export REPO_ROOT="$(pwd)"
           bash scripts/scan-versions.sh \
             | bash scripts/fetch-latest-versions.sh \
             > .version-report.md
