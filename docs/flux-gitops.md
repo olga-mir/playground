@@ -67,7 +67,7 @@ The `flux-system` secret contains the GitHub App credentials (`githubAppID`, `gi
 ```
 1. Create flux-system namespace
 2. kubectl create secret generic flux-system  (GitHub App credentials)
-3. helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator
+3. helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.48.0
 4. kubectl apply -f kubernetes/clusters/{cluster}/flux-system/flux-instance.yaml
 5. operator installs Flux components and reconciles the sync GitRepository/Kustomization
 ```
