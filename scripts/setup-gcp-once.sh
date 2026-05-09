@@ -2,6 +2,8 @@
 
 set -eoux pipefail
 
+export WIF_SERVICE_ACCOUNT="github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com"
+
 # Create Workload Identity Pool
 gcloud iam workload-identity-pools create github-pool \
     --project=$PROJECT_ID \
@@ -25,11 +27,11 @@ gcloud iam service-accounts create github-actions-sa \
 
 # Grant necessary permissions
 gcloud projects add-iam-policy-binding $PROJECT_ID \
-    --member="serviceAccount:github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com" \
+    --member="serviceAccount:${WIF_SERVICE_ACCOUNT}" \
     --role="roles/container.developer"
 
 gcloud projects add-iam-policy-binding $PROJECT_ID \
-    --member="serviceAccount:github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com" \
+    --member="serviceAccount:${WIF_SERVICE_ACCOUNT}" \
     --role="roles/container.clusterAdmin"
 
 # Needs additional perms do install Flux (dry-run CRD, or remove dry-run)
@@ -39,7 +41,7 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 # Allow GitHub repo to impersonate the service account
 GITHUB_REPO=${GITHUB_DEMO_REPO_OWNER}/${GITHUB_DEMO_REPO_NAME}
 gcloud iam service-accounts add-iam-policy-binding \
-    github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com \
+    $WIF_SERVICE_ACCOUNT \
     --project=$PROJECT_ID \
     --role="roles/iam.workloadIdentityUser" \
     --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/attribute.repository/$GITHUB_REPO"
@@ -126,3 +128,26 @@ echo "  - Pods Range: 10.2.4.0/22"
 gcloud storage buckets add-iam-policy-binding gs://${LOG_BUCKET_NAME} \
   --member="serviceAccount:${WIF_SERVICE_ACCOUNT}" \
   --role="roles/storage.objectCreator"
+
+#
+# GitHub App Flux Creds secret setup
+#
+
+# Create secret and upload PEM
+gcloud secrets create github-app-private-key \
+  --project="${PROJECT_ID}" --replication-policy=automatic
+
+gcloud secrets versions add github-app-private-key \
+  --data-file="${GITHUB_APP_PRIVATE_KEY_FILE}" \
+  --project="${PROJECT_ID}"
+
+# Grant WIF service account access (replace with actual SA value)
+gcloud secrets add-iam-policy-binding github-app-private-key \
+  --project="${PROJECT_ID}" \
+  --member="serviceAccount:${WIF_SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
+
+gcloud secrets add-iam-policy-binding github-app-private-key \
+  --project="${PROJECT_ID}" \
+  --member="serviceAccount:${WIF_SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
