@@ -159,12 +159,13 @@ jobs:
           --dry-run=client -o yaml | kubectl apply -f -
 
     - name: Create flux-system secret with GitHub App credentials
-      env:
-        GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
       run: |
         # The FluxInstance references this secret via spec.sync.pullSecret and spec.sync.provider: github.
         # The operator never overwrites this secret, so GitHub App credentials persist across reconciliations.
-        printf '%b' "${GH_APP_PRIVATE_KEY}" > /tmp/github-app-private-key.pem
+        gcloud secrets versions access latest \
+          --secret="github-app-private-key" \
+          --project="${{ steps.cluster-info.outputs.projectID }}" \
+          > /tmp/github-app-private-key.pem
         kubectl create secret generic flux-system \
           -n flux-system \
           --from-literal=githubAppID="${{ secrets.GH_APP_ID }}" \
