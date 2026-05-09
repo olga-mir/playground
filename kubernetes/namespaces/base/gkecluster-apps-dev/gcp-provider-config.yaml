@@ -6,8 +6,4 @@ metadata:
 spec:
   projectID: ${PROJECT_ID}
   credentials:
-    source: Secret
-    secretRef:
-      namespace: apps-dev
-      name: gcp-creds
-      key: credentials
+    source: InjectedIdentity

@@ -75,6 +75,8 @@ spec:
                 spot: true
                 machineType: {{ .observed.composite.resource.spec.parameters.machineType }}
                 diskSizeGb: 50
+                workloadMetadataConfig:
+                  mode: GKE_METADATA
               autoscaling:
                 minNodeCount: {{ .observed.composite.resource.spec.parameters.minNodes }}
                 maxNodeCount: {{ .observed.composite.resource.spec.parameters.maxNodes }}

@@ -68,7 +68,15 @@ gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:crossplane-gke-sa@${PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/storage.admin"
 
+# Workload Identity binding: allows Crossplane provider pods on GKE clusters to impersonate
+# crossplane-gke-sa without a key file. The DeploymentRuntimeConfig pins all GCP provider pods
+# to the KSA name "crossplane-provider-gcp" in crossplane-system, so one binding covers them all.
+gcloud iam service-accounts add-iam-policy-binding \
+    crossplane-gke-sa@${PROJECT_ID}.iam.gserviceaccount.com \
+    --member="serviceAccount:${PROJECT_ID}.svc.id.goog[crossplane-system/crossplane-provider-gcp]" \
+    --role="roles/iam.workloadIdentityUser"
 
+# SA key is still needed for the local kind cluster (WIF is not practical on kind).
 # TODO - don't save it in the repo folder
 gcloud iam service-accounts keys create crossplane-gke-sa-key.json \
     --iam-account=crossplane-gke-sa@${PROJECT_ID}.iam.gserviceaccount.com
