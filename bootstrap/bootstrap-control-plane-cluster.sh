@@ -105,9 +105,7 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic gcp-creds \
 # Copy gcp-creds to XR namespaces NOW, before any Flux kustomization waits, to avoid the race
 # where Flux's clusters kustomization applies the ProviderConfig before the secret exists.
 echo "Pre-creating XR namespaces and copying gcp-creds..."
-for ns in control-plane; do
-    kubectl --context "${KIND_CLUSTER_CONTEXT}" create namespace "${ns}" --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
-done
+kubectl --context "${KIND_CLUSTER_CONTEXT}" create namespace "control-plane" --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
 secret_json=$(kubectl --context "${KIND_CLUSTER_CONTEXT}" get secret gcp-creds -n crossplane-system -o json \
     | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)')
 for ns in control-plane; do
