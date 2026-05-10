@@ -145,6 +145,47 @@ def get_gke_context(cluster_suffix: str) -> str | None:
             return line.strip()
     return None
 
+def fetch_gke_credentials(phase: str) -> bool:
+    """Fetch credentials for GKE clusters relevant to the current phase.
+
+    Returns True if at least one new context was added.
+    """
+    targets = []
+    if phase in ("control", "workload"):
+        targets.append("control-plane")
+    if phase == "workload":
+        targets.append("apps-dev")
+
+    fetched = False
+    for suffix in targets:
+        if get_gke_context(suffix):
+            continue
+
+        log(f"   Context for '_{suffix}' missing — attempting to discover and fetch credentials")
+        # Find cluster details from gcloud
+        raw = run_command(f"gcloud container clusters list --filter='name~{suffix}' --format='json(name,location,zone,project)'")
+        try:
+            clusters = json.loads(raw)
+        except json.JSONDecodeError:
+            log(f"   Failed to parse gcloud output as JSON: {raw[:200]}")
+            continue
+
+        if not clusters:
+            log(f"   Cluster matching '_{suffix}' not found in gcloud list")
+            continue
+
+        c = clusters[0]
+        name = c["name"]
+        loc  = c.get("location") or c.get("zone")
+        proj = c.get("project")
+
+        log(f"   Fetching credentials for {name} in {loc} (project {proj})")
+        res = run_command(f"gcloud container clusters get-credentials {name} --location {loc} --project {proj}")
+        if "kubeconfig entry generated" in res:
+            fetched = True
+
+    return fetched
+
 def is_provider_github_error(errors: list) -> bool:
     return any(PROVIDER_GITHUB_PATTERN.search(e.get("message", "")) for e in errors)
 
@@ -651,7 +692,7 @@ def _handle_failure_impl(phase: str, errors: list, state: dict, diag_span) -> st
             return "retry_live"
         log("   No XRs needed clearing — falling through to diagnostics agent")
 
-    # ── known: kustomization stuck with stale 'dependency not ready' condition ─
+    # ── known: stuck kustomization stuck with stale 'dependency not ready' condition ─
     # Flux can get stuck reporting a dependency as not ready even after the
     # dependency becomes Ready=True.  The phase-checker only escalates when it
     # has confirmed the dependency IS ready, so we can safely force-reconcile.
@@ -671,13 +712,29 @@ def _handle_failure_impl(phase: str, errors: list, state: dict, diag_span) -> st
             return "retry_live"
         log("   No stuck kustomizations found — falling through to diagnostics agent")
 
+    # ── known: missing GKE kubeconfig context ──────────────────────────────────
+    # If the cluster is provisioned but the local kubeconfig is missing the context,
+    # fetch it directly.
+    if any("kubeconfig context not yet present" in e.get("message", "") for e in errors):
+        log("   Detected missing GKE kubeconfig context — attempting to fetch")
+        if fetch_gke_credentials(phase):
+            # No need to increment fix_attempts here as it's a non-destructive environment fix
+            log("   GKE credentials fetched — retrying phase check")
+            if diag_span is not None:
+                try:
+                    diag_span.set_attribute("diagnose.outcome", "retry_live")
+                    diag_span.set_attribute("diagnose.known_pattern", "missing_context")
+                except Exception:
+                    pass
+            return "retry_live"
+
     # ── route to specialist based on problem_domain ───────────────────────────
     # domain is attached to each error entry by run_phase
     domain = next((e.get("_domain", "unknown") for e in errors), "unknown")
     domain_to_agent = {
         "crossplane":     "crossplane-diagnostics",
-        "flux":           "diagnostics",        # flux-diagnostics agent is a future specialisation
-        "github-actions": "diagnostics",        # github-actions-flux-debugger wiring deferred
+        "flux":           "diagnostics",
+        "github-actions": "github-actions-flux-debugger",
         "unknown":        "diagnostics",
     }
     agent_name = domain_to_agent.get(domain, "diagnostics")

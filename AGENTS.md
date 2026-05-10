@@ -10,6 +10,7 @@ A learning and exploration platform for experienced Kubernetes and Platform Engi
 - Always place a newline at the end of files
 - Validate Taskfile changes with `yq` before saving
 - Pass `--context` inline on every `kubectl` command — never as a separate step; combine related operations into one command to minimise approval prompts
+- **Use Taskfile tasks** for common operations like triggering workflows (`task debug:trigger-flux-bootstrap-workflow`) or resuming the orchestrator (`task agentic:resume PHASE=...`) to ensure consistent behavior and use established "recipes".
 
 # Architecture overview
 
@@ -38,6 +39,7 @@ kind (local bootstrap)
 | Task | Command |
 |---|---|
 | Full deploy (orchestrated) | `task agentic:deploy` |
+| Quick state check | `task agentic:check` |
 | Full deploy (raw script) | `bootstrap/bootstrap-control-plane-cluster.sh` |
 | Resume from phase | `task agentic:resume PHASE=control` |
 | Validate kustomize | `task validate:kustomize-build` |

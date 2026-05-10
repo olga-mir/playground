@@ -36,7 +36,7 @@ source-controller natively handles App token refresh using these fields — no e
 | `GH_APP_ID` | GitHub App ID |
 | `GH_APP_INSTALLATION_ID` | Installation ID |
 | `GH_APP_PRIVATE_KEY` | Full PEM content (copy from `cat $GITHUB_APP_PRIVATE_KEY_FILE`) |
-| `GH_FLUX_PAT` | PAT with `repo` scope for the `github-webhook-token` notification secret |
+| ~~`GH_FLUX_PAT`~~ | Moved to GSM (`gh-flux-pat`) — no longer a GHA secret |
 | `PROJECT_ID` | GCP project ID |
 | `WIF_PROVIDER` / `WIF_SERVICE_ACCOUNT` | Workload Identity Federation for GKE access |
 
@@ -65,7 +65,7 @@ Always use `--from-file` for the private key (not `--from-literal`) to preserve 
 4. Creates `platform-config` ConfigMap in `flux-system`
 5. Runs `flux bootstrap github --token-auth`
 6. Replaces `flux-system` secret with GitHub App credentials
-7. Creates `github-webhook-token` secret (from `GH_FLUX_PAT`) for the notification provider
+7. Creates `github-webhook-token` secret (PAT fetched from GSM `gh-flux-pat`) for the notification provider
 8. Patches all GitRepositories referencing `flux-system` secret to add `provider: github`
 9. Pushes a fixup commit to restore `provider: github` in `gotk-sync.yaml`
 
@@ -107,6 +107,6 @@ kubectl --context <ctx> annotate kustomization clusters -n flux-system \
 
 Common failure causes:
 - `github-webhook-token` secret missing → create it before cluster provisioning
-- `401 Bad credentials` → PAT in `github-webhook-token` lacks `repo` scope or is expired
+- `401 Bad credentials` → PAT in GSM secret `gh-flux-pat` lacks `repo` scope or is expired; update with: `echo -n "NEW_PAT" | gcloud secrets versions add gh-flux-pat --data-file=- --project=PROJECT_ID`
 - `provider not set to github` on notification provider's GitRepository → see `docs/flux-gitops.md`
 - Workflow not on default branch → change repo default branch in Settings or merge workflow to it

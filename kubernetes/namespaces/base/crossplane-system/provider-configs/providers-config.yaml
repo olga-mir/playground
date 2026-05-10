@@ -1,4 +1,4 @@
-# ProviderConfig for GCP - references the secret created by gcp-creds-secret-gke-control-plane.yaml
+# ProviderConfig for GCP - uses Workload Identity via InjectedIdentity
 ---
 apiVersion: gcp.m.upbound.io/v1beta1
 kind: ProviderConfig
@@ -8,8 +8,4 @@ metadata:
 spec:
   projectID: ${PROJECT_ID}
   credentials:
-    source: Secret
-    secretRef:
-      namespace: crossplane-system
-      name: gcp-creds
-      key: credentials
+    source: InjectedIdentity

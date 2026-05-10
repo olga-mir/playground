@@ -100,9 +100,17 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic gcp-creds \
     --namespace crossplane-system \
     --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
-# NOTE: the secret also needs to be in each XR namespace (control-plane, apps-dev).
-# Those namespaces are created by Flux (clusters kustomization), so we copy after Flux syncs.
-# See copy_gcp_creds_to_xr_namespaces() called after crossplane-compositions is ready.
+
+# Crossplane v2 namespace-scoped ProviderConfigs can only read secrets from their own namespace.
+# Copy gcp-creds to XR namespaces NOW, before any Flux kustomization waits, to avoid the race
+# where Flux's clusters kustomization applies the ProviderConfig before the secret exists.
+echo "Pre-creating XR namespaces and copying gcp-creds..."
+kubectl --context "${KIND_CLUSTER_CONTEXT}" create namespace "control-plane" --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+secret_json=$(kubectl --context "${KIND_CLUSTER_CONTEXT}" get secret gcp-creds -n crossplane-system -o json \
+    | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)')
+for ns in control-plane; do
+    echo "${secret_json}" | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -n "${ns}" -f -
+done
 
 echo "Waiting for Flux to sync all resources..."
 flux get all -A
@@ -134,21 +142,6 @@ else
     echo "⚠️  Compositions kustomization not ready yet - XRDs will be available once Flux completes the dependency chain"
     echo "   You can check progress with: flux get kustomizations -A"
 fi
-
-# Pre-create XR namespaces and copy gcp-creds BEFORE clusters kustomization applies GKECluster XRs
-# This ensures ProviderConfigs can authenticate before managed resources try to provision
-echo "Pre-creating XR namespaces and copying GCP credentials..."
-for ns in control-plane apps-dev; do
-    kubectl --context "${KIND_CLUSTER_CONTEXT}" create namespace "${ns}" --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
-done
-
-# Copy gcp-creds secret to each namespace before clusters kustomization applies
-secret_json=$(kubectl --context "${KIND_CLUSTER_CONTEXT}" get secret gcp-creds -n crossplane-system -o json \
-    | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)')
-for ns in control-plane apps-dev; do
-    echo "Copying gcp-creds to namespace ${ns}..."
-    echo "${secret_json}" | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -n "${ns}" -f -
-done
 
 # Wait for clusters kustomization
 echo "Waiting for clusters kustomization to apply GKECluster XRs..."
