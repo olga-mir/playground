@@ -27,6 +27,8 @@ spec:
   values:
     agentGateway:
       enabled: true
+    extraEnv:
+      KGW_SKIP_GATEWAY_API_VERSION_CHECK: "true"
     image:
       registry: ghcr.io/kgateway-dev
     discoveryNamespaceSelectors:
