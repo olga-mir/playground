@@ -25,10 +25,11 @@ spec:
     remediation:
       retries: 3
   values:
+    controller:
+      extraEnv:
+        KGW_SKIP_GATEWAY_API_VERSION_CHECK: "true"
     agentGateway:
       enabled: true
-    extraEnv:
-      KGW_SKIP_GATEWAY_API_VERSION_CHECK: "true"
     image:
       registry: ghcr.io/kgateway-dev
     discoveryNamespaceSelectors:
