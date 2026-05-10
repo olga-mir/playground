@@ -167,6 +167,7 @@ def fetch_gke_credentials(phase: str) -> bool:
         try:
             clusters = json.loads(raw)
         except json.JSONDecodeError:
+            log(f"   Failed to parse gcloud output as JSON: {raw[:200]}")
             continue
 
         if not clusters:
