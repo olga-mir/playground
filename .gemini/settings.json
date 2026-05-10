@@ -1,0 +1,31 @@
+{
+  "general": {
+    "defaultApprovalMode": "auto_edit"
+  },
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          {
+            "name": "Guardrails",
+            "type": "command",
+            "command": "bash .claude/hooks/guardrails.sh",
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": "(replace|write_file)",
+        "hooks": [
+          {
+            "name": "Protect Generated Files",
+            "type": "command",
+            "command": "bash .claude/hooks/protect-generated-files.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

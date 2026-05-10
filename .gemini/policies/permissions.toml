@@ -1,0 +1,100 @@
+# Gemini CLI Policies
+# Translated from .claude/settings.json and permissions granted today
+
+# --- Read-Only Discovery Tools ---
+[[rule]]
+toolName = "read_file"
+decision = "allow"
+priority = 400
+
+[[rule]]
+toolName = "list_directory"
+decision = "allow"
+priority = 400
+
+[[rule]]
+toolName = "glob"
+decision = "allow"
+priority = 400
+
+[[rule]]
+toolName = "grep_search"
+decision = "allow"
+priority = 400
+
+[[rule]]
+toolName = "google_web_search"
+decision = "allow"
+priority = 400
+
+# --- Shell Commands ---
+
+# Allow safe git discovery and informational commands
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = "^git (status|log|diff|show|rev-parse|branch|remote|fetch)(\\s|$)"
+decision = "allow"
+priority = 500
+
+# Allow git state-changing commands (as in Claude settings)
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = "^git (add|commit|push|pull|rebase|checkout|mv|rm)(\\s|$)"
+decision = "allow"
+priority = 500
+
+# Allow read-only kubectl commands
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = "^kubectl (get|logs|describe|api-resources|api-versions|config (get-contexts|current-context))(\\s|$)"
+decision = "allow"
+priority = 500
+
+# Allow Flux read/reconcile commands
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = "^flux (get|reconcile)"
+decision = "allow"
+priority = 500
+
+# Allow Taskfile operations
+[[rule]]
+toolName = "run_shell_command"
+commandPrefix = "task"
+decision = "allow"
+priority = 500
+
+# Allow gcloud informational and update commands (as used today)
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = "^gcloud (container clusters (list|update)|config list)"
+decision = "allow"
+priority = 500
+
+# Allow Helm informational commands
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = "^helm (search|show|status|get|list)"
+decision = "allow"
+priority = 500
+
+# Deny dangerous raw commands
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = "^(rm|mv|cp) "
+decision = "deny"
+priority = 900
+denyMessage = "Use 'git mv', 'git rm', or 'write_file' instead of raw shell commands for file operations."
+
+# --- Web Fetch ---
+[[rule]]
+toolName = "web_fetch"
+argsPattern = 'https?://(www\.)?(github\.com|kagent\.dev)'
+decision = "allow"
+priority = 500
+
+# --- MCP Tools ---
+[[rule]]
+toolName = "mcp_gke_*"
+decision = "allow"
+priority = 400
