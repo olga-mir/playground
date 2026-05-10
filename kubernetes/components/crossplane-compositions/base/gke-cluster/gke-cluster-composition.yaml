@@ -47,7 +47,7 @@ spec:
               initialNodeCount: 1
               removeDefaultNodePool: true
               gatewayApiConfig:
-                channel: CHANNEL_EXTENDED
+                channel: CHANNEL_STANDARD
               releaseChannel:
                 channel: RAPID
               enableAutopilot: false
