@@ -71,10 +71,10 @@ jobs:
           sleep 420
         fi
 
-        echo "⏳ Now polling for cluster readiness (max 15 minutes at 30s intervals)..."
+        echo "⏳ Now polling for cluster readiness (max 45 minutes at 30s intervals)..."
 
-        # Poll for cluster existence (max 15 minutes)
-        timeout_seconds=900
+        # Poll for cluster existence (max 45 minutes)
+        timeout_seconds=2700
         elapsed=0
 
         while [ $elapsed -lt $timeout_seconds ]; do
