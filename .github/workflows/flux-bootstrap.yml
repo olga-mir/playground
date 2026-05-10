@@ -1,6 +1,7 @@
 name: Flux Bootstrap GKE Clusters
 
-# Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY, GH_FLUX_PAT
+# Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY
+# GH_FLUX_PAT is stored in Google Secret Manager (secret: gh-flux-pat) — not as a GHA secret.
 # Installs Flux Operator via Helm, then applies FluxInstance CRD which manages Flux components in-cluster.
 # GitHub App credentials are placed in the flux-system secret; FluxInstance references them via spec.sync.provider: github.
 # See docs/flux-gitops.md for full details.
@@ -180,9 +181,13 @@ jobs:
         # to trigger downstream cluster bootstrapping (e.g. apps-dev after control-plane).
         # Must be created before Flux reconciles the notification alert, otherwise the first
         # GKECluster-ready event will fail to dispatch and won't fire again.
+        # PAT is stored in GSM (not as a GHA secret) so it is never silently empty.
+        GH_FLUX_PAT=$(gcloud secrets versions access latest \
+          --secret="gh-flux-pat" \
+          --project="${{ steps.cluster-info.outputs.projectID }}")
         kubectl create secret generic github-webhook-token \
           -n flux-system \
-          --from-literal=token="${{ secrets.GH_FLUX_PAT }}" \
+          --from-literal=token="${GH_FLUX_PAT}" \
           --dry-run=client -o yaml | kubectl apply -f -
 
     - name: Setup Flux CLI
