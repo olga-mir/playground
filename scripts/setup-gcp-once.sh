@@ -159,8 +159,10 @@ gcloud secrets add-iam-policy-binding github-app-private-key \
 # PAT for Flux notification provider (github-webhook-token on GKE clusters)
 #
 
-gcloud secrets create gh-flux-pat \
-  --project="${PROJECT_ID}" --replication-policy=automatic
+if ! gcloud secrets describe gh-flux-pat --project="${PROJECT_ID}" &>/dev/null; then
+  gcloud secrets create gh-flux-pat \
+    --project="${PROJECT_ID}" --replication-policy=automatic
+fi
 
 # Populate the secret value after running this script:
 #   echo -n "YOUR_PAT_HERE" | gcloud secrets versions add gh-flux-pat \
