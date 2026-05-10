@@ -6,3 +6,5 @@ spec:
   serviceAccountTemplate:
     metadata:
       name: crossplane-provider-gcp
+      annotations:
+        iam.gke.io/gcp-service-account: crossplane-gke-sa@${PROJECT_ID}.iam.gserviceaccount.com
