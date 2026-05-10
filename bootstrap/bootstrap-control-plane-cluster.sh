@@ -100,8 +100,19 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic gcp-creds \
     --namespace crossplane-system \
     --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
-# All namespace-scoped ProviderConfigs (control-plane, etc.) reference crossplane-system/gcp-creds
-# directly, so no copying to XR namespaces is needed.
+
+# Crossplane v2 namespace-scoped ProviderConfigs can only read secrets from their own namespace.
+# Copy gcp-creds to XR namespaces NOW, before any Flux kustomization waits, to avoid the race
+# where Flux's clusters kustomization applies the ProviderConfig before the secret exists.
+echo "Pre-creating XR namespaces and copying gcp-creds..."
+for ns in control-plane; do
+    kubectl --context "${KIND_CLUSTER_CONTEXT}" create namespace "${ns}" --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+done
+secret_json=$(kubectl --context "${KIND_CLUSTER_CONTEXT}" get secret gcp-creds -n crossplane-system -o json \
+    | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)')
+for ns in control-plane; do
+    echo "${secret_json}" | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -n "${ns}" -f -
+done
 
 echo "Waiting for Flux to sync all resources..."
 flux get all -A
