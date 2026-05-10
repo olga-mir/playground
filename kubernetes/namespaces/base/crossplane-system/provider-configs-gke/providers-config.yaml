@@ -1,0 +1,9 @@
+apiVersion: gcp.m.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: crossplane-provider-gcp
+  namespace: crossplane-system
+spec:
+  projectID: ${PROJECT_ID}
+  credentials:
+    source: InjectedIdentity

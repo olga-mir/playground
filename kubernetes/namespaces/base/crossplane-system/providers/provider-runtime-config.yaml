@@ -1,0 +1,8 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-gcp-wi
+spec:
+  serviceAccountTemplate:
+    metadata:
+      name: crossplane-provider-gcp
