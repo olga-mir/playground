@@ -19,7 +19,7 @@ echo "[guardrails] checking: ${cmd:0:120}" >&2
 
 # ── block kubectl write operations ────────────────────────────────────────────
 # All cluster changes must go through git → Flux. Read-only kubectl is allowed.
-if echo "$cmd" | grep -Eq '\bkubectl\b.*(apply|delete|patch|create|edit|replace|scale|rollout|drain|cordon|uncordon)\b'; then
+if echo "$cmd" | grep -Eq '\bkubectl\b.*[[:space:]](apply|delete|patch|create|edit|replace|scale|rollout|drain|cordon|uncordon)\b'; then
   echo "[guardrails] BLOCKED: direct kubectl writes are not allowed. Fix via git → Flux." >&2
   exit 2
 fi
