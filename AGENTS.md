@@ -39,6 +39,7 @@ kind (local bootstrap)
 | Task | Command |
 |---|---|
 | Full deploy (orchestrated) | `task agentic:deploy` |
+| Quick state check | `task agentic:check` |
 | Full deploy (raw script) | `bootstrap/bootstrap-control-plane-cluster.sh` |
 | Resume from phase | `task agentic:resume PHASE=control` |
 | Validate kustomize | `task validate:kustomize-build` |
