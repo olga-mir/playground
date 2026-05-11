@@ -1,0 +1,95 @@
+---
+name: e2e-tests
+description: Run, diagnose, and evolve the e2e test suite for the playground fleet
+triggers:
+  - run e2e
+  - e2e tests
+  - test the cluster
+  - add e2e test
+---
+
+# E2E Test Skill
+
+You help run, interpret, fix, and extend the e2e test suite at `tests/e2e/`.
+
+## Test suite layout
+
+| File | What it tests |
+|---|---|
+| `test_fleet.py` | Node readiness, namespace architecture constraints |
+| `test_flux.py` | All Flux resource conditions on kind/control-plane/apps-dev |
+| `test_crossplane.py` | Provider health, GKECluster XR readiness, workload isolation |
+| `test_kagent.py` | HelmRelease, pods, ModelConfig, ToolServer, REST API |
+| `test_litmus.py` | pod-delete ChaosExperiment lifecycle, verdict=Pass |
+| `test_tenants.py` | Deployment readiness, namespace labels, kgateway |
+
+Shared helpers in `conftest.py`: `wait_for_condition()`, `port_forward()`, `all_flux_resources_ready()`.
+
+## Running tests
+
+```bash
+task e2e:all                          # full suite, skips offline clusters
+task e2e:fast                         # skip slow chaos experiments
+task e2e:cluster CLUSTER=apps_dev     # one cluster
+task e2e:kagent                       # kagent tests only
+task e2e:litmus                       # chaos experiment
+task e2e:file FILE=test_crossplane.py # one file
+```
+
+## How to diagnose a failure
+
+When a test fails, follow this process:
+
+1. **Read the pytest failure message** — it includes the resource name, namespace, and the last condition message from the k8s object.
+
+2. **For Flux failures** (`test_flux.py`):
+   ```bash
+   kubectl --context <ctx> describe <resource-type> <name> -n <namespace>
+   kubectl --context <ctx> logs -n flux-system -l app=source-controller --tail=50
+   ```
+
+3. **For Crossplane failures** (`test_crossplane.py`):
+   ```bash
+   kubectl --context <ctx> describe provider <name>
+   kubectl --context <ctx> get events -n crossplane-system --sort-by='.lastTimestamp'
+   ```
+
+4. **For kagent failures** (`test_kagent.py`):
+   - HelmRelease: `kubectl --context <ctx> describe helmrelease kagent -n kagent-system`
+   - API test: manually run `kubectl --context <ctx> port-forward svc/kagent 8083:8083 -n kagent-system` and `curl http://localhost:8083/api/v1/agents`
+   - If port 8083 gives no response, check the service port: `kubectl --context <ctx> get svc kagent -n kagent-system`
+
+5. **For Litmus failures** (`test_litmus.py`):
+   ```bash
+   kubectl --context <ctx> describe chaosengine e2e-pod-delete -n litmus
+   kubectl --context <ctx> describe chaosresult e2e-pod-delete-pod-delete -n litmus
+   kubectl --context <ctx> logs -n litmus -l name=pod-delete --tail=100
+   ```
+
+## When to fix the test vs. fix the cluster
+
+- **Fix the test** if: the k8s resource exists and works but the test is asserting the wrong thing (wrong port, wrong label selector, wrong resource name after an upgrade).
+- **Fix the cluster** if: the resource is genuinely unhealthy (provider not Healthy, pod CrashLoopBackOff, HelmRelease failing to reconcile).
+
+## Adding tests for a new component
+
+When a new component is added to `kubernetes/namespaces/`:
+
+1. Identify which cluster overlay includes it (kind/control-plane/apps-dev).
+2. Determine the minimum assertions:
+   - HelmRelease Ready (if Flux-managed)
+   - Pods Running (if stateful/unique)
+   - Functional probe: API endpoint, CRD object exists, webhook responds
+3. Add a new test file `test_<component>.py` following the existing pattern:
+   - Import `wait_for_condition`, `port_forward`, `custom_objects` from `conftest`
+   - Use `@pytest.mark.apps_dev` (or `kind`/`control_plane`) + `@pytest.mark.<component>`
+   - Register the new marker in `pytest.ini`
+   - Keep the functional probe deterministic: assert on schema/status, not content
+
+## Determinism rules (enforced in all tests)
+
+- **Never** assert on LLM response text — only on HTTP status codes and JSON schema.
+- **Never** use `time.sleep()` as the primary wait mechanism — always `wait_for_condition()` or poll-until-condition loops with a deadline.
+- **Always** assert on k8s condition `.status == "True"` — not on resource age or counts that change.
+- **Chaos tests**: assert `chaosresult.verdict == "Pass"` — the chaos operator decides this based on whether the target app survived, making it deterministic.
+- **Cleanup**: chaos engines are always deleted in a `finally` block regardless of test outcome.
