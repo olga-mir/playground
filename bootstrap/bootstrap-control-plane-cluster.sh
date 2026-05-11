@@ -68,11 +68,12 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic flux-system \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
 
 echo "Installing Flux Operator via Helm..."
-helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.48.0 \
+# timeout(1) covers the OCI chart download phase; helm's --timeout only covers the k8s --wait phase.
+timeout 360 helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.48.0 \
     --namespace flux-system \
     --kube-context "${KIND_CLUSTER_CONTEXT}" \
     --wait \
-    --timeout=5m
+    --timeout=4m30s
 
 echo "Applying FluxInstance manifest..."
 kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f "${REPO_ROOT}/kubernetes/clusters/kind/flux-system/flux-instance.yaml"
