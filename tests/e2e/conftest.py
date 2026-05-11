@@ -279,11 +279,11 @@ def all_flux_resources_ready(ctx: str, cluster_label: str) -> list[str]:
             if not ready:
                 # If no Ready condition, report the last available status/message if any
                 status_str = f"Conditions: {[c.get('type') for c in conditions]}" if conditions else "No conditions"
-                failures.append(f"[{cluster_label}] {plural}/{meta['namespace']}/{meta['name']}: {status_str}")
-            elif ready["status"] != "True":
+                failures.append(f"[{cluster_label}] {plural}/{meta.get('namespace', 'default')}/{meta.get('name', 'unknown')}: {status_str}")
+            elif ready.get("status") != "True":
                 failures.append(
-                    f"[{cluster_label}] {plural}/{meta['namespace']}/{meta['name']}: "
-                    f"Ready={ready['status']} — {ready.get('message', '')}"
+                    f"[{cluster_label}] {plural}/{meta.get('namespace', 'default')}/{meta.get('name', 'unknown')}: "
+                    f"Ready={ready.get('status')} — {ready.get('message', '')}"
                 )
     return failures
 

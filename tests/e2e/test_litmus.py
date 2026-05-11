@@ -138,6 +138,7 @@ def test_litmus_pod_delete_passes(ctx_apps_dev):
             time.sleep(5)
     finally:
         _delete_engine(co)
+        _delete_result(co)
 
     assert verdict == "Pass", (
         f"ChaosExperiment {ENGINE_NAME} verdict={verdict!r}. "

@@ -10,7 +10,7 @@ Checks:
 
 import pytest
 from kubernetes import client
-from conftest import custom_objects, wait_for_condition, wait_for_cluster_condition
+from conftest import custom_objects
 
 
 XRD_GROUP = "platform.tornado-demo.io"

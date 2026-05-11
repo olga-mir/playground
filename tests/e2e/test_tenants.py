@@ -10,7 +10,7 @@ import logging
 
 import pytest
 from kubernetes import client
-from conftest import apps_v1, core_v1
+from conftest import apps_v1, core_v1, assert_resource_ready
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,6 @@ def test_tenant_namespaces_labelled(ctx_apps_dev):
 @pytest.mark.tenants
 def test_kgateway_ready(ctx_apps_dev):
     """kgateway HelmRelease must be Ready on apps-dev."""
-    from conftest import assert_resource_ready
     assert_resource_ready(
         ctx_apps_dev,
         "helm.toolkit.fluxcd.io", "v2", "helmreleases",
