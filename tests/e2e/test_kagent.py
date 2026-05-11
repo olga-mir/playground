@@ -18,6 +18,8 @@ from conftest import (
     core_v1,
     apps_v1,
     wait_for_condition,
+    assert_resource_ready,
+    get_resource,
     port_forward,
 )
 
@@ -32,22 +34,20 @@ KAGENT_API_PORT = 8083
 @pytest.mark.kagent
 def test_kagent_crds_helmrelease_ready(ctx_apps_dev):
     """kagent-crds HelmRelease must be Ready before kagent itself."""
-    wait_for_condition(
+    assert_resource_ready(
         ctx_apps_dev,
         "helm.toolkit.fluxcd.io", "v2", "helmreleases",
         KAGENT_NAMESPACE, "kagent-crds",
-        timeout=300,
     )
 
 
 @pytest.mark.apps_dev
 @pytest.mark.kagent
 def test_kagent_helmrelease_ready(ctx_apps_dev):
-    wait_for_condition(
+    assert_resource_ready(
         ctx_apps_dev,
         "helm.toolkit.fluxcd.io", "v2", "helmreleases",
         KAGENT_NAMESPACE, "kagent",
-        timeout=300,
     )
 
 
@@ -71,8 +71,8 @@ def test_kagent_pods_running(ctx_apps_dev):
 @pytest.mark.kagent
 def test_kagent_model_config_exists(ctx_apps_dev):
     """ModelConfig for Claude must exist in kagent-system."""
-    co = custom_objects(ctx_apps_dev)
-    obj = co.get_namespaced_custom_object(
+    obj = get_resource(
+        ctx_apps_dev,
         "kagent.dev", "v1alpha2",
         KAGENT_NAMESPACE, "modelconfigs",
         "claude-model-config",
@@ -98,8 +98,8 @@ def test_mcp_website_fetcher_pod_running(ctx_apps_dev):
 @pytest.mark.kagent
 def test_mcp_toolserver_resource_exists(ctx_apps_dev):
     """ToolServer CRD object for mcp-toolserver must exist."""
-    co = custom_objects(ctx_apps_dev)
-    obj = co.get_namespaced_custom_object(
+    obj = get_resource(
+        ctx_apps_dev,
         "kagent.dev", "v1alpha1",
         "kagent", "toolservers",
         "mcp-toolserver",

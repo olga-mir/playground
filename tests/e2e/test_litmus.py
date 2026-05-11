@@ -16,7 +16,7 @@ import time
 
 import pytest
 from kubernetes import client
-from conftest import custom_objects, wait_for_condition
+from conftest import custom_objects, wait_for_condition, get_resource
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +85,8 @@ def _delete_result(co: client.CustomObjectsApi) -> None:
 @pytest.mark.slow
 def test_litmus_installed(ctx_apps_dev):
     """Litmus CRDs and the pod-delete ChaosExperiment must exist."""
-    co = custom_objects(ctx_apps_dev)
-    exp = co.get_namespaced_custom_object(
+    exp = get_resource(
+        ctx_apps_dev,
         "litmuschaos.io", "v1alpha1", LITMUS_NS, "chaosexperiments", "pod-delete"
     )
     assert exp["metadata"]["name"] == "pod-delete"

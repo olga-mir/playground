@@ -68,10 +68,9 @@ def test_tenant_namespaces_labelled(ctx_apps_dev):
 @pytest.mark.tenants
 def test_kgateway_ready(ctx_apps_dev):
     """kgateway HelmRelease must be Ready on apps-dev."""
-    from conftest import wait_for_condition
-    wait_for_condition(
+    from conftest import assert_resource_ready
+    assert_resource_ready(
         ctx_apps_dev,
         "helm.toolkit.fluxcd.io", "v2", "helmreleases",
         "kgateway-system", "kgateway",
-        timeout=180,
     )

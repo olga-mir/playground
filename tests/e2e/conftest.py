@@ -37,6 +37,49 @@ def _find_context(suffix: str) -> str | None:
     return None
 
 
+def _fetch_credentials(cluster_name: str) -> bool:
+    """Try to fetch credentials for a GKE cluster using gcloud."""
+    if subprocess.run(["which", "gcloud"], capture_output=True).returncode != 0:
+        return False
+
+    logger.info(f"Context for {cluster_name} not found. Attempting to fetch...")
+    try:
+        cmd = [
+            "gcloud", "container", "clusters", "list",
+            "--filter", f"name~{cluster_name}",
+            "--format", "value(name,zone,project)"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            for line in result.stdout.strip().splitlines():
+                parts = line.split()
+                if len(parts) >= 3:
+                    name, zone, project = parts[0], parts[1], parts[2]
+                    if name == cluster_name or name.endswith(f"-{cluster_name}"):
+                        logger.info(f"Found cluster {name} in {zone} ({project}). Fetching credentials...")
+                        subprocess.run([
+                            "gcloud", "container", "clusters", "get-credentials",
+                            name, "--zone", zone, "--project", project
+                        ], check=True)
+                        return True
+    except Exception as e:
+        logger.error(f"Failed to fetch credentials for {cluster_name}: {e}")
+    return False
+
+
+def _ensure_context(name: str) -> str | None:
+    ctx = _find_context(name)
+    if ctx and _context_reachable(ctx):
+        return ctx
+
+    if _fetch_credentials(name):
+        ctx = _find_context(name)
+        if ctx and _context_reachable(ctx):
+            return ctx
+
+    return None
+
+
 def _context_reachable(ctx: str) -> bool:
     """Return True if the API server responds within a short timeout."""
     result = subprocess.run(
@@ -58,16 +101,16 @@ def ctx_kind() -> str:
 
 @pytest.fixture(scope="session")
 def ctx_control_plane() -> str:
-    ctx = _find_context("control-plane")
-    if not ctx or not _context_reachable(ctx):
+    ctx = _ensure_context("control-plane")
+    if not ctx:
         pytest.skip("control-plane cluster not available")
     return ctx
 
 
 @pytest.fixture(scope="session")
 def ctx_apps_dev() -> str:
-    ctx = _find_context("apps-dev")
-    if not ctx or not _context_reachable(ctx):
+    ctx = _ensure_context("apps-dev")
+    if not ctx:
         pytest.skip("apps-dev cluster not available")
     return ctx
 
@@ -88,6 +131,46 @@ def custom_objects(ctx: str) -> client.CustomObjectsApi:
 
 def apps_v1(ctx: str) -> client.AppsV1Api:
     return client.AppsV1Api(api_client=k8s_api(ctx))
+
+
+# ── resource helpers ──────────────────────────────────────────────────────────
+
+def get_resource(
+    ctx: str,
+    group: str,
+    version: str,
+    plural: str,
+    namespace: str,
+    name: str,
+) -> dict:
+    """Get a custom resource or fail with a clear message on 404."""
+    co = custom_objects(ctx)
+    try:
+        return co.get_namespaced_custom_object(group, version, namespace, plural, name)
+    except client.exceptions.ApiException as exc:
+        if exc.status == 404:
+            pytest.fail(f"{plural}/{namespace}/{name} not found")
+        raise
+
+
+def assert_resource_ready(
+    ctx: str,
+    group: str,
+    version: str,
+    plural: str,
+    namespace: str,
+    name: str,
+    condition_type: str = "Ready",
+) -> dict:
+    """Read a custom resource once and assert condition_type == True."""
+    obj = get_resource(ctx, group, version, namespace, plural, name)
+    conditions = obj.get("status", {}).get("conditions", [])
+    for cond in conditions:
+        if cond.get("type") == condition_type:
+            assert cond.get("status") == "True", \
+                f"{plural}/{namespace}/{name} is {condition_type}={cond.get('status')} - {cond.get('message', '')}"
+            return obj
+    pytest.fail(f"{plural}/{namespace}/{name} has no {condition_type} condition")
 
 
 # ── condition polling ─────────────────────────────────────────────────────────
