@@ -163,7 +163,7 @@ def assert_resource_ready(
     condition_type: str = "Ready",
 ) -> dict:
     """Read a custom resource once and assert condition_type == True."""
-    obj = get_resource(ctx, group, version, namespace, plural, name)
+    obj = get_resource(ctx, group, version, plural, namespace, name)
     conditions = obj.get("status", {}).get("conditions", [])
     for cond in conditions:
         if cond.get("type") == condition_type:
@@ -277,7 +277,9 @@ def all_flux_resources_ready(ctx: str, cluster_label: str) -> list[str]:
             conditions = item.get("status", {}).get("conditions", [])
             ready = next((c for c in conditions if c.get("type") == "Ready"), None)
             if not ready:
-                failures.append(f"[{cluster_label}] {plural}/{meta['namespace']}/{meta['name']}: no Ready condition")
+                # If no Ready condition, report the last available status/message if any
+                status_str = f"Conditions: {[c.get('type') for c in conditions]}" if conditions else "No conditions"
+                failures.append(f"[{cluster_label}] {plural}/{meta['namespace']}/{meta['name']}: {status_str}")
             elif ready["status"] != "True":
                 failures.append(
                     f"[{cluster_label}] {plural}/{meta['namespace']}/{meta['name']}: "
