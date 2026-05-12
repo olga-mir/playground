@@ -10,33 +10,16 @@ import logging
 
 import pytest
 from kubernetes import client
-from conftest import apps_v1, core_v1, assert_resource_ready
+from conftest import apps_v1, core_v1, wait_for_condition, wait_for_deployment_ready
 
 logger = logging.getLogger(__name__)
-
-
-def _deployment_ready(ctx: str, namespace: str, name: str) -> tuple[bool, str]:
-    """Return (ready, reason). A deployment is ready when readyReplicas == replicas."""
-    api = apps_v1(ctx)
-    try:
-        d = api.read_namespaced_deployment(name, namespace)
-    except client.exceptions.ApiException as exc:
-        if exc.status == 404:
-            return False, f"deployment {namespace}/{name} not found"
-        raise
-    desired = d.spec.replicas or 1
-    ready = d.status.ready_replicas or 0
-    if ready >= desired:
-        return True, ""
-    return False, f"ready={ready}/{desired}"
 
 
 @pytest.mark.apps_dev
 @pytest.mark.tenants
 def test_mcp_website_fetcher_deployment_ready(ctx_apps_dev):
     """mcp-website-fetcher in kagent namespace must be fully Ready."""
-    ok, reason = _deployment_ready(ctx_apps_dev, "kagent", "mcp-website-fetcher")
-    assert ok, f"mcp-website-fetcher not ready: {reason}"
+    wait_for_deployment_ready(ctx_apps_dev, "kagent", "mcp-website-fetcher")
 
 
 @pytest.mark.apps_dev
@@ -69,6 +52,26 @@ def test_tenant_namespaces_labelled(ctx_apps_dev):
 def test_kgateway_ready(ctx_apps_dev):
     """kgateway HelmRelease must be Ready on apps-dev."""
     assert_resource_ready(
+        ctx_apps_dev,
+        "helm.toolkit.fluxcd.io", "v2", "helmreleases",
+        "kgateway-system", "kgateway",
+    )
+namespaces with workload-type=application found — "
+                    "tenants may not be deployed yet")
+    # All found namespaces must be Active
+    inactive = [
+        ns.metadata.name
+        for ns in namespaces.items
+        if ns.status.phase != "Active"
+    ]
+    assert not inactive, f"Tenant namespaces not Active: {inactive}"
+
+
+@pytest.mark.apps_dev
+@pytest.mark.tenants
+def test_kgateway_ready(ctx_apps_dev):
+    """kgateway HelmRelease must be Ready on apps-dev."""
+    wait_for_condition(
         ctx_apps_dev,
         "helm.toolkit.fluxcd.io", "v2", "helmreleases",
         "kgateway-system", "kgateway",

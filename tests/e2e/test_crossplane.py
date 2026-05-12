@@ -8,10 +8,12 @@ Checks:
   - No Crossplane composites exist on apps-dev (architecture constraint)
 """
 
+import logging
 import pytest
 from kubernetes import client
-from conftest import custom_objects
+from conftest import custom_objects, wait_for_condition, wait_for_cluster_condition
 
+logger = logging.getLogger(__name__)
 
 XRD_GROUP = "platform.tornado-demo.io"
 XRD_VERSION = "v1alpha1"
@@ -22,17 +24,18 @@ def _providers_healthy(ctx: str, cluster_label: str) -> None:
     co = custom_objects(ctx)
     providers = co.list_cluster_custom_object("pkg.crossplane.io", "v1", "providers")
     assert providers["items"], f"[{cluster_label}] no Crossplane providers found"
-    failures = []
+    
     for p in providers["items"]:
         name = p["metadata"]["name"]
-        conditions = p.get("status", {}).get("conditions", [])
-        installed = next((c for c in conditions if c.get("type") == "Installed"), None)
-        healthy = next((c for c in conditions if c.get("type") == "Healthy"), None)
-        if not installed or installed.get("status") != "True":
-            failures.append(f"{name}: not Installed ({installed})")
-        elif not healthy or healthy.get("status") != "True":
-            failures.append(f"{name}: not Healthy ({healthy})")
-    assert not failures, f"[{cluster_label}] provider issues:\n" + "\n".join(failures)
+        # Wait for both Installed and Healthy conditions
+        wait_for_cluster_condition(
+            ctx, "pkg.crossplane.io", "v1", "providers", name,
+            condition_type="Installed", timeout=60
+        )
+        wait_for_cluster_condition(
+            ctx, "pkg.crossplane.io", "v1", "providers", name,
+            condition_type="Healthy", timeout=60
+        )
 
 
 @pytest.mark.kind
@@ -51,46 +54,29 @@ def test_crossplane_providers_healthy_control_plane(ctx_control_plane):
 @pytest.mark.crossplane
 def test_gkecluster_control_plane_ready(ctx_kind):
     """control-plane GKECluster XR must be Synced+Ready on kind."""
-    co = custom_objects(ctx_kind)
-    clusters = co.list_namespaced_custom_object(
-        XRD_GROUP, XRD_VERSION, "control-plane", XRD_PLURAL
+    # We expect exactly one XR in this namespace
+    wait_for_condition(
+        ctx_kind, XRD_GROUP, XRD_VERSION, XRD_PLURAL,
+        "control-plane", "control-plane", condition_type="Ready"
     )
-    items = clusters.get("items", [])
-    assert items, "No GKECluster XR in namespace 'control-plane' on kind"
-    failures = []
-    for xr in items:
-        name = xr["metadata"]["name"]
-        conditions = xr.get("status", {}).get("conditions", [])
-        ready = next((c for c in conditions if c.get("type") == "Ready"), None)
-        synced = next((c for c in conditions if c.get("type") == "Synced"), None)
-        if not ready or ready.get("status") != "True":
-            failures.append(f"{name}: Ready={ready}")
-        if not synced or synced.get("status") != "True":
-            failures.append(f"{name}: Synced={synced}")
-    assert not failures, "GKECluster XR(s) not ready on kind:\n" + "\n".join(failures)
+    wait_for_condition(
+        ctx_kind, XRD_GROUP, XRD_VERSION, XRD_PLURAL,
+        "control-plane", "control-plane", condition_type="Synced"
+    )
 
 
 @pytest.mark.control_plane
 @pytest.mark.crossplane
 def test_gkecluster_apps_dev_ready(ctx_control_plane):
     """apps-dev GKECluster XR must be Synced+Ready on control-plane."""
-    co = custom_objects(ctx_control_plane)
-    clusters = co.list_namespaced_custom_object(
-        XRD_GROUP, XRD_VERSION, "apps-dev", XRD_PLURAL
+    wait_for_condition(
+        ctx_control_plane, XRD_GROUP, XRD_VERSION, XRD_PLURAL,
+        "apps-dev", "apps-dev", condition_type="Ready"
     )
-    items = clusters.get("items", [])
-    assert items, "No GKECluster XR in namespace 'apps-dev' on control-plane"
-    failures = []
-    for xr in items:
-        name = xr["metadata"]["name"]
-        conditions = xr.get("status", {}).get("conditions", [])
-        ready = next((c for c in conditions if c.get("type") == "Ready"), None)
-        synced = next((c for c in conditions if c.get("type") == "Synced"), None)
-        if not ready or ready.get("status") != "True":
-            failures.append(f"{name}: Ready={ready}")
-        if not synced or synced.get("status") != "True":
-            failures.append(f"{name}: Synced={synced}")
-    assert not failures, "GKECluster XR(s) not ready on control-plane:\n" + "\n".join(failures)
+    wait_for_condition(
+        ctx_control_plane, XRD_GROUP, XRD_VERSION, XRD_PLURAL,
+        "apps-dev", "apps-dev", condition_type="Synced"
+    )
 
 
 @pytest.mark.apps_dev

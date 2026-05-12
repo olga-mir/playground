@@ -89,6 +89,136 @@ def _context_reachable(ctx: str) -> bool:
     return result.returncode == 0
 
 
+def wait_for_deletion(
+    ctx: str,
+    group: str,
+    version: str,
+    plural: str,
+    namespace: str,
+    name: str,
+    timeout: int = 60,
+) -> None:
+    """Poll until a custom resource returns 404 (Not Found)."""
+    co = custom_objects(ctx)
+    deadline = time.monotonic() + timeout
+    logger.info(f"Waiting for deletion of {plural}/{namespace}/{name} (timeout {timeout}s)...")
+    while time.monotonic() < deadline:
+        try:
+            co.get_namespaced_custom_object(group, version, namespace, plural, name)
+        except client.exceptions.ApiException as exc:
+            if exc.status == 404:
+                logger.info(f"OK: {plural}/{namespace}/{name} deleted")
+                return
+            raise
+        time.sleep(1)
+    raise TimeoutError(f"{plural}/{namespace}/{name} was not deleted within {timeout}s")
+
+
+def wait_for_deployment_ready(
+    ctx: str,
+    namespace: str,
+    name: str,
+    timeout: int = 120,
+) -> None:
+    """Poll until a deployment has readyReplicas >= replicas."""
+    api = apps_v1(ctx)
+    deadline = time.monotonic() + timeout
+    start_time = time.monotonic()
+
+    logger.info(f"Waiting for deployment {namespace}/{name} to be ready (timeout {timeout}s)...")
+
+    while time.monotonic() < deadline:
+        try:
+            d = api.read_namespaced_deployment(name, namespace)
+            desired = d.spec.replicas or 1
+            ready = d.status.ready_replicas or 0
+            if ready >= desired:
+                elapsed = int(time.monotonic() - start_time)
+                logger.info(f"OK: deployment {namespace}/{name} is ready ({ready}/{desired}) after {elapsed}s")
+                return
+
+            elapsed = int(time.monotonic() - start_time)
+            if elapsed % 10 == 0:
+                logger.info(f"Still waiting for deployment {namespace}/{name} ({elapsed}s elapsed). Status: ready={ready}/{desired}")
+
+        except client.exceptions.ApiException as exc:
+            if exc.status != 404:
+                raise
+
+        time.sleep(1)
+
+    raise TimeoutError(f"Deployment {namespace}/{name} did not become ready within {timeout}s")
+
+
+def wait_for_nodes_ready(
+    ctx: str,
+    timeout: int = 300,
+) -> None:
+    """Poll until all nodes in the cluster are Ready."""
+    v1 = core_v1(ctx)
+    deadline = time.monotonic() + timeout
+    start_time = time.monotonic()
+
+    logger.info(f"Waiting for all nodes in {ctx} to be Ready (timeout {timeout}s)...")
+
+    while time.monotonic() < deadline:
+        try:
+            nodes = v1.list_node()
+            if not nodes.items:
+                 time.sleep(2)
+                 continue
+
+            unready = []
+            for node in nodes.items:
+                ready = next((c for c in node.status.conditions if c.type == "Ready"), None)
+                if not ready or ready.status != "True":
+                    unready.append(node.metadata.name)
+
+            if not unready:
+                elapsed = int(time.monotonic() - start_time)
+                logger.info(f"OK: all {len(nodes.items)} nodes are Ready after {elapsed}s")
+                return
+
+            elapsed = int(time.monotonic() - start_time)
+            if elapsed % 10 == 0:
+                logger.info(f"Still waiting for {len(unready)} nodes to be Ready: {unready}")
+
+        except Exception as e:
+            logger.warning(f"Error checking nodes: {e}")
+
+        time.sleep(2)
+
+    raise TimeoutError(f"Nodes in {ctx} did not become Ready within {timeout}s")
+
+
+def wait_for_flux_ready(
+    ctx: str,
+    cluster_label: str,
+    timeout: int = 180,
+) -> None:
+    """Poll until all Flux resources in the cluster are Ready."""
+    deadline = time.monotonic() + timeout
+    start_time = time.monotonic()
+
+    logger.info(f"Waiting for all Flux resources in {cluster_label} to be Ready (timeout {timeout}s)...")
+
+    while time.monotonic() < deadline:
+        failures = all_flux_resources_ready(ctx, cluster_label)
+        if not failures:
+            elapsed = int(time.monotonic() - start_time)
+            logger.info(f"OK: all Flux resources in {cluster_label} are Ready after {elapsed}s")
+            return
+
+        elapsed = int(time.monotonic() - start_time)
+        if elapsed % 20 == 0:
+            logger.info(f"Still waiting for Flux in {cluster_label} ({elapsed}s elapsed). {len(failures)} issues found.")
+
+        time.sleep(5) # Flux sync is slow, 5s is fine
+
+    failures = all_flux_resources_ready(ctx, cluster_label)
+    raise TimeoutError(f"Flux resources in {cluster_label} did not become Ready:\n" + "\n".join(failures))
+
+
 # ── session-scoped context fixtures ──────────────────────────────────────────
 
 @pytest.fixture(scope="session")
@@ -194,6 +324,10 @@ def wait_for_condition(
     co = custom_objects(ctx)
     deadline = time.monotonic() + timeout
     last_msg = ""
+    start_time = time.monotonic()
+
+    logger.info(f"Waiting for {plural}/{namespace}/{name} to reach {condition_type}=True (timeout {timeout}s)...")
+
     while time.monotonic() < deadline:
         try:
             obj = co.get_namespaced_custom_object(group, version, namespace, plural, name)
@@ -201,12 +335,23 @@ def wait_for_condition(
             for cond in conditions:
                 if cond.get("type") == condition_type:
                     if cond.get("status") == "True":
+                        elapsed = int(time.monotonic() - start_time)
+                        logger.info(f"OK: {plural}/{namespace}/{name} reached {condition_type}=True after {elapsed}s")
                         return obj
                     last_msg = cond.get("message", "")
+
+            # Progress indication
+            elapsed = int(time.monotonic() - start_time)
+            if elapsed % 10 == 0:  # Log every 10 seconds to avoid noise
+                 logger.info(f"Still waiting for {plural}/{name} ({elapsed}s elapsed). Status: {condition_type}=False. Message: {last_msg}")
+
         except client.exceptions.ApiException as exc:
             if exc.status != 404:
                 raise
-        time.sleep(5)
+            last_msg = "Resource not found"
+
+        time.sleep(1)
+
     raise TimeoutError(
         f"{plural}/{namespace}/{name} did not reach {condition_type}=True "
         f"within {timeout}s. Last message: {last_msg}"
@@ -226,6 +371,10 @@ def wait_for_cluster_condition(
     co = custom_objects(ctx)
     deadline = time.monotonic() + timeout
     last_msg = ""
+    start_time = time.monotonic()
+
+    logger.info(f"Waiting for {plural}/{name} to reach {condition_type}=True (timeout {timeout}s)...")
+
     while time.monotonic() < deadline:
         try:
             obj = co.get_cluster_custom_object(group, version, plural, name)
@@ -233,12 +382,23 @@ def wait_for_cluster_condition(
             for cond in conditions:
                 if cond.get("type") == condition_type:
                     if cond.get("status") == "True":
+                        elapsed = int(time.monotonic() - start_time)
+                        logger.info(f"OK: {plural}/{name} reached {condition_type}=True after {elapsed}s")
                         return obj
                     last_msg = cond.get("message", "")
+
+            # Progress indication
+            elapsed = int(time.monotonic() - start_time)
+            if elapsed % 10 == 0:
+                 logger.info(f"Still waiting for {plural}/{name} ({elapsed}s elapsed). Status: {condition_type}=False. Message: {last_msg}")
+
         except client.exceptions.ApiException as exc:
             if exc.status != 404:
                 raise
-        time.sleep(5)
+            last_msg = "Resource not found"
+
+        time.sleep(1)
+
     raise TimeoutError(
         f"{plural}/{name} did not reach {condition_type}=True "
         f"within {timeout}s. Last message: {last_msg}"
@@ -306,17 +466,39 @@ def port_forward(ctx: str, namespace: str, resource: str, remote_port: int):
     proc = subprocess.Popen(
         ["kubectl", f"--context={ctx}", "port-forward", resource,
          f"{local_port}:{remote_port}", "-n", namespace],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
     )
+
     # Wait until the port is actually listening
     deadline = time.monotonic() + 15
+    connected = False
+
+    logger.info(f"Setting up port-forward to {resource} in {namespace} (local:{local_port} -> remote:{remote_port})...")
+
     while time.monotonic() < deadline:
+        # Check if process is still running
+        if proc.poll() is not None:
+            stdout, stderr = proc.communicate()
+            raise RuntimeError(
+                f"kubectl port-forward failed immediately: {stderr or stdout}"
+            )
+
         try:
             with socket.create_connection(("localhost", local_port), timeout=1):
+                connected = True
                 break
         except OSError:
             time.sleep(0.5)
+
+    if not connected:
+        proc.terminate()
+        proc.wait()
+        raise TimeoutError(
+            f"Failed to connect to {resource} via port-forward within 15s"
+        )
+
     try:
         yield f"http://localhost:{local_port}"
     finally:

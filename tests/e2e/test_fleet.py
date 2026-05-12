@@ -6,35 +6,22 @@ All assertions use k8s node conditions — deterministic, no timing dependency.
 
 import pytest
 from kubernetes import client
-from conftest import core_v1
-
-
-def _nodes_ready(ctx: str, cluster_label: str) -> None:
-    v1 = core_v1(ctx)
-    nodes = v1.list_node()
-    assert nodes.items, f"[{cluster_label}] no nodes found"
-    failures = []
-    for node in nodes.items:
-        ready = next((c for c in node.status.conditions if c.type == "Ready"), None)
-        if not ready or ready.status != "True":
-            msg = ready.message if ready else "no Ready condition"
-            failures.append(f"{node.metadata.name}: {msg}")
-    assert not failures, f"[{cluster_label}] nodes not Ready:\n" + "\n".join(failures)
+from conftest import core_v1, wait_for_nodes_ready
 
 
 @pytest.mark.kind
 def test_kind_nodes_ready(ctx_kind):
-    _nodes_ready(ctx_kind, "kind")
+    wait_for_nodes_ready(ctx_kind)
 
 
 @pytest.mark.control_plane
 def test_control_plane_nodes_ready(ctx_control_plane):
-    _nodes_ready(ctx_control_plane, "control-plane")
+    wait_for_nodes_ready(ctx_control_plane)
 
 
 @pytest.mark.apps_dev
 def test_apps_dev_nodes_ready(ctx_apps_dev):
-    _nodes_ready(ctx_apps_dev, "apps-dev")
+    wait_for_nodes_ready(ctx_apps_dev)
 
 
 @pytest.mark.control_plane

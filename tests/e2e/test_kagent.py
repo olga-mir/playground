@@ -34,7 +34,7 @@ KAGENT_API_PORT = 8083
 @pytest.mark.kagent
 def test_kagent_crds_helmrelease_ready(ctx_apps_dev):
     """kagent-crds HelmRelease must be Ready before kagent itself."""
-    assert_resource_ready(
+    wait_for_condition(
         ctx_apps_dev,
         "helm.toolkit.fluxcd.io", "v2", "helmreleases",
         KAGENT_NAMESPACE, "kagent-crds",
@@ -44,7 +44,7 @@ def test_kagent_crds_helmrelease_ready(ctx_apps_dev):
 @pytest.mark.apps_dev
 @pytest.mark.kagent
 def test_kagent_helmrelease_ready(ctx_apps_dev):
-    assert_resource_ready(
+    wait_for_condition(
         ctx_apps_dev,
         "helm.toolkit.fluxcd.io", "v2", "helmreleases",
         KAGENT_NAMESPACE, "kagent",

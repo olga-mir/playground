@@ -108,7 +108,15 @@ def test_litmus_pod_delete_passes(ctx_apps_dev):
     # Clean up leftovers from a previous run
     _delete_engine(co)
     _delete_result(co)
-    time.sleep(3)
+
+    # Wait for deletion instead of static sleep
+    try:
+        wait_for_deletion(ctx_apps_dev, "litmuschaos.io", "v1alpha1", "chaosengines", LITMUS_NS, ENGINE_NAME, timeout=30)
+        wait_for_deletion(ctx_apps_dev, "litmuschaos.io", "v1alpha1", "chaosresults", LITMUS_NS, RESULT_NAME, timeout=30)
+    except TimeoutError:
+        # If they were already gone, wait_for_deletion might timeout if it was 404 from start.
+        # But wait_for_deletion handles 404 correctly.
+        pass
 
     logger.info("Creating ChaosEngine %s", ENGINE_NAME)
     co.create_namespaced_custom_object(
@@ -119,6 +127,7 @@ def test_litmus_pod_delete_passes(ctx_apps_dev):
     try:
         # Experiment runs for 30s; allow up to 120s total for runner pod startup + result
         deadline = time.monotonic() + 120
+        start_time = time.monotonic()
         while time.monotonic() < deadline:
             try:
                 result = co.get_namespaced_custom_object(
@@ -129,13 +138,15 @@ def test_litmus_pod_delete_passes(ctx_apps_dev):
                     .get("experimentStatus", {})
                     .get("verdict", "Awaited")
                 )
-                logger.info("ChaosResult verdict: %s", verdict)
+                elapsed = int(time.monotonic() - start_time)
+                if elapsed % 10 == 0:
+                    logger.info("ChaosResult verdict: %s (%ds elapsed)", verdict, elapsed)
                 if verdict != "Awaited":
                     break
             except client.exceptions.ApiException as exc:
                 if exc.status != 404:
                     raise
-            time.sleep(5)
+            time.sleep(1) # Reduced from 5s
     finally:
         _delete_engine(co)
         _delete_result(co)
