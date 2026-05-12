@@ -16,3 +16,6 @@ includes:
   port-forward:
     taskfile: ./tasks/port-forward.yaml
     dir: .
+  e2e:
+    taskfile: ./tasks/e2e.yaml
+    dir: .

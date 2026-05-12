@@ -1,0 +1,60 @@
+version: "3"
+
+vars:
+  E2E_DIR: tests/e2e
+  VENV: tests/e2e/.venv
+
+tasks:
+  setup:
+    desc: "Create virtualenv and install e2e test dependencies"
+    cmds:
+      - python3 -m venv {{.VENV}}
+      - "{{.VENV}}/bin/pip install -q -r {{.E2E_DIR}}/requirements.txt"
+    status:
+      - test -f {{.VENV}}/bin/pytest
+
+  all:
+    desc: "Run full e2e suite against all available clusters (skips unavailable clusters)"
+    deps: [setup]
+    cmds:
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short"
+
+  cluster:
+    desc: "Run e2e tests for one cluster (CLUSTER=kind|control_plane|apps_dev)"
+    deps: [setup]
+    vars:
+      CLUSTER: '{{default "apps_dev" .CLUSTER}}'
+    cmds:
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m {{.CLUSTER}}"
+
+  flux:
+    desc: "Run Flux health checks only (all clusters)"
+    deps: [setup]
+    cmds:
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m flux"
+
+  kagent:
+    desc: "Run kagent functional tests"
+    deps: [setup]
+    cmds:
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_kagent.py -v --tb=short"
+
+  litmus:
+    desc: "Run LitmusChaos experiment tests (slow — runs a real chaos experiment)"
+    deps: [setup]
+    cmds:
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_litmus.py -v --tb=short"
+
+  fast:
+    desc: "Run all tests except slow chaos experiments"
+    deps: [setup]
+    cmds:
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m 'not slow'"
+
+  file:
+    desc: "Run a specific test file (FILE=test_flux.py)"
+    deps: [setup]
+    vars:
+      FILE: '{{default "test_fleet.py" .FILE}}'
+    cmds:
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/{{.FILE}} -v --tb=long"
