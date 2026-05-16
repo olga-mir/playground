@@ -7,6 +7,9 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 CROSSPLANE_VERSION="v2.2.0"
 KIND_CLUSTER_CONTEXT="kind-${KIND_TEST_CLUSTER_NAME}"
 
+# timeout(1) is GNU coreutils; macOS ships without it (gtimeout via brew install coreutils).
+TIMEOUT_CMD=$(command -v timeout || command -v gtimeout || true)
+
 # echo "Setting up GCP infrastructure (VPC and subnets)..."
 # "${REPO_ROOT}/scripts/setup-gcp-once.sh"
 
@@ -69,7 +72,7 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic flux-system \
 
 echo "Installing Flux Operator via Helm..."
 # timeout(1) covers the OCI chart download phase; helm's --timeout only covers the k8s --wait phase.
-timeout 360 helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.48.0 \
+${TIMEOUT_CMD:+$TIMEOUT_CMD 360} helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.48.0 \
     --namespace flux-system \
     --kube-context "${KIND_CLUSTER_CONTEXT}" \
     --wait \
