@@ -1,0 +1,129 @@
+name: Release
+
+run-name: "Release ${{ inputs.version }}"
+
+# Manually triggered. GKE infra must already be running.
+# kind tests are excluded; kind cluster is not expected to be present.
+# Produces an attested JUnit XML attached to the GitHub release as an
+# immutable record of platform state at the time of tagging.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.2.3)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
+      skip_chaos:
+        description: 'Skip LitmusChaos experiments (destructive — skip unless explicitly testing chaos resilience)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write      # create tag + release + upload assets
+  id-token: write      # Workload Identity Federation + attestation signing
+  attestations: write  # actions/attest-build-provenance
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: E2E Tests (GKE only)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          project_id: ${{ secrets.PROJECT_ID }}
+
+      - name: Mask project ID
+        run: echo "::add-mask::${{ secrets.PROJECT_ID }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install e2e dependencies
+        run: pip install -r tests/e2e/requirements.txt
+
+      - name: Run e2e tests (GKE clusters, kind excluded)
+        env:
+          # Ensures gcloud subprocess calls from conftest inherit the project.
+          CLOUDSDK_CORE_PROJECT: ${{ secrets.PROJECT_ID }}
+        run: |
+          MARKS="not kind"
+          if [ "${{ inputs.skip_chaos }}" = "true" ]; then
+            MARKS="$MARKS and not slow"
+          fi
+          mkdir -p release-artifacts
+          pytest tests/e2e \
+            -v --tb=short \
+            -m "$MARKS" \
+            --junit-xml=release-artifacts/junit.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ inputs.version }}
+          path: release-artifacts/
+          retention-days: 90
+
+  release:
+    name: Create Release
+    needs: e2e
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-results-${{ inputs.version }}
+          path: release-artifacts/
+
+      # SLSA L2 provenance stored in GitHub's attestation store.
+      # Verify post-release with:
+      #   gh attestation verify release-artifacts/junit.xml --repo <owner>/<repo>
+      - name: Attest test results (SLSA L2)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release-artifacts/junit.xml
+
+      - name: Create and push tag
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
+          git push origin "${{ inputs.version }}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "${{ inputs.prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+          gh release create "${{ inputs.version }}" \
+            --title "Release ${{ inputs.version }}" \
+            --generate-notes \
+            $PRERELEASE_FLAG \
+            "release-artifacts/junit.xml#E2E test results (JUnit XML)"
