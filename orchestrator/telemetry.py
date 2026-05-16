@@ -82,10 +82,12 @@ def setup_otel(project_id: str | None = None) -> tuple[bool, str]:
         # (instead of generic_node with empty node_id). This surfaces service.name correctly
         # in Cloud Trace and gives each run its own time series so rapid restarts don't
         # produce "points written too frequently" errors.
+        # Include a startup timestamp so OS PID reuse across days doesn't collide.
+        import time as _time
         resource = Resource.create({
             "service.name": SERVICE_NAME,
             "service.namespace": "playground",
-            "service.instance.id": f"{socket.gethostname()}-{os.getpid()}",
+            "service.instance.id": f"{socket.gethostname()}-{os.getpid()}-{int(_time.time())}",
             "gcp.project_id": project_id,
         })
 
