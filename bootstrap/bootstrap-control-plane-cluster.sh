@@ -72,7 +72,7 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic flux-system \
 
 echo "Installing Flux Operator via Helm..."
 # timeout(1) covers the OCI chart download phase; helm's --timeout only covers the k8s --wait phase.
-${TIMEOUT_CMD:+$TIMEOUT_CMD 360} helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.48.0 \
+${TIMEOUT_CMD:+"$TIMEOUT_CMD" 360} helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.48.0 \
     --namespace flux-system \
     --kube-context "${KIND_CLUSTER_CONTEXT}" \
     --wait \
