@@ -2,6 +2,7 @@ name: Flux Bootstrap GKE Clusters
 
 # Requires repository secrets: PROJECT_ID, GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY
 # GH_FLUX_PAT is stored in Google Secret Manager (secret: gh-flux-pat) — not as a GHA secret.
+# KAGENT_ANTHROPIC_API_KEY is stored in Google Secret Manager (secret: kagent-anthropic-api-key) — apps-dev only.
 # Installs Flux Operator via Helm, then applies FluxInstance CRD which manages Flux components in-cluster.
 # GitHub App credentials are placed in the flux-system secret; FluxInstance references them via spec.sync.provider: github.
 # See docs/flux-gitops.md for full details.
@@ -188,6 +189,19 @@ jobs:
         kubectl create secret generic github-webhook-token \
           -n flux-system \
           --from-literal=token="${GH_FLUX_PAT}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create kagent-anthropic secret for kagent model provider (apps-dev only)
+      if: steps.cluster-info.outputs.cluster == 'apps-dev'
+      run: |
+        # kagent agents use this secret as their Anthropic API key via the default-model-config.
+        # Stored in GSM so it is never silently empty and not exposed as a GHA secret.
+        KAGENT_ANTHROPIC_API_KEY=$(gcloud secrets versions access latest \
+          --secret="kagent-anthropic-api-key" \
+          --project="${{ steps.cluster-info.outputs.projectID }}")
+        kubectl create secret generic kagent-anthropic \
+          -n kagent-system \
+          --from-literal=KAGENT_ANTHROPIC_API_KEY="${KAGENT_ANTHROPIC_API_KEY}" \
           --dry-run=client -o yaml | kubectl apply -f -
 
     - name: Setup Flux CLI
