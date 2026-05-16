@@ -18,6 +18,7 @@ from conftest import (
     core_v1,
     apps_v1,
     wait_for_condition,
+    wait_for_deployment_ready,
     assert_resource_ready,
     get_resource,
     port_forward,
@@ -48,6 +49,7 @@ def test_kagent_helmrelease_ready(ctx_apps_dev):
         ctx_apps_dev,
         "helm.toolkit.fluxcd.io", "v2", "helmreleases",
         KAGENT_NAMESPACE, "kagent",
+        timeout=900,  # HelmRelease install.timeout is 15m
     )
 
 
@@ -74,7 +76,7 @@ def test_kagent_model_config_exists(ctx_apps_dev):
     obj = get_resource(
         ctx_apps_dev,
         "kagent.dev", "v1alpha2",
-        KAGENT_NAMESPACE, "modelconfigs",
+        "modelconfigs", KAGENT_NAMESPACE,
         "claude-model-config",
     )
     assert obj["spec"]["provider"] == "Anthropic"
@@ -85,13 +87,7 @@ def test_kagent_model_config_exists(ctx_apps_dev):
 @pytest.mark.kagent
 def test_mcp_website_fetcher_pod_running(ctx_apps_dev):
     """Tutorial MCP tool server must be Running."""
-    v1 = core_v1(ctx_apps_dev)
-    pods = v1.list_namespaced_pod(
-        "kagent",
-        label_selector="app=mcp-website-fetcher",
-    )
-    running = [p for p in pods.items if p.status.phase == "Running"]
-    assert running, "mcp-website-fetcher pod not Running in kagent namespace"
+    wait_for_deployment_ready(ctx_apps_dev, "kagent", "mcp-website-fetcher")
 
 
 @pytest.mark.apps_dev
@@ -101,7 +97,7 @@ def test_mcp_toolserver_resource_exists(ctx_apps_dev):
     obj = get_resource(
         ctx_apps_dev,
         "kagent.dev", "v1alpha1",
-        "kagent", "toolservers",
+        "toolservers", "kagent",
         "mcp-toolserver",
     )
     assert obj["spec"]["config"]["sse"]["url"], "ToolServer has no SSE URL"

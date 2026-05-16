@@ -3,6 +3,8 @@ version: "3"
 vars:
   E2E_DIR: tests/e2e
   VENV: tests/e2e/.venv
+  RESULTS_DIR: release-artifacts
+  JUNIT_XML: "{{.RESULTS_DIR}}/junit.xml"
 
 tasks:
   setup:
@@ -17,7 +19,8 @@ tasks:
     desc: "Run full e2e suite against all available clusters (skips unavailable clusters)"
     deps: [setup]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short"
+      - mkdir -p {{.RESULTS_DIR}}
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short --junit-xml={{.JUNIT_XML}}"
 
   cluster:
     desc: "Run e2e tests for one cluster (CLUSTER=kind|control_plane|apps_dev)"
@@ -25,31 +28,36 @@ tasks:
     vars:
       CLUSTER: '{{default "apps_dev" .CLUSTER}}'
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m {{.CLUSTER}}"
+      - mkdir -p {{.RESULTS_DIR}}
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m {{.CLUSTER}} --junit-xml={{.JUNIT_XML}}"
 
   flux:
     desc: "Run Flux health checks only (all clusters)"
     deps: [setup]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m flux"
+      - mkdir -p {{.RESULTS_DIR}}
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m flux --junit-xml={{.JUNIT_XML}}"
 
   kagent:
     desc: "Run kagent functional tests"
     deps: [setup]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_kagent.py -v --tb=short"
+      - mkdir -p {{.RESULTS_DIR}}
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_kagent.py -v --tb=short --junit-xml={{.JUNIT_XML}}"
 
   litmus:
     desc: "Run LitmusChaos experiment tests (slow — runs a real chaos experiment)"
     deps: [setup]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_litmus.py -v --tb=short"
+      - mkdir -p {{.RESULTS_DIR}}
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_litmus.py -v --tb=short --junit-xml={{.JUNIT_XML}}"
 
   fast:
     desc: "Run all tests except slow chaos experiments"
     deps: [setup]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m 'not slow'"
+      - mkdir -p {{.RESULTS_DIR}}
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m 'not slow' --junit-xml={{.JUNIT_XML}}"
 
   file:
     desc: "Run a specific test file (FILE=test_flux.py)"
@@ -57,4 +65,5 @@ tasks:
     vars:
       FILE: '{{default "test_fleet.py" .FILE}}'
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/{{.FILE}} -v --tb=long"
+      - mkdir -p {{.RESULTS_DIR}}
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/{{.FILE}} -v --tb=long --junit-xml={{.JUNIT_XML}}"
