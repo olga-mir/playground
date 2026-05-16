@@ -1,3 +1,5 @@
+[![Flux Bootstrap GKE Clusters](https://github.com/olga-mir/playground/actions/workflows/flux-bootstrap.yml/badge.svg)](https://github.com/olga-mir/playground/actions/workflows/flux-bootstrap.yml)
+
 # Playground
 
 A monorepo showcasing modern cloud-native and AI-powered workflows. Built on **Crossplane v2** for platform API abstractions and **FluxCD** for GitOps automation. Serves as a playground for exploring the intersection of infrastructure-as-code, AI agents, and Kubernetes-native tooling.
