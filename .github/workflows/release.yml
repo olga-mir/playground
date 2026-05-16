@@ -34,53 +34,12 @@ concurrency:
 
 jobs:
   e2e:
-    name: E2E Tests (GKE only)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-          project_id: ${{ secrets.PROJECT_ID }}
-
-      - name: Mask project ID
-        run: echo "::add-mask::${{ secrets.PROJECT_ID }}"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install e2e dependencies
-        run: pip install -r tests/e2e/requirements.txt
-
-      - name: Run e2e tests (GKE clusters, kind excluded)
-        env:
-          # Ensures gcloud subprocess calls from conftest inherit the project.
-          CLOUDSDK_CORE_PROJECT: ${{ secrets.PROJECT_ID }}
-        run: |
-          MARKS="not kind"
-          if [ "${{ inputs.skip_chaos }}" = "true" ]; then
-            MARKS="$MARKS and not slow"
-          fi
-          mkdir -p release-artifacts
-          pytest tests/e2e \
-            -v --tb=short \
-            -m "$MARKS" \
-            --junit-xml=release-artifacts/junit.xml
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-results-${{ inputs.version }}
-          path: release-artifacts/
-          retention-days: 90
+    name: E2E Tests
+    uses: ./.github/workflows/e2e.yml
+    with:
+      version: ${{ inputs.version }}
+      skip_chaos: ${{ inputs.skip_chaos }}
+    secrets: inherit
 
   release:
     name: Create Release
