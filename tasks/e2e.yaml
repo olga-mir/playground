@@ -3,8 +3,14 @@ version: "3"
 vars:
   E2E_DIR: tests/e2e
   VENV: tests/e2e/.venv
+  RESULTS_DIR: release-artifacts
 
 tasks:
+  dirs:
+    internal: true
+    cmds:
+      - mkdir -p {{.RESULTS_DIR}}
+
   setup:
     desc: "Create virtualenv and install e2e test dependencies"
     cmds:
@@ -15,46 +21,46 @@ tasks:
 
   all:
     desc: "Run full e2e suite against all available clusters (skips unavailable clusters)"
-    deps: [setup]
+    deps: [setup, dirs]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short"
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short --junit-xml={{.RESULTS_DIR}}/junit-all.xml"
 
   cluster:
     desc: "Run e2e tests for one cluster (CLUSTER=kind|control_plane|apps_dev)"
-    deps: [setup]
+    deps: [setup, dirs]
     vars:
       CLUSTER: '{{default "apps_dev" .CLUSTER}}'
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m {{.CLUSTER}}"
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m {{.CLUSTER}} --junit-xml={{.RESULTS_DIR}}/junit-{{.CLUSTER}}.xml"
 
   flux:
     desc: "Run Flux health checks only (all clusters)"
-    deps: [setup]
+    deps: [setup, dirs]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m flux"
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m flux --junit-xml={{.RESULTS_DIR}}/junit-flux.xml"
 
   kagent:
     desc: "Run kagent functional tests"
-    deps: [setup]
+    deps: [setup, dirs]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_kagent.py -v --tb=short"
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_kagent.py -v --tb=short --junit-xml={{.RESULTS_DIR}}/junit-kagent.xml"
 
   litmus:
     desc: "Run LitmusChaos experiment tests (slow — runs a real chaos experiment)"
-    deps: [setup]
+    deps: [setup, dirs]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_litmus.py -v --tb=short"
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/test_litmus.py -v --tb=short --junit-xml={{.RESULTS_DIR}}/junit-litmus.xml"
 
   fast:
     desc: "Run all tests except slow chaos experiments"
-    deps: [setup]
+    deps: [setup, dirs]
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m 'not slow'"
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}} -v --tb=short -m 'not slow' --junit-xml={{.RESULTS_DIR}}/junit-fast.xml"
 
   file:
     desc: "Run a specific test file (FILE=test_flux.py)"
-    deps: [setup]
+    deps: [setup, dirs]
     vars:
       FILE: '{{default "test_fleet.py" .FILE}}'
     cmds:
-      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/{{.FILE}} -v --tb=long"
+      - "{{.VENV}}/bin/pytest {{.E2E_DIR}}/{{.FILE}} -v --tb=long --junit-xml={{.RESULTS_DIR}}/junit-{{.FILE}}.xml"

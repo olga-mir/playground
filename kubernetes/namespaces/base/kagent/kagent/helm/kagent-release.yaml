@@ -28,5 +28,9 @@ spec:
       retries: 3
   values:
     providers:
-      # No default provider - agents will use their own ModelConfig
-      default: ""
+      default: "anthropic"
+      anthropic:
+        apiKeySecretRef: "kagent-anthropic"
+        apiKeySecretKey: "KAGENT_ANTHROPIC_API_KEY"
+        model: "claude-sonnet-4-6"
+        provider: "Anthropic"

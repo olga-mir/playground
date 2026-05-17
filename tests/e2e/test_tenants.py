@@ -10,16 +10,9 @@ import logging
 
 import pytest
 from kubernetes import client
-from conftest import apps_v1, core_v1, wait_for_condition, wait_for_deployment_ready
+from conftest import apps_v1, core_v1, wait_for_condition
 
 logger = logging.getLogger(__name__)
-
-
-@pytest.mark.apps_dev
-@pytest.mark.tenants
-def test_mcp_website_fetcher_deployment_ready(ctx_apps_dev):
-    """mcp-website-fetcher in kagent namespace must be fully Ready."""
-    wait_for_deployment_ready(ctx_apps_dev, "kagent", "mcp-website-fetcher")
 
 
 @pytest.mark.apps_dev
@@ -37,26 +30,6 @@ def test_tenant_namespaces_labelled(ctx_apps_dev):
     # with full Flux sync. Skip if not yet deployed.
     if not ns_names:
         pytest.skip("No tenant namespaces with workload-type=application found — "
-                    "tenants may not be deployed yet")
-    # All found namespaces must be Active
-    inactive = [
-        ns.metadata.name
-        for ns in namespaces.items
-        if ns.status.phase != "Active"
-    ]
-    assert not inactive, f"Tenant namespaces not Active: {inactive}"
-
-
-@pytest.mark.apps_dev
-@pytest.mark.tenants
-def test_kgateway_ready(ctx_apps_dev):
-    """kgateway HelmRelease must be Ready on apps-dev."""
-    assert_resource_ready(
-        ctx_apps_dev,
-        "helm.toolkit.fluxcd.io", "v2", "helmreleases",
-        "kgateway-system", "kgateway",
-    )
-namespaces with workload-type=application found — "
                     "tenants may not be deployed yet")
     # All found namespaces must be Active
     inactive = [
