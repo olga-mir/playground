@@ -19,6 +19,16 @@ from kubernetes import client, config as k8s_config
 
 logger = logging.getLogger(__name__)
 
+
+def _display_name(ctx: str) -> str:
+    """Strip GKE project/region from context names before logging."""
+    if ctx.startswith("gke_"):
+        parts = ctx.split("_", 3)
+        if len(parts) == 4:
+            return parts[3]
+    return ctx
+
+
 # ── context discovery ─────────────────────────────────────────────────────────
 
 def _all_contexts() -> list[str]:
@@ -56,7 +66,7 @@ def _fetch_credentials(cluster_name: str) -> bool:
                 if len(parts) >= 3:
                     name, zone, project = parts[0], parts[1], parts[2]
                     if name == cluster_name or name.endswith(f"-{cluster_name}"):
-                        logger.info(f"Found cluster {name} in {zone} ({project}). Fetching credentials...")
+                        logger.info(f"Found cluster {name} in {zone}. Fetching credentials...")
                         subprocess.run([
                             "gcloud", "container", "clusters", "get-credentials",
                             name, "--zone", zone, "--project", project
@@ -159,7 +169,7 @@ def wait_for_nodes_ready(
     deadline = time.monotonic() + timeout
     start_time = time.monotonic()
 
-    logger.info(f"Waiting for all nodes in {ctx} to be Ready (timeout {timeout}s)...")
+    logger.info(f"Waiting for all nodes in {_display_name(ctx)} to be Ready (timeout {timeout}s)...")
 
     while time.monotonic() < deadline:
         try:
