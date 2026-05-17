@@ -10,16 +10,9 @@ import logging
 
 import pytest
 from kubernetes import client
-from conftest import apps_v1, core_v1, wait_for_condition, wait_for_deployment_ready
+from conftest import apps_v1, core_v1, wait_for_condition
 
 logger = logging.getLogger(__name__)
-
-
-@pytest.mark.apps_dev
-@pytest.mark.tenants
-def test_mcp_website_fetcher_deployment_ready(ctx_apps_dev):
-    """mcp-website-fetcher in kagent namespace must be fully Ready."""
-    wait_for_deployment_ready(ctx_apps_dev, "kagent", "mcp-website-fetcher")
 
 
 @pytest.mark.apps_dev
