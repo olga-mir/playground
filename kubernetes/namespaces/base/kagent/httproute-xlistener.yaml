@@ -1,6 +1,6 @@
 ---
-apiVersion: gateway.networking.x-k8s.io/v1alpha1
-kind: XListenerSet
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
 metadata:
   name: mcp-website-fetcher
   namespace: kagent
@@ -25,8 +25,8 @@ metadata:
   namespace: kagent
 spec:
   parentRefs:
-  - kind: XListenerSet
-    group: gateway.networking.x-k8s.io
+  - kind: ListenerSet
+    group: gateway.networking.k8s.io
     name: mcp-website-fetcher
     namespace: kagent
     sectionName: mcp

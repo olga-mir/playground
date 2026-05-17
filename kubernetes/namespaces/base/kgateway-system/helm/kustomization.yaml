@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - ../namespace.yaml  # Ensure namespace exists first
+  - gateway-api-listenerset-crd.yaml
   - kgateway-helm-repo.yaml
   - kgateway-crds-release.yaml
   - kgateway-release.yaml
