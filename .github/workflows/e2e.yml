@@ -46,6 +46,50 @@ jobs:
       - name: Mask project ID
         run: echo "::add-mask::${{ secrets.PROJECT_ID }}"
 
+      # GKE infra is expected to be running; discover each cluster's location
+      # (zonal or regional) and write its kubeconfig context so pytest finds
+      # them via `kubectl config get-contexts`. Without this, conftest.py's
+      # lazy fetch silently fails on the runner (no gke-gcloud-auth-plugin)
+      # and every GKE test gets skipped.
+      - name: Discover GKE cluster locations
+        id: discover
+        env:
+          CLOUDSDK_CORE_PROJECT: ${{ secrets.PROJECT_ID }}
+        run: |
+          set -euo pipefail
+
+          control_plane_location=$(gcloud container clusters list \
+            --filter='name=control-plane' \
+            --format='value(location)' | head -n1)
+          apps_dev_location=$(gcloud container clusters list \
+            --filter='name=apps-dev' \
+            --format='value(location)' | head -n1)
+
+          if [ -z "$control_plane_location" ] && [ -z "$apps_dev_location" ]; then
+            echo "::error::No control-plane or apps-dev GKE clusters found in project. E2E requires running infrastructure."
+            exit 1
+          fi
+
+          echo "control_plane_location=$control_plane_location" >> "$GITHUB_OUTPUT"
+          echo "apps_dev_location=$apps_dev_location" >> "$GITHUB_OUTPUT"
+
+          echo "control-plane location: ${control_plane_location:-<not found, GKE tests for it will skip>}"
+          echo "apps-dev location: ${apps_dev_location:-<not found, GKE tests for it will skip>}"
+
+      - name: Fetch control-plane kubeconfig
+        if: steps.discover.outputs.control_plane_location != ''
+        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395 # v3.0.0
+        with:
+          cluster_name: control-plane
+          location: ${{ steps.discover.outputs.control_plane_location }}
+
+      - name: Fetch apps-dev kubeconfig
+        if: steps.discover.outputs.apps_dev_location != ''
+        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395 # v3.0.0
+        with:
+          cluster_name: apps-dev
+          location: ${{ steps.discover.outputs.apps_dev_location }}
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
