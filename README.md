@@ -1,3 +1,4 @@
+[![E2E Tests](https://github.com/olga-mir/playground/actions/workflows/e2e.yml/badge.svg)](https://github.com/olga-mir/playground/actions/workflows/e2e.yml)
 [![Flux Bootstrap GKE Clusters](https://github.com/olga-mir/playground/actions/workflows/flux-bootstrap.yml/badge.svg)](https://github.com/olga-mir/playground/actions/workflows/flux-bootstrap.yml)
 
 # Playground
