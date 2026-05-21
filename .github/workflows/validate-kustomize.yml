@@ -2,7 +2,7 @@ name: Validate Kustomize Builds
 
 on:
   push:
-    branches: [main]
+    branches: [never]
     paths:
       - 'kubernetes/**/*.yaml'
       - 'kubernetes/**/*.yml'

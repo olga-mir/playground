@@ -43,10 +43,10 @@ commandRegex = "^git (add|commit|push|pull|rebase|checkout|mv|rm)(\\s|$)"
 decision = "allow"
 priority = 500
 
-# Allow read-only kubectl commands
+# Allow read-only and management kubectl commands
 [[rule]]
 toolName = "run_shell_command"
-commandRegex = "^kubectl (get|logs|describe|api-resources|api-versions|config (get-contexts|current-context))(\\s|$)"
+commandRegex = "^kubectl (get|logs|describe|annotate|api-resources|api-versions|config (get-contexts|current-context|get-credentials))(\\s|$)"
 decision = "allow"
 priority = 500
 
@@ -67,9 +67,20 @@ priority = 500
 # Allow gcloud informational and update commands (as used today)
 [[rule]]
 toolName = "run_shell_command"
-commandRegex = "^gcloud (container clusters (list|update)|config list)"
+commandRegex = "^gcloud (container clusters (list|update|get-credentials)|config list)"
 decision = "allow"
 priority = 500
+
+# --- File Editing ---
+[[rule]]
+toolName = "replace"
+decision = "allow"
+priority = 400
+
+[[rule]]
+toolName = "write_file"
+decision = "allow"
+priority = 400
 
 # Allow Helm informational commands
 [[rule]]

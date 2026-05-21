@@ -57,11 +57,11 @@ def test_gkecluster_control_plane_ready(ctx_kind):
     # We expect exactly one XR in this namespace
     wait_for_condition(
         ctx_kind, XRD_GROUP, XRD_VERSION, XRD_PLURAL,
-        "control-plane", "control-plane", condition_type="Ready"
+        "control-plane", "control-plane-cluster", condition_type="Ready"
     )
     wait_for_condition(
         ctx_kind, XRD_GROUP, XRD_VERSION, XRD_PLURAL,
-        "control-plane", "control-plane", condition_type="Synced"
+        "control-plane", "control-plane-cluster", condition_type="Synced"
     )
 
 
@@ -71,11 +71,11 @@ def test_gkecluster_apps_dev_ready(ctx_control_plane):
     """apps-dev GKECluster XR must be Synced+Ready on control-plane."""
     wait_for_condition(
         ctx_control_plane, XRD_GROUP, XRD_VERSION, XRD_PLURAL,
-        "apps-dev", "apps-dev", condition_type="Ready"
+        "apps-dev", "apps-dev-cluster", condition_type="Ready"
     )
     wait_for_condition(
         ctx_control_plane, XRD_GROUP, XRD_VERSION, XRD_PLURAL,
-        "apps-dev", "apps-dev", condition_type="Synced"
+        "apps-dev", "apps-dev-cluster", condition_type="Synced"
     )
 
 

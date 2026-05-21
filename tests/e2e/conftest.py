@@ -415,6 +415,45 @@ def wait_for_cluster_condition(
     )
 
 
+def wait_for_deletion(
+    ctx: str,
+    group: str,
+    version: str,
+    plural: str,
+    namespace: str,
+    name: str,
+    timeout: int = 180,
+) -> None:
+    """
+    Poll a namespaced custom resource until it is deleted (404).
+    """
+    co = custom_objects(ctx)
+    deadline = time.monotonic() + timeout
+    start_time = time.monotonic()
+
+    logger.info(f"Waiting for deletion of {plural}/{namespace}/{name} (timeout {timeout}s)...")
+
+    while time.monotonic() < deadline:
+        try:
+            co.get_namespaced_custom_object(group, version, namespace, plural, name)
+            # Resource still exists
+            elapsed = int(time.monotonic() - start_time)
+            if elapsed % 10 == 0:
+                 logger.info(f"Still waiting for deletion of {plural}/{name} ({elapsed}s elapsed).")
+        except client.exceptions.ApiException as exc:
+            if exc.status == 404:
+                elapsed = int(time.monotonic() - start_time)
+                logger.info(f"OK: {plural}/{namespace}/{name} deleted after {elapsed}s")
+                return
+            raise
+
+        time.sleep(1)
+
+    raise TimeoutError(
+        f"{plural}/{namespace}/{name} was not deleted within {timeout}s"
+    )
+
+
 def all_flux_resources_ready(ctx: str, cluster_label: str) -> list[str]:
     """
     Check all Flux resource types across all namespaces.

@@ -16,7 +16,7 @@ import time
 
 import pytest
 from kubernetes import client
-from conftest import custom_objects, wait_for_condition, get_resource
+from conftest import custom_objects, wait_for_condition, get_resource, wait_for_deletion
 
 logger = logging.getLogger(__name__)
 
