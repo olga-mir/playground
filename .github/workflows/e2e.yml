@@ -43,6 +43,15 @@ jobs:
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
           project_id: ${{ secrets.PROJECT_ID }}
 
+      - name: Install GKE auth plugin
+        run: |
+          # Use apt to install the plugin as it is the most reliable way on Ubuntu runners
+          sudo apt-get update -y && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+          # Configure gcloud to use the plugin
+          gcloud config set sdk/install_base_prefix /usr/lib/google-cloud-sdk
+          export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+          echo "USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> $GITHUB_ENV
+
       - name: Mask project ID
         run: echo "::add-mask::${{ secrets.PROJECT_ID }}"
 
@@ -89,6 +98,17 @@ jobs:
         with:
           cluster_name: apps-dev
           location: ${{ steps.discover.outputs.apps_dev_location }}
+
+      - name: Verify cluster connectivity
+        run: |
+          echo "Checking connectivity to control-plane..."
+          if [ "${{ steps.discover.outputs.control_plane_location }}" != "" ]; then
+            kubectl --context="gke_${{ secrets.PROJECT_ID }}_${{ steps.discover.outputs.control_plane_location }}_control-plane" cluster-info || echo "::warning::Failed to connect to control-plane"
+          fi
+          echo "Checking connectivity to apps-dev..."
+          if [ "${{ steps.discover.outputs.apps_dev_location }}" != "" ]; then
+            kubectl --context="gke_${{ secrets.PROJECT_ID }}_${{ steps.discover.outputs.apps_dev_location }}_apps-dev" cluster-info || echo "::warning::Failed to connect to apps-dev"
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5

@@ -13,11 +13,14 @@ import subprocess
 import time
 import contextlib
 import socket
+import os
 
 import pytest
 from kubernetes import client, config as k8s_config
 
 logger = logging.getLogger(__name__)
+
+IS_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 
 def _display_name(ctx: str) -> str:
@@ -49,6 +52,11 @@ def _find_context(suffix: str) -> str | None:
 
 def _fetch_credentials(cluster_name: str) -> bool:
     """Try to fetch credentials for a GKE cluster using gcloud."""
+    if IS_GITHUB_ACTIONS:
+        logger.warning(f"Lazy-fetching credentials for {cluster_name} is disabled in CI. "
+                       f"The context must be provided by the GitHub Action workflow.")
+        return False
+
     if subprocess.run(["which", "gcloud"], capture_output=True).returncode != 0:
         return False
 
@@ -352,6 +360,10 @@ def wait_for_condition(
                  logger.info(f"Still waiting for {plural}/{name} ({elapsed}s elapsed). Status: {condition_type}=False. Message: {last_msg}")
 
         except client.exceptions.ApiException as exc:
+            if exc.status == 401:
+                logger.error(f"Unauthorized (401) while accessing {plural}/{name} in {ctx}. "
+                             f"This usually means the GKE authentication token is invalid or expired.")
+                raise
             if exc.status != 404:
                 raise
             last_msg = "Resource not found"
@@ -399,6 +411,10 @@ def wait_for_cluster_condition(
                  logger.info(f"Still waiting for {plural}/{name} ({elapsed}s elapsed). Status: {condition_type}=False. Message: {last_msg}")
 
         except client.exceptions.ApiException as exc:
+            if exc.status == 401:
+                logger.error(f"Unauthorized (401) while accessing {plural}/{name} in {ctx}. "
+                             f"This usually means the GKE authentication token is invalid or expired.")
+                raise
             if exc.status != 404:
                 raise
             last_msg = "Resource not found"
