@@ -99,31 +99,6 @@ def _context_reachable(ctx: str) -> bool:
     return result.returncode == 0
 
 
-def wait_for_deletion(
-    ctx: str,
-    group: str,
-    version: str,
-    plural: str,
-    namespace: str,
-    name: str,
-    timeout: int = 60,
-) -> None:
-    """Poll until a custom resource returns 404 (Not Found)."""
-    co = custom_objects(ctx)
-    deadline = time.monotonic() + timeout
-    logger.info(f"Waiting for deletion of {plural}/{namespace}/{name} (timeout {timeout}s)...")
-    while time.monotonic() < deadline:
-        try:
-            co.get_namespaced_custom_object(group, version, namespace, plural, name)
-        except client.exceptions.ApiException as exc:
-            if exc.status == 404:
-                logger.info(f"OK: {plural}/{namespace}/{name} deleted")
-                return
-            raise
-        time.sleep(1)
-    raise TimeoutError(f"{plural}/{namespace}/{name} was not deleted within {timeout}s")
-
-
 def wait_for_deployment_ready(
     ctx: str,
     namespace: str,
@@ -158,6 +133,27 @@ def wait_for_deployment_ready(
         time.sleep(1)
 
     raise TimeoutError(f"Deployment {namespace}/{name} did not become ready within {timeout}s")
+
+
+def wait_for_namespace(
+    ctx: str,
+    name: str,
+    timeout: int = 60,
+) -> None:
+    """Poll until a namespace exists."""
+    v1 = core_v1(ctx)
+    deadline = time.monotonic() + timeout
+    logger.info(f"Waiting for namespace {name} in {_display_name(ctx)} (timeout {timeout}s)...")
+    while time.monotonic() < deadline:
+        try:
+            v1.read_namespace(name)
+            logger.info(f"OK: namespace {name} found")
+            return
+        except client.exceptions.ApiException as exc:
+            if exc.status != 404:
+                raise
+        time.sleep(2)
+    raise TimeoutError(f"Namespace {name} not found within {timeout}s")
 
 
 def wait_for_nodes_ready(
