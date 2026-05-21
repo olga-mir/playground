@@ -46,6 +46,7 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create configmap platform-config \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
 
 echo "Creating platform secrets for Flux substituteFrom..."
+set +x
 export BASE64_ENCODED_GCP_CREDS=$(base64 -w 0 < "${CROSSPLANE_GSA_KEY_FILE}")
 kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic platform-secrets \
     --namespace flux-system \
@@ -59,16 +60,19 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic github-webhook
     --from-literal=token="${GITHUB_FLUX_PLAYGROUND_PAT}" \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
 unset BASE64_ENCODED_GCP_CREDS
+set -x
 
 echo "Creating flux-system secret with GitHub App credentials..."
 # The FluxInstance references this secret via spec.sync.pullSecret and spec.sync.provider: github.
 # The Flux Operator never overwrites this secret, so GitHub App credentials persist across reconciliations.
+set +x
 kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic flux-system \
     --namespace flux-system \
     --from-literal=githubAppID="${GITHUB_APP_ID}" \
     --from-literal=githubAppInstallationID="${GITHUB_APP_INSTALLATION_ID}" \
     --from-file=githubAppPrivateKey="${GITHUB_APP_PRIVATE_KEY_FILE}" \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+set -x
 
 echo "Installing Flux Operator via Helm..."
 # timeout(1) covers the OCI chart download phase; helm's --timeout only covers the k8s --wait phase.
@@ -100,21 +104,25 @@ kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=Ready kustomiza
 kubectl --context "${KIND_CLUSTER_CONTEXT}" create namespace crossplane-system --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
 
 echo "Creating GCP credentials secret..."
+set +x
 kubectl --context "${KIND_CLUSTER_CONTEXT}" create secret generic gcp-creds \
     --namespace crossplane-system \
     --from-file=credentials="${CROSSPLANE_GSA_KEY_FILE}" \
     --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+set -x
 
 # Crossplane v2 namespace-scoped ProviderConfigs can only read secrets from their own namespace.
 # Copy gcp-creds to XR namespaces NOW, before any Flux kustomization waits, to avoid the race
 # where Flux's clusters kustomization applies the ProviderConfig before the secret exists.
 echo "Pre-creating XR namespaces and copying gcp-creds..."
 kubectl --context "${KIND_CLUSTER_CONTEXT}" create namespace "control-plane" --dry-run=client -o yaml | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -f -
+set +x
 secret_json=$(kubectl --context "${KIND_CLUSTER_CONTEXT}" get secret gcp-creds -n crossplane-system -o json \
     | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)')
 for ns in control-plane; do
     echo "${secret_json}" | kubectl --context "${KIND_CLUSTER_CONTEXT}" apply -n "${ns}" -f -
 done
+set -x
 
 echo "Waiting for Flux to sync all resources..."
 flux get all -A

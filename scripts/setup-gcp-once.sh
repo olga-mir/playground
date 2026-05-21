@@ -172,3 +172,17 @@ gcloud secrets add-iam-policy-binding gh-flux-pat \
   --project="${PROJECT_ID}" \
   --member="serviceAccount:${WIF_SERVICE_ACCOUNT}" \
   --role="roles/secretmanager.secretAccessor"
+
+#
+# kagent secret setup (Anthropic API key for agents on apps-dev)
+#
+
+if ! gcloud secrets describe kagent-anthropic-api-key --project="${PROJECT_ID}" &>/dev/null; then
+  gcloud secrets create kagent-anthropic-api-key \
+    --project="${PROJECT_ID}" --replication-policy=automatic
+fi
+
+gcloud secrets add-iam-policy-binding kagent-anthropic-api-key \
+  --project="${PROJECT_ID}" \
+  --member="serviceAccount:${WIF_SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
