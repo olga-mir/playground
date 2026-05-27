@@ -10,7 +10,22 @@ The current `orchestrator/main.py` is a highly pragmatic but fragile "vibecoded"
 3.  **Unstructured Reasoning**: Agents are given massive text dumps (raw `kubectl` output) and expected to return valid JSON. There is no schema validation or structured reasoning.
 4.  **Regex-driven State**: "Known errors" (Catch-22s like `provider:github` missing) are caught using brittle regex parsing over the LLM's output.
 
-## 2. Tech Stack Choice
+## 2. The New Architecture
+
+```text
+[ Orchestrator (DSPy + Pi) ]
+          │
+          ▼
+[ LiteLLM (Python Library) ]  <-- The Universal Translator
+          │
+    ┌─────┼─────────────────────┐
+    │     │                     │
+    ▼     ▼                     ▼
+[ DGX ] [ OpenRouter ] [ Vertex AI / GCP ]
+(vLLM)  (Aggregator)   (Direct Enterprise)
+```
+
+## 3. Tech Stack Choice
 
 To build a robust, multi-model, structured orchestrator, we will adopt the following stack:
 

@@ -10,7 +10,24 @@ But it *worked*. Until we got access to a DGX Spark.
 
 Suddenly, we had massive local compute capable of running Llama-3 70B or Mixtral, but our architecture was hardcoded to an Anthropic CLI wrapper. Furthermore, we wanted to experiment with OpenRouter's vast model marketplace and Vertex AI's enterprise endpoints. 
 
-We realized we needed to evolve our orchestrator from a "prompted script" into a **Programmed Agentic Framework**. Here is how we rebuilt our entire orchestrator using DSPy, LiteLLM, Pi, and Pydantic.
+We realized we needed to evolve our orchestrator from a "prompted script" into a **Programmed Agentic Framework**.
+
+### The New Architecture
+
+```text
+[ Orchestrator (DSPy + Pi) ]
+          │
+          ▼
+[ LiteLLM (Python Library) ]  <-- The Universal Translator
+          │
+    ┌─────┼─────────────────────┐
+    │     │                     │
+    ▼     ▼                     ▼
+[ DGX ] [ OpenRouter ] [ Vertex AI / GCP ]
+(vLLM)  (Aggregator)   (Direct Enterprise)
+```
+
+Here is how we rebuilt our entire orchestrator using DSPy, LiteLLM, Pi, and Pydantic.
 
 ### The New Nervous System: LiteLLM
 
