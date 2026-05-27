@@ -4,9 +4,6 @@ includes:
   setup:
     taskfile: ./tasks/setup.yaml
     dir: .
-  agentic:
-    taskfile: ./tasks/agentic.yaml
-    dir: .
   debug:
     taskfile: ./tasks/test-and-debug.yaml
     dir: .
