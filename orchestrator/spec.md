@@ -50,8 +50,3 @@ Rewrite the core logic of `orchestrator/main.py` to move from a CLI-wrapper arch
 ### Phase 4: Observability & Telemetry
 *   Update `telemetry.py` to ensure LiteLLM calls are tracked as spans.
 *   Ensure the `traceparent` is correctly propagated through LiteLLM to supported backends (like Vertex AI).
-
-## 4. Constraints
-*   **No breaking changes to CLI args**: The orchestrator must still support `--skip-install`, `--start-phase`, etc.
-*   **Incremental rollout**: The old `call_claude` function should be kept as a fallback or togglable option during transition if possible.
-*   **Idempotency**: All remedies must remain idempotent.
