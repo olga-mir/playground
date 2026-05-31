@@ -1,52 +1,82 @@
-# Technical Specification: Orchestrator Rewrite (DSPy + LiteLLM + Pi)
+# Technical Specification: Orchestrator (DSPy + LiteLLM)
 
 ## 1. Goal
-Rewrite the core logic of `orchestrator/main.py` to move from a CLI-wrapper architecture to a programmatic, structured, and multi-model agentic framework.
+
+A pure programmatic Python orchestrator for cluster provisioning. No subprocess CLI harness. All LLM reasoning via DSPy + LiteLLM with a local-first model chain (Local Spark → OpenRouter → Vertex AI).
 
 ## 2. Core Components
 
 ### 2.1. Router (`llm_router.py`)
-*   **Responsibility**: Initialize and configure the LiteLLM client based on environment variables.
-*   **Requirements**:
-    *   Read `ORCHESTRATOR_MODEL`.
-    *   Support `openrouter/`, `vertex_ai/`, and local `openai/` (vLLM) endpoints.
-    *   Handle authentication (GCP ADC, OpenRouter keys).
+- Reads `ORCHESTRATOR_MODEL` env var
+- Supports `openrouter/`, `vertex_ai/`, and local `openai/` (vLLM) endpoints via LiteLLM
+- Optional `ORCHESTRATOR_FALLBACK_MODELS` (comma-separated) for resilient failover
+- Optional `ORCHESTRATOR_API_BASE` for local Spark/Ollama endpoints
 
 ### 2.2. Schemas (`schemas.py`)
-*   **Responsibility**: Define Pydantic models for structured agent outputs.
-*   **Models**:
-    *   `PhaseHealthVerdict`: `is_healthy` (bool), `errors` (list[dict]), `analysis` (str), `recommendation` (str), `problem_domain` (str).
-    *   `DiagnosticsDecision`: `rationale` (str), `confidence` (float), `decision` (str: retry/teardown/escalate).
+Pydantic models for structured LLM outputs:
+
+**`PhaseHealthVerdict`**
+- `is_healthy: bool`
+- `recommendation: str` — `proceed | wait | diagnose | teardown`
+- `problem_domain: str` — `crossplane | flux | github-actions | unknown`
+- `failing_resources: list[dict]` — each with `kind`, `name`, `namespace`, `error`
+- `analysis: str`
+
+**`DiagnosticsDecision`**
+- `rationale: str`
+- `confidence: float`
+- `action: str` — `retry | teardown | escalate`
 
 ### 2.3. Signatures (`signatures.py`)
-*   **Responsibility**: Define DSPy Signatures for the agents.
-*   **Signatures**:
-    *   `AssessPhaseHealth`: Maps `phase_description` and `cluster_state` to `PhaseHealthVerdict`.
-    *   `DiagnoseFailure`: Maps `phase_name`, `errors`, and `cluster_state` to `DiagnosticsDecision`.
+DSPy Signatures defining the LLM module interfaces:
 
-### 2.4. Prompt Management (`pi` integration)
-*   **Responsibility**: Use `pi-prompt` to manage system prompts and cluster context.
-*   **Requirements**:
-    *   Convert existing `.claude/agents/*.md` files into templates.
-    *   Implement a context provider that gathers `kubectl` state and formats it for the LLM.
+**`AssessPhaseHealth`**
+- Input: `phase_description` (str), `cluster_state` (str)
+- Output: `verdict` (PhaseHealthVerdict)
+- Used with: `dspy.ChainOfThought`
 
-## 3. Implementation Phases
+**`DiagnoseFailure`**
+- Input: `phase_name` (str), `errors` (str), `cluster_state` (str)
+- Output: `decision` (DiagnosticsDecision)
+- Used with: `dspy.ReAct` + kubectl/file/git tools
 
-### Phase 1: Infrastructure
-*   Install dependencies (`litellm`, `dspy-ai`, `pydantic`, `pi-prompt`).
-*   Implement `llm_router.py` with a connectivity test.
-*   Create a `check_env.py` script to validate all keys and endpoints.
+### 2.4. Phase Definitions (`phases/*.md`)
+Phase health criteria are plain markdown files (`bootstrap.md`, `control.md`, `workload.md`). Loaded directly via `Path.read_text()` and passed as `phase_description` to `AssessPhaseHealth`. No templating layer.
 
-### Phase 2: Structural Foundation
-*   Implement `schemas.py` using Pydantic.
-*   Implement `signatures.py` using DSPy.
-*   Setup `pi` templates for "bootstrap", "control", and "workload" phases.
+## 3. Runtime Flow
 
-### Phase 3: Logic Refactor
-*   Modify `run_phase()` in `main.py` to use `AssessPhaseHealth` (DSPy).
-*   Modify `handle_failure()` in `main.py` to use `DiagnoseFailure` (DSPy).
-*   Refactor "Known Remedies" into a modular dispatch system that checks `PhaseHealthVerdict.errors` against a registry of handlers.
+```
+run_phase(phase):
+  1. collect_cluster_state(phase)   # scripts/collect-cluster-state.sh
+  2. ChainOfThought(AssessPhaseHealth)(phase_description, cluster_state)
+  3. if verdict.is_healthy → return healthy
+  4. if verdict.recommendation == "diagnose" → return degraded + errors
 
-### Phase 4: Observability & Telemetry
-*   Update `telemetry.py` to ensure LiteLLM calls are tracked as spans.
-*   Ensure the `traceparent` is correctly propagated through LiteLLM to supported backends (like Vertex AI).
+handle_failure(phase, errors):
+  1. Check known patterns → apply Python fast-path if matched
+  2. ReAct(DiagnoseFailure, tools)(phase_name, errors, context)
+  3. Return decision.action → retry | teardown | escalate
+```
+
+## 4. ReAct Tools
+
+Tools exposed to the `DiagnoseFailure` ReAct agent:
+
+| Tool | Purpose |
+|---|---|
+| `kubectl_get(args)` | Read cluster resources |
+| `kubectl_describe(args)` | Inspect resource details and events |
+| `kubectl_logs(args)` | Fetch pod/container logs |
+| `kubectl_patch(args)` | Apply live fixes to cluster objects |
+| `kubectl_annotate(args)` | Annotate resources (e.g. force Flux reconcile) |
+| `read_file(relative_path)` | Read repo manifests |
+| `write_file(relative_path, content)` | Edit repo manifests |
+| `git_commit_push(files, message)` | Stage, commit, fetch+rebase, push |
+
+## 5. Constraints
+
+- **No subprocess CLI**: No `claude -p`, `pi -p`, or equivalent harness calls
+- **CLI args preserved**: `--skip-install`, `--start-phase`, `--mission`, `--initial-wait`
+- **Idempotent fast-paths**: All Python remedies are safe to re-run
+- **Escalation limit**: Same error signature ≥ 3 times → escalate without calling LLM again
+- **git_commit_push guard**: Always fetch+rebase before push to handle concurrent changes

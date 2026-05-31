@@ -1,69 +1,66 @@
-# Orchestrator Architecture Rewrite: DSPy + LiteLLM + Pi
+# Orchestrator Architecture Rewrite: DSPy + LiteLLM
 
-This document serves as the blueprint for the next AI agent to execute the fundamental rewrite of the Kubernetes provisioning orchestrator.
+## Status: Complete
 
-## 1. The Problem
-
-The current `orchestrator/main.py` is a highly pragmatic but fragile "vibecoded" script. Its core limitations are:
-1.  **Fragile Integration**: It drives AI via a subprocess call to a desktop CLI (`claude -p`), capturing `stdout` and manually stripping text to find JSON.
-2.  **Vendor Lock-in**: It is hardcoded to Anthropic's ecosystem. It cannot utilize the user's local DGX Spark compute, OpenRouter's massive model marketplace, or Vertex AI's enterprise endpoints.
-3.  **Unstructured Reasoning**: Agents are given massive text dumps (raw `kubectl` output) and expected to return valid JSON. There is no schema validation or structured reasoning.
-4.  **Regex-driven State**: "Known errors" (Catch-22s like `provider:github` missing) are caught using brittle regex parsing over the LLM's output.
-
-## 2. The New Architecture
-
-```text
-[ Orchestrator (DSPy + Pi) ]
-          │
-          ▼
-[ LiteLLM (Python Library) ]  <-- The Universal Translator
-          │
-    ┌─────┼─────────────────────┐
-    │     │                     │
-    ▼     ▼                     ▼
-[ DGX ] [ OpenRouter ] [ Vertex AI / GCP ]
-(vLLM)  (Aggregator)   (Direct Enterprise)
-```
-
-## 3. Tech Stack Choice
-
-To build a robust, multi-model, structured orchestrator, we will adopt the following stack:
-
-*   **LiteLLM (The Universal Router)**: Acts as the translation layer. It allows the orchestrator to swap between `vllm/dgx-spark`, `openrouter/meta-llama/llama-3`, and `vertex_ai/gemini-1.5-pro` using standard environment variables, completely abstracting away the SDK differences and authentication mechanisms.
-*   **DSPy (The Reasoning Engine)**: Moves the project from "prompting" to "programming". DSPy will replace the markdown agent prompts with declarative `Signatures` that enforce structured inputs and Pydantic-validated outputs. Crucially, it allows leveraging the DGX Spark to run optimizers (`teleprompters`) to auto-tune prompts.
-*   **Pi (`earendil-works/pi`)**: The Context & Template Manager. We will use Pi to separate prompt construction from Python logic, managing the injection of cluster context and Phase Definitions cleanly.
-*   **Pydantic (The Schema Validator)**: Ensures that any action the AI decides to take (e.g., "patch this resource", "teardown") is strictly typed and validated before the Python orchestrator executes it.
+All implementation phases are done. See `docs/agentic-architecture.md` for the current architecture reference.
 
 ---
 
-## 3. Detailed Execution Plan
+## What was built
 
-The executing agent should follow these phases sequentially. **Do not attempt to rewrite everything in one commit.**
+A pure programmatic Python orchestrator. No subprocess CLI harness (`claude -p`, `pi -p`, or similar). All LLM reasoning runs inside the Python process via DSPy + LiteLLM.
 
-### Phase 1: Environment & Tooling Setup
-1.  **Dependencies**: Update `orchestrator/pyproject.toml` (and sync `uv.lock`) to include `litellm`, `dspy-ai`, `pydantic`, and `pi`.
-2.  **Router Configuration**: Create `orchestrator/llm_router.py`. Implement a factory function that reads an `ORCHESTRATOR_MODEL` environment variable (e.g., `openrouter/anthropic/claude-3-sonnet`, `vertex_ai/gemini-1.5-pro`, or `openai/my-local-dgx-model` with `OPENAI_API_BASE`).
-3.  **DSPy Initialization**: Configure DSPy to use the LiteLLM client as its default language model.
+```
+Local DGX Spark (vLLM)  →  OpenRouter  →  Vertex AI / Anthropic SDK
+         └──────────────────────────────────────────┘
+                        LiteLLM (transparent fallback)
+                               │
+                             DSPy
+                    ┌──────────┴──────────┐
+         ChainOfThought              ReAct + tools
+        (AssessPhaseHealth)        (DiagnoseFailure)
+```
 
-### Phase 2: Define Pydantic Models & DSPy Signatures
-1.  **Data Models**: Create `orchestrator/schemas.py`. Define Pydantic models for the outputs:
-    *   `PhaseHealthVerdict`: Fields for `is_healthy` (bool), `failing_resources` (list), and `recommendation` (wait/diagnose/teardown).
-    *   `DiagnosticsDecision`: Fields for `rationale` (str), `confidence` (float), and `action` (retry/teardown/escalate).
-2.  **DSPy Signatures**: Create `orchestrator/signatures.py`.
-    *   Define `AssessPhaseHealth(dspy.Signature)` using the Pydantic models.
-    *   Define `DiagnoseFailure(dspy.Signature)`.
+### Key design decisions
 
-### Phase 3: Integrate `pi` for Context Management
-1.  **Template Migration**: Move the textual descriptions of the phases (currently in `PHASE_DEFINITIONS` in `main.py`) and the system prompts (from `.claude/agents/*.md`) into `pi` compatible templates or discrete text files that `pi` can assemble.
-2.  **Context Injection**: Write a wrapper that uses `pi` to construct the exact state context (the `kubectl` outputs) and feeds it into the DSPy modules.
+**Pi is not used in the orchestrator.** `pi` (`earendil-works/pi`) is a human-facing CLI harness (like Claude Code), not a library. Calling it via subprocess would have the same fragility as the old `claude -p` approach. Phase context is loaded directly from `orchestrator/phases/*.md`.
 
-### Phase 4: Refactor `main.py` (The Heart Transplant)
-1.  **Replace `call_claude`**: Remove the `subprocess.run(["claude", "-p", ...])` logic entirely.
-2.  **Wire up the Phase Runner**: Update `run_phase()` to instantiate the DSPy `ChainOfThought` module for `AssessPhaseHealth`. Pass the `pi`-templated context to it.
-3.  **Wire up the Diagnostics Runner**: Update `handle_failure()` to use the `DiagnoseFailure` DSPy module.
-4.  **Modularize Remedies**: Convert the hardcoded regex blocks (e.g., `is_provider_github_error`) into a list of generic "Remedy" checks evaluated against the structured output of the DSPy agent, rather than raw strings.
+**`DiagnoseFailure` is `dspy.ReAct`, not `dspy.ChainOfThought`.** A stateless CoT call can only make a decision based on the error text it receives. Novel failures require live investigation and fixes — kubectl, file edits, git push. ReAct with tools enables this without any subprocess harness.
 
-### Phase 5: Verification & Testing
-1.  **Dry Run**: Test the pipeline using a fast/cheap model via OpenRouter to ensure the Pydantic schemas parse correctly.
-2.  **Local DGX Test**: Point `ORCHESTRATOR_MODEL` to the DGX Spark endpoint and verify local inference works.
-3.  **Telemetry Check**: Ensure `telemetry.py` spans still correctly wrap the new LiteLLM/DSPy network calls, replacing the old subprocess shell tracking.
+**Known Catch-22 patterns remain as Python fast-paths.** The three patterns (provider:github, stale resourceRefs, stuck dependency) are deterministic and don't need LLM reasoning. They bypass `DiagnoseFailure` entirely.
+
+---
+
+## Implementation phases
+
+### Phase 1: Environment & Tooling — ✅ done
+- `pyproject.toml`: `litellm`, `dspy-ai`, `pydantic` (no `pi-prompt`)
+- `llm_router.py`: LiteLLM factory reading `ORCHESTRATOR_MODEL` + fallback chain
+- `check_env.py`: connectivity test (`task agentic:check-env`)
+
+### Phase 2: Pydantic Models & DSPy Signatures — ✅ done
+- `schemas.py`: `PhaseHealthVerdict`, `DiagnosticsDecision`
+- `signatures.py`: `AssessPhaseHealth`, `DiagnoseFailure`
+
+### Phase 3: Context Management — ✅ done (simplified)
+- Phase definitions in `orchestrator/phases/*.md`, loaded directly via `Path.read_text()`
+- No `pi` templates; context injected as plain text into DSPy input fields
+- Cluster state snapshot via `scripts/collect-cluster-state.sh`
+
+### Phase 4: `main.py` — ✅ done
+- `run_phase()`: `dspy.ChainOfThought(AssessPhaseHealth)` replaces phase-checker subprocess
+- `handle_failure()`: Python fast-paths → `dspy.ReAct(DiagnoseFailure, tools=[...])`
+- ReAct tools: `kubectl_get/describe/logs/patch/annotate`, `read_file`, `write_file`, `git_commit_push`
+- CLI args preserved: `--skip-install`, `--start-phase`, `--mission`, `--initial-wait`
+- Taskfile tasks restored: `task agentic:deploy/resume/check/check-env`
+
+### Phase 5: Observability & Telemetry — ✅ done
+- `telemetry.py`: `record_llm(module, duration, status)` replaces `record_gemini`
+- `gemini_cli_otel_env` removed (no CLI subprocess to instrument)
+- Metrics: `orchestrator.llm.*` and `orchestrator.shell.*`
+
+---
+
+## Next step
+
+Run `task agentic:check-env` with `ORCHESTRATOR_MODEL` set to verify the LLM chain connects, then a full `task agentic:deploy --skip-install` against a live cluster.
