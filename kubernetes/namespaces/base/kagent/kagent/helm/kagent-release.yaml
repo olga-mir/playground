@@ -34,3 +34,9 @@ spec:
         apiKeySecretKey: "KAGENT_ANTHROPIC_API_KEY"
         model: "claude-sonnet-4-6"
         provider: "Anthropic"
+    istio-agent:
+      enabled: false
+    argo-rollouts-agent:
+      enabled: false
+    kgateway-agent:
+      enabled: false
