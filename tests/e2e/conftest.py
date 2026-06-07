@@ -497,7 +497,7 @@ def all_flux_resources_ready(ctx: str, cluster_label: str) -> list[str]:
                 continue
             # OCI HelmRepositories are passive references; Flux sets no Ready condition
             # until a HelmRelease pulls from them — "No conditions" is normal here.
-            if plural == "helmrepositories" and item.get("spec", {}).get("type") == "oci":
+            if plural == "helmrepositories" and (item.get("spec") or {}).get("type") == "oci":
                 logger.info("[%s] %s/%s/%s OCI type — skipping condition check", cluster_label, plural, meta.get("namespace", "default"), meta.get("name", "unknown"))
                 continue
             conditions = item.get("status", {}).get("conditions", [])
