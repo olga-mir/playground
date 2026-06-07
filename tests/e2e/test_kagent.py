@@ -112,7 +112,6 @@ def test_kagent_api_agents_endpoint(ctx_apps_dev):
     Determinism: we assert that at least one Agent resource exists.
     We do NOT assert on list contents — agents can be added/removed.
     """
-    v1 = core_v1(ctx_apps_dev)
     agents = custom_objects(ctx_apps_dev).list_namespaced_custom_object(
         "kagent.dev", "v1alpha2", KAGENT_NAMESPACE, "agents"
     )
