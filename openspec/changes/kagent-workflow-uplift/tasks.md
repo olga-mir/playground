@@ -7,7 +7,7 @@
 
 ## T2 — Deploy standalone cilium-network-agent
 
-- [ ] Audit kagent 0.9.2 Helm sub-charts: identify which are tool server *implementations* vs. Agent wrappers. Add `enabled: false` only for Agent sub-charts being replaced; keep tool server sub-charts enabled.
+- [ ] ~~Audit kagent sub-charts~~ Already done (0.9.6 chart inspected). Tool servers to keep enabled: `kagent-tools`, `kmcp`, `grafana-mcp`, `querydoc`. Agent sub-charts to disable: `k8s-agent`, `kgateway-agent`, `istio-agent`, `promql-agent`, `observability-agent`, `argo-rollouts-agent`, `helm-agent`, `cilium-policy-agent`, `cilium-manager-agent`, `cilium-debug-agent`.
 - [ ] Add `cilium-agent.enabled: false` (and any other replaced agent sub-charts) to HelmRelease values in `kagent-release.yaml`.
 - [ ] Write `namespaces/base/kagent/kagent/config/cilium-network-agent.yaml` — standalone Agent CR with tools referencing `observability-agent` and `promql-agent`, plus `a2aConfig.skills` (see `specs/a2a-demo-flow.md` for full spec).
 - [ ] Add the new file to `namespaces/base/kagent/kagent/config/kustomization.yaml`.
