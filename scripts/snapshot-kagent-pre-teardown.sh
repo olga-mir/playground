@@ -47,9 +47,10 @@ kube() { kubectl --context "${APPS_CTX}" "$@"; }
 echo "==> Agent CRs"
 for ns in kagent-system team-charlie team-alpha team-bravo; do
   FILE="${OUT_DIR}/agents-${ns}.yaml"
-  if kube get agents -n "${ns}" --no-headers 2>/dev/null | grep -q .; then
+  AGENT_LIST=$(kube get agents -n "${ns}" --no-headers 2>/dev/null || true)
+  if [[ -n "${AGENT_LIST}" ]]; then
     kube get agents -n "${ns}" -o yaml > "${FILE}"
-    COUNT=$(kube get agents -n "${ns}" --no-headers 2>/dev/null | wc -l | tr -d ' ')
+    COUNT=$(echo "${AGENT_LIST}" | wc -l | tr -d ' ')
     echo "  ${ns}: ${COUNT} agents -> $(basename "${FILE}")"
   else
     echo "  ${ns}: no agents"
