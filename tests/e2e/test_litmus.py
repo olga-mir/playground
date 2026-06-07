@@ -87,7 +87,7 @@ def test_litmus_installed(ctx_apps_dev):
     """Litmus CRDs and the pod-delete ChaosExperiment must exist."""
     exp = get_resource(
         ctx_apps_dev,
-        "litmuschaos.io", "v1alpha1", LITMUS_NS, "chaosexperiments", "pod-delete"
+        "litmuschaos.io", "v1alpha1", "chaosexperiments", LITMUS_NS, "pod-delete"
     )
     assert exp["metadata"]["name"] == "pod-delete"
 

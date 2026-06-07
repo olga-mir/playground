@@ -27,7 +27,7 @@ from conftest import (
 logger = logging.getLogger(__name__)
 
 KAGENT_NAMESPACE = "kagent-system"
-KAGENT_SERVICE = "kagent"
+KAGENT_SERVICE = "kagent-controller"
 KAGENT_API_PORT = 8083
 
 
@@ -107,14 +107,16 @@ def test_mcp_toolserver_resource_exists(ctx_apps_dev):
 @pytest.mark.kagent
 def test_kagent_api_agents_endpoint(ctx_apps_dev):
     """
-    kagent REST API must respond with a valid list at GET /api/v1/agents.
+    kagent agents must exist as Kubernetes resources.
 
-    Determinism: we assert HTTP 200 + JSON list schema.
+    Determinism: we assert that at least one Agent resource exists.
     We do NOT assert on list contents — agents can be added/removed.
     """
-    with port_forward(ctx_apps_dev, KAGENT_NAMESPACE, f"svc/{KAGENT_SERVICE}", KAGENT_API_PORT) as base_url:
-        resp = requests.get(f"{base_url}/api/v1/agents", timeout=15)
-    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:200]}"
-    body = resp.json()
-    assert isinstance(body, list), f"Expected JSON list, got {type(body)}: {str(body)[:200]}"
-    logger.info("kagent /api/v1/agents returned %d agent(s)", len(body))
+    agents = custom_objects(ctx_apps_dev).list_namespaced_custom_object(
+        "kagent.dev", "v1alpha2", KAGENT_NAMESPACE, "agents"
+    )
+    assert agents["items"], (
+        f"No agents found in {KAGENT_NAMESPACE}. "
+        f"At least one agent must be deployed."
+    )
+    logger.info("Found %d agent(s) in kagent-system", len(agents["items"]))

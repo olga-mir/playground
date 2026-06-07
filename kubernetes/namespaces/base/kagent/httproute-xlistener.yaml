@@ -1,34 +1,15 @@
 ---
 apiVersion: gateway.networking.k8s.io/v1
-kind: ListenerSet
-metadata:
-  name: mcp-website-fetcher
-  namespace: kagent
-spec:
-  parentRef:
-    kind: Gateway
-    group: gateway.networking.k8s.io
-    name: shared-mcp-kgateway
-    namespace: kgateway-system
-  listeners:
-  - name: mcp
-    protocol: kgateway.dev/mcp
-    port: 3000
-    allowedRoutes:
-      namespaces:
-        from: All
----
-apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: mcp-website-fetcher
   namespace: kagent
 spec:
   parentRefs:
-  - kind: ListenerSet
+  - kind: Gateway
     group: gateway.networking.k8s.io
-    name: mcp-website-fetcher
-    namespace: kagent
+    name: shared-mcp-kgateway
+    namespace: kgateway-system
     sectionName: mcp
   rules:
   - backendRefs:
@@ -42,3 +23,4 @@ spec:
     - path:
         type: PathPrefix
         value: "/"
+
