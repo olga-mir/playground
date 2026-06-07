@@ -94,14 +94,16 @@ echo "==> HelmRelease applied values"
 echo "==> RBAC"
 {
   echo "# ClusterRoles with 'kagent' in name"
-  kube get clusterrole -o yaml \
-    $(kube get clusterrole --no-headers 2>/dev/null | awk '{print $1}' | grep kagent | tr '\n' ' ') \
-    2>/dev/null || true
+  CR_NAMES=$(kube get clusterrole -o name 2>/dev/null | grep kagent || true)
+  if [[ -n "${CR_NAMES}" ]]; then
+    kube get ${CR_NAMES} -o yaml 2>/dev/null || true
+  fi
   echo "---"
   echo "# ClusterRoleBindings with 'kagent' in name"
-  kube get clusterrolebinding -o yaml \
-    $(kube get clusterrolebinding --no-headers 2>/dev/null | awk '{print $1}' | grep kagent | tr '\n' ' ') \
-    2>/dev/null || true
+  CRB_NAMES=$(kube get clusterrolebinding -o name 2>/dev/null | grep kagent || true)
+  if [[ -n "${CRB_NAMES}" ]]; then
+    kube get ${CRB_NAMES} -o yaml 2>/dev/null || true
+  fi
   echo "---"
   echo "# Roles in team-charlie with 'kagent' in name"
   kube get role -n team-charlie -o yaml 2>/dev/null || true
