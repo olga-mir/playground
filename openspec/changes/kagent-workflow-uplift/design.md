@@ -6,85 +6,91 @@ All changes are manifest-only (no new Helm charts, no custom controllers). We wo
 within the existing GitOps structure: kagent-system lives under
 `kubernetes/namespaces/base/kagent/`, team-charlie under `kubernetes/tenants/base/team-charlie/`.
 
-## A2A Wiring Strategy
+## Agent Deployment Strategy
 
-kagent 0.9.2 bundles agents as Helm sub-charts. We cannot patch the sub-chart Agent CRs
-directly via `values.yaml` (Helm values don't expose tool lists). Two options:
+**Decision: standalone Agent CRs — do not use Helm-bundled agents for customised agents.**
 
-1. **Post-render Kustomize patch** — add a strategic-merge patch in the kagent Kustomize
-   layer that appends `tools` entries to the cilium-debug-agent's spec after Helm renders it.
-2. **Override via HelmRelease `postRenderers`** — use Flux's `postRenderers.kustomize.patches`
-   in the HelmRelease to inject the tool entries at reconcile time.
+kagent 0.9.2 bundles agents as opt-out Helm sub-charts. Customising them (e.g. adding A2A
+tool wiring) would require `postRenderers` patches in the HelmRelease — a workaround that
+fights chart ownership and makes the effective agent spec invisible in Git.
 
-**Decision: use HelmRelease `postRenderers`** — keeps the patch co-located with the
-HelmRelease manifest, avoids a separate kustomization layer, and is the established Flux
-pattern for patching Helm-managed CRs.
+Instead:
 
-Example patch structure in `kagent-release.yaml`:
+1. **Disable all bundled Agent sub-charts** in `kagent-release.yaml` values (add `enabled: false`
+   for any remaining enabled sub-chart agents — `cilium-agent`, `k8s-agent`, `observability-agent`,
+   `promql-agent`, `helm-agent`).
+2. **Write our own Agent CRs** directly in the Kustomize tree — full control, fully GitOps.
+
+The kagent controller, CRDs, and built-in **ToolServers** (Kubernetes API tool, Prometheus
+tool, etc.) remain Helm-managed. Only the Agent CRs move to our own manifests.
+
+> **Before rebuilding:** confirm which Helm sub-charts are tool server *implementations* vs.
+> pure Agent wrappers. Tool server sub-charts must stay enabled (or be replicated) — disabling
+> them would leave agents without callable tools.
+
+## Agents to Deploy as Standalone
+
+**Agent 1: `cilium-network-agent` (kagent-system)**
+
+Replaces the bundled `cilium-debug-agent`. Owns the A2A demo chain:
 
 ```yaml
+apiVersion: kagent.dev/v1alpha1
+kind: Agent
+metadata:
+  name: cilium-network-agent
+  namespace: kagent-system
 spec:
-  postRenderers:
-    - kustomize:
-        patches:
-          - target:
-              kind: Agent
-              name: cilium-debug-agent
-            patch: |
-              - op: add
-                path: /spec/tools/-
-                value:
-                  type: Agent
-                  agent:
-                    name: observability-agent
-                    namespace: kagent-system
-              - op: add
-                path: /spec/tools/-
-                value:
-                  type: Agent
-                  agent:
-                    name: promql-agent
-                    namespace: kagent-system
+  modelConfig: claude-model-config
+  systemMessage: |
+    You diagnose Cilium network issues: node health, policy hit/drop counts,
+    Hubble flow state. For metric trend analysis delegate to observability-agent
+    or promql-agent.
+  a2aConfig:
+    skills:
+      - id: cilium-network-debug
+        description: >
+          Diagnose Cilium network issues and delegate metric analysis downstream.
+        tags: [cilium, networking, observability]
+  tools:
+    - type: Agent
+      agent:
+        name: observability-agent
+        namespace: kagent-system
+    - type: Agent
+      agent:
+        name: promql-agent
+        namespace: kagent-system
 ```
 
-Note: verify the `spec/tools` path exists on the rendered manifest before using `add`
-(use `replace` if the field is present but empty, or initialise with a full `replace`).
+**Agent 2: `crossplane-composition-fixer` (team-charlie)**
 
-## team-charlie Agent
-
-The Agent CR is already written (in comments). Uncommenting is the sole code change.
-The ModelConfig and ToolServer are already active. RBAC requires one additional
-ClusterRoleBinding subject for `team-charlie/kagent` SA — add it to `rbac.yaml` or
-`kagent-agents.yaml` as a second subject entry.
+Already written in comments — uncomment verbatim. Standalone from the start since it lives
+in a tenant namespace rather than kagent-system.
 
 ## Cross-Namespace allowedNamespaces
 
-Based on the A2A docs, `allowedNamespaces` is a field on the Agent spec that controls
-which namespaces may invoke the agent via A2A. For `k8s-agent` to accept calls from
-`team-charlie`, we need a postRenderer patch or a direct overlay entry:
+For `k8s-agent` (still bundled, or also moved to standalone) to accept calls from
+`team-charlie/crossplane-composition-fixer`:
 
-```yaml
-spec:
-  allowedNamespaces:
-    - team-charlie
-```
-
-If kagent 0.9.2's v1alpha1 CRD does not expose this field, the fallback is pure RBAC:
-ensure `team-charlie/kagent` has `get`/`list`/`watch` on the A2A endpoint Service/Endpoints
-in `kagent-system`, which the controller uses to validate callers.
+- If the CRD exposes `allowedNamespaces`, set it directly on the Agent CR.
+- If not (v1alpha1 gap), ensure the `team-charlie/kagent` ServiceAccount has a
+  ClusterRoleBinding subject entry on the existing `kagent-crossplane-github-access` role so
+  it can reach Crossplane and Kubernetes resources, and the controller routes by RBAC.
 
 ## File Change Map
 
 | File | Change |
 |------|--------|
-| `namespaces/base/kagent/kagent/helm/kagent-release.yaml` | Add `postRenderers` block to patch cilium-debug-agent tools |
-| `tenants/base/team-charlie/kagent-agents.yaml` | Uncomment Agent CR; add ClusterRoleBinding subject for team-charlie/kagent SA |
-| `namespaces/base/kagent/kagent/config/rbac.yaml` | (If needed) Add k8s-agent allowedNamespaces patch or team-charlie SA binding |
+| `namespaces/base/kagent/kagent/helm/kagent-release.yaml` | Add `enabled: false` for all bundled Agent sub-charts we are replacing |
+| `namespaces/base/kagent/kagent/config/` | Add `cilium-network-agent.yaml` standalone Agent CR |
+| `tenants/base/team-charlie/kagent-agents.yaml` | Uncomment `crossplane-composition-fixer` Agent CR |
+| `namespaces/base/kagent/kagent/config/rbac.yaml` | Add `team-charlie/kagent` SA subject to cross-namespace binding |
 
 ## Validation Steps
 
 1. After HelmRelease reconciles: `kubectl get agents -n kagent-system --context <apps-dev>` —
-   confirm only expected 5 agents present.
-2. Describe `cilium-debug-agent` — confirm tools list includes observability and promql agents.
+   confirm bundled agent pods are gone; `cilium-network-agent` pod appears.
+2. Describe `cilium-network-agent` — confirm `spec.tools` lists observability and promql agents.
 3. Check `crossplane-composition-fixer` is `Ready` in team-charlie.
-4. Send test prompts via `kubectl kagent run` or the kagent CLI and observe traces.
+4. Send test prompts via kagent CLI and observe A2A delegation traces.

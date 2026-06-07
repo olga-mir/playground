@@ -5,14 +5,15 @@
 - [ ] Confirm HelmRelease `kagent` has `istio-agent.enabled: false`, `argo-rollouts-agent.enabled: false`, `kgateway-agent.enabled: false` (already in values — just verify no drift).
 - [ ] After next reconcile, run `kubectl get agents -n kagent-system --context <apps-dev>` and assert exactly these agents are present: `cilium-*`, `k8s-agent`, `observability-agent`, `promql-agent`, `helm-agent`.
 
-## T2 — Wire cilium-debug-agent A2A tools
+## T2 — Deploy standalone cilium-network-agent
 
-- [ ] Inspect the rendered cilium-debug-agent spec: `kubectl get agent cilium-debug-agent -n kagent-system -o yaml --context <apps-dev>` — note existing `spec.tools` structure.
-- [ ] Add `postRenderers.kustomize.patches` block to `namespaces/base/kagent/kagent/helm/kagent-release.yaml` targeting `cilium-debug-agent`, injecting `observability-agent` and `promql-agent` as Agent tools (see design.md for patch syntax).
-- [ ] Add `a2aConfig.skills` metadata to the same patch (cilium-network-debug skill, per `specs/a2a-demo-flow.md`).
-- [ ] Verify Prometheus URL from within the agent pod: `kubectl exec -n kagent-system <cilium-debug-agent-pod> -- curl -s http://kube-prometheus-stack-prometheus.monitoring:9090/-/healthy --context <apps-dev>`.
+- [ ] Audit kagent 0.9.2 Helm sub-charts: identify which are tool server *implementations* vs. Agent wrappers. Add `enabled: false` only for Agent sub-charts being replaced; keep tool server sub-charts enabled.
+- [ ] Add `cilium-agent.enabled: false` (and any other replaced agent sub-charts) to HelmRelease values in `kagent-release.yaml`.
+- [ ] Write `namespaces/base/kagent/kagent/config/cilium-network-agent.yaml` — standalone Agent CR with tools referencing `observability-agent` and `promql-agent`, plus `a2aConfig.skills` (see `specs/a2a-demo-flow.md` for full spec).
+- [ ] Add the new file to `namespaces/base/kagent/kagent/config/kustomization.yaml`.
+- [ ] Verify Prometheus URL reachable from kagent-system: `kubectl exec -n kagent-system <any-agent-pod> -- curl -s http://kube-prometheus-stack-prometheus.monitoring:9090/-/healthy --context <apps-dev>`.
 - [ ] Commit and push; wait for HelmRelease to reconcile.
-- [ ] Validate: describe agent and confirm tools list.
+- [ ] Validate: `kubectl get agent cilium-network-agent -n kagent-system -o yaml --context <apps-dev>` — confirm tools list.
 
 ## T3 — Activate crossplane-composition-fixer in team-charlie
 
