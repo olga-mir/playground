@@ -16,6 +16,9 @@ local-stash/**
 # Orchestrator run state and summaries
 orchestrator/runs/
 
+# kagent pre-teardown snapshots (bulky, stay on disk only)
+release-artifacts/kagent-snapshot-*/
+
 # uv managed virtualenv
 orchestrator/.venv/
 __pycache__
