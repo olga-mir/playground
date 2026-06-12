@@ -16,3 +16,6 @@ includes:
   e2e:
     taskfile: ./tasks/e2e.yaml
     dir: .
+  secrets:
+    taskfile: ./tasks/secrets.yaml
+    dir: .
