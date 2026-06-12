@@ -16,3 +16,6 @@ includes:
   e2e:
     taskfile: ./tasks/e2e.yaml
     dir: .
+  agentic:
+    taskfile: ./tasks/agentic.yaml
+    dir: .

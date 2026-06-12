@@ -1,0 +1,24 @@
+version: "3"
+
+tasks:
+  deploy:
+    desc: "Run full orchestrated provisioning (bootstrap → control → workload)"
+    dir: "{{.ROOT_DIR}}/orchestrator"
+    cmd: uv run python -m orchestrator.main
+
+  resume:
+    desc: "Resume orchestration from a specific phase (PHASE=bootstrap|control|workload)"
+    dir: "{{.ROOT_DIR}}/orchestrator"
+    requires:
+      vars: [PHASE]
+    cmd: uv run python -m orchestrator.main --skip-install --start-phase {{.PHASE}}
+
+  check:
+    desc: "Run phase checks without triggering the install script"
+    dir: "{{.ROOT_DIR}}/orchestrator"
+    cmd: uv run python -m orchestrator.main --skip-install
+
+  check-env:
+    desc: "Validate LLM connectivity and environment variables"
+    dir: "{{.ROOT_DIR}}/orchestrator"
+    cmd: uv run python -m orchestrator.check_env
