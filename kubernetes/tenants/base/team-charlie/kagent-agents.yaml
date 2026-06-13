@@ -62,7 +62,8 @@ spec:
   tools:
     - type: Agent
       agent:
-        ref: kagent-system/k8s-agent
+        name: k8s-agent
+        namespace: kagent-system
 ---
 # MCP Website Fetcher Tool Server
 apiVersion: kagent.dev/v1alpha1

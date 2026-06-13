@@ -25,7 +25,9 @@ spec:
   tools:
     - type: Agent
       agent:
-        ref: observability-agent
+        name: observability-agent
+        namespace: kagent-system
     - type: Agent
       agent:
-        ref: promql-agent
+        name: promql-agent
+        namespace: kagent-system
