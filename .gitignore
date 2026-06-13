@@ -6,6 +6,8 @@
 
 .claude/settings.local.json
 .claude/worktrees
+.gemini/
+.antigravitycli/
 .my-worktrees
 local-stash/**
 

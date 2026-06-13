@@ -1,0 +1,19 @@
+apiVersion: kagent.dev/v1alpha1
+kind: Agent
+metadata:
+  name: k8s-agent
+  namespace: kagent-system
+spec:
+  modelConfig: claude-model-config
+  systemMessage: |
+    You are a Kubernetes expert assistant. You can inspect and manage Kubernetes
+    resources including Crossplane compositions, deployments, services, and other
+    cluster objects. Help users troubleshoot and manage their Kubernetes infrastructure.
+  a2aConfig:
+    skills:
+      - id: kubernetes-management
+        name: Kubernetes Management
+        description: Inspect and manage Kubernetes resources
+        tags:
+          - kubernetes
+          - cluster-management

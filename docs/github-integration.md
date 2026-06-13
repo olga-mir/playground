@@ -42,6 +42,16 @@ source-controller natively handles App token refresh using these fields — no e
 
 > Note: GitHub repo secrets cannot start with `GITHUB_` — hence `GH_APP_*` prefix.
 
+### Managing Secrets in GSM
+
+Whenever you need to update these secrets in Google Secret Manager (e.g. key rotation or token expiration), use the provided Taskfile commands:
+
+```bash
+task secrets:update-github-app-key
+task secrets:update-gh-flux-pat
+task secrets:update-kagent-anthropic-key
+```
+
 ### Recreating the flux-system secret manually
 
 If `githubAppPrivateKey` is empty (common after a broken workflow run):
@@ -107,6 +117,6 @@ kubectl --context <ctx> annotate kustomization clusters -n flux-system \
 
 Common failure causes:
 - `github-webhook-token` secret missing → create it before cluster provisioning
-- `401 Bad credentials` → PAT in GSM secret `gh-flux-pat` lacks `repo` scope or is expired; update with: `echo -n "NEW_PAT" | gcloud secrets versions add gh-flux-pat --data-file=- --project=PROJECT_ID`
+- `401 Bad credentials` → PAT in GSM secret `gh-flux-pat` lacks `repo` scope or is expired; update with: `task secrets:update-gh-flux-pat`
 - `provider not set to github` on notification provider's GitRepository → see `docs/flux-gitops.md`
 - Workflow not on default branch → change repo default branch in Settings or merge workflow to it

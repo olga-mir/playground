@@ -3,3 +3,8 @@ kind: Kustomization
 resources:
   - claude-model-config.yaml
   - rbac.yaml
+  - cilium-network-agent.yaml
+  - k8s-agent.yaml
+  - observability-agent.yaml
+  - promql-agent.yaml
+  - helm-agent.yaml

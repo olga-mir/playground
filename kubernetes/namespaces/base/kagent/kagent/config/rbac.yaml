@@ -63,3 +63,6 @@ subjects:
 - kind: ServiceAccount
   name: kagent
   namespace: kagent-system
+- kind: ServiceAccount
+  name: kagent
+  namespace: team-charlie

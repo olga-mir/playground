@@ -43,10 +43,21 @@ if echo "$cmd" | grep -Eq '\bgit push\b'; then
   fi
 fi
 
-# ── block force-push even to develop ─────────────────────────────────────────
-if echo "$cmd" | grep -Eq '\bgit push\b.*(-f|--force)\b'; then
-  echo "[guardrails] BLOCKED: force-push is not allowed." >&2
+# ── allow safe force-push with --force-with-lease to develop/chore branches ───
+# Used for legitimate scenarios like squashing commits or rebasing. Plain -f is blocked.
+if echo "$cmd" | grep -Eq '\bgit push\b.*-f\b' && ! echo "$cmd" | grep -Eq '\bgit push\b.*--force-with-lease\b'; then
+  echo "[guardrails] BLOCKED: -f is not allowed. Use --force-with-lease for safer force-push." >&2
   exit 2
+fi
+if echo "$cmd" | grep -Eq '\bgit push\b.*--force-with-lease\b'; then
+  # Ensure force-with-lease is only used on develop or chore/* branches
+  current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+  cmd_allows=$(echo "$cmd" | grep -Eq '\bgit push\b[^|&;]*\b(develop|chore/.+)' && echo yes || echo no)
+  branch_allows=$(echo "$current_branch" | grep -Eq '^(develop|chore/)' && echo yes || echo no)
+  if [[ "$cmd_allows" != "yes" && "$branch_allows" != "yes" ]]; then
+    echo "[guardrails] BLOCKED: force-with-lease is only allowed on 'develop' or 'chore/*' branches (current: ${current_branch})." >&2
+    exit 2
+  fi
 fi
 
 # ── rebase onto origin/develop before push (develop branch only) ──────────────
