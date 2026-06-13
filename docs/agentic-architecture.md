@@ -1,225 +1,136 @@
-# Agentic Loop — Architecture & Refactor Plan
+# Agentic Loop — Architecture
 
-## Honest assessment of the current state
+## Overview
 
-The bones are right: a Python coordinator driving a phase loop, safety hooks, agents for assessment and diagnosis, mission context. But the agent layer was grown reactively rather than designed, and two structural problems now limit how well the system works.
+The orchestrator is a pure Python application (`orchestrator/main.py`) that drives cluster provisioning through three phases: kind bootstrap → GKE control-plane → GKE apps-dev. It uses DSPy + LiteLLM for all LLM reasoning — no subprocess CLI harness.
 
-**Single generalist diagnostics agent.** One agent is expected to handle Crossplane provider CRD registration failures, composition rendering, Flux kustomization auth, GitRepository `provider: github`, GitHub Actions bootstrap failures, and GKE provisioning errors. A generalist cannot go deep. The agent keeps making shallow inferences because it has no focused domain expertise wired in.
+```
+orchestrator/main.py
+  │
+  ├─ run_phase()
+  │    └─ dspy.ChainOfThought(AssessPhaseHealth)
+  │         ├─ input: phase description (orchestrator/phases/*.md)
+  │         │         cluster state (scripts/collect-cluster-state.sh)
+  │         └─ output: PhaseHealthVerdict (is_healthy, recommendation, problem_domain, failing_resources)
+  │
+  └─ handle_failure()
+       ├─ Python fast-paths (known Catch-22 patterns, no LLM needed)
+       └─ dspy.ReAct(DiagnoseFailure, tools=[kubectl, file, git])
+            ├─ input: phase, errors, initial context
+            ├─ tools: kubectl_get/describe/logs/patch/annotate
+            │         read_file, write_file, git_commit_push
+            └─ output: DiagnosticsDecision (action, confidence, rationale)
+```
 
-**Cluster state collection in Python.** `collect_cluster_state()` in `main.py` is a growing list of hard-coded kubectl commands. It cannot be reused by a human debugging interactively, by kagent running inside a cluster, or by a GitHub Actions workflow. It's also the wrong place for this knowledge.
+### Model chain (LiteLLM)
+
+```
+Local DGX Spark (vLLM)  →  OpenRouter  →  Vertex AI / Anthropic SDK
+```
+
+Configured via `ORCHESTRATOR_MODEL`, `ORCHESTRATOR_FALLBACK_MODELS`. No vendor lock-in; swap models by changing env vars.
 
 ---
 
-## Design principles going forward
+## How LLM reasoning works
 
-**`.claude/` is the reusable capability layer.** Skills and agents defined here should be usable across all workflows without modification:
-- Human interactive sessions (Claude Code)
-- The agentic loop (`task agentic:deploy`)
-- GitHub Actions workflows
-- kagent running inside a Kubernetes cluster
+### Phase assessment — `AssessPhaseHealth`
 
-**Skills for humans, agents for machines — same knowledge, different packaging.**
+A `dspy.ChainOfThought` module. Stateless and fast. Receives:
+- `phase_description`: the full markdown spec from `orchestrator/phases/<phase>.md`
+- `cluster_state`: output of `scripts/collect-cluster-state.sh <phase>`
 
-A *skill* (`.claude/skills/<name>/`) is a domain knowledge prompt invoked by a human via `/name`. It is conversational and supports broad investigation across whatever the human brings to it.
-
-An *agent* (`.claude/agents/<name>.md`) is the same domain knowledge plus operational constraints: specific tools allowed, structured JSON output, restrictions on what it may or may not do. It is invoked by the orchestrator via `claude -p`.
-
-They are not the same file, but they share the same domain expertise section. When the domain knowledge changes, both need updating. In a future where skills are a proper open standard they may share a file; for now they share content.
-
-**Can an agent call a skill?** No, not via `/name` syntax — that is human UI. An agent can invoke another *agent* as a sub-agent (Claude Code's Agent tool), which is how routing works inside the agentic loop. Skills are the human entry point; sub-agents are the machine entry point for the same expertise.
-
-**Cluster state collection belongs in a script, not Python.** A shell script run by the orchestrator, by a human, and by kagent without any Python dependency.
-
----
-
-## Current file inventory
-
-```
-.claude/
-├── agents/
-│   ├── phase-checker.md          # assessment only, no tools, pre-collected data
-│   ├── diagnostics.md            # generalist — does everything, goes shallow
-│   └── github-actions-flux-debugger.md   # exists, NOT wired into the loop
-└── skills/
-    └── upgrade-versions/         # only skill that exists today
-```
-
-**On the flux-debugger question:** there is only an agent, no matching skill. No duplication currently. What is missing is the human-facing `/flux-debug` skill, and more importantly: the agent is not wired into the orchestrator's routing path even though it is the right tool when GitHub Actions bootstrap fails.
-
----
-
-## Proposed architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   .claude/ layer                     │
-│                                                     │
-│  Skills (human-invocable, reusable by kagent)       │
-│  ┌─────────────────────┐  ┌──────────────────────┐  │
-│  │ /crossplane-trouble │  │ /flux-troubleshoot   │  │
-│  │ -shoot              │  │                      │  │
-│  └─────────────────────┘  └──────────────────────┘  │
-│         ▲ same domain knowledge ▼                   │
-│  Agents (machine-invocable, structured output)      │
-│  ┌──────────────┐  ┌────────────────┐  ┌─────────┐  │
-│  │ crossplane-  │  │ flux-          │  │ github- │  │
-│  │ diagnostics  │  │ diagnostics    │  │ actions │  │
-│  └──────────────┘  └────────────────┘  │ -flux-  │  │
-│                                        │ debugger│  │
-│  ┌───────────────────────────────┐     └─────────┘  │
-│  │ phase-checker (with tools)    │                  │
-│  └───────────────────────────────┘                  │
-└─────────────────────────────────────────────────────┘
-                         │ routes based on problem_domain
-┌─────────────────────────────────────────────────────┐
-│            orchestrator/main.py (thin loop)          │
-│  - phase loop, escalation logic, state tracking     │
-│  - no kubectl, no git, no domain knowledge          │
-│  - calls scripts/collect-cluster-state.sh           │
-└─────────────────────────────────────────────────────┘
-                         │
-┌─────────────────────────────────────────────────────┐
-│                   scripts/                           │
-│  collect-cluster-state.sh   check-fleet-health.sh   │
-│  cleanup.sh                 setup-gcp-once.sh       │
-└─────────────────────────────────────────────────────┘
-```
-
----
-
-## Component design
-
-### phase-checker — upgrade to active investigator
-
-**Current problem:** works only with pre-collected data. We compensate by collecting more and more up front, which is brittle and never enough.
-
-**Change:** give phase-checker read-only kubectl tools. It receives a baseline state snapshot but can issue `kubectl describe`, `kubectl logs`, `kubectl get crd` etc. when it finds something suspicious. It becomes an active investigator, not a passive assessor.
-
-**Add `problem_domain` to its JSON output:**
+Returns a structured `PhaseHealthVerdict`:
 ```json
 {
-  "status": "degraded",
+  "is_healthy": false,
   "recommendation": "diagnose",
   "problem_domain": "crossplane | flux | github-actions | unknown",
-  "errors": [...],
+  "failing_resources": [{"kind": "...", "name": "...", "error": "..."}],
   "analysis": "..."
 }
 ```
 
-The orchestrator uses `problem_domain` to route to the correct specialist.
+### Failure diagnosis — `DiagnoseFailure`
+
+A `dspy.ReAct` module with live cluster tools. Handles novel failures that the Python fast-paths don't cover. The agent iteratively:
+1. Investigates the live cluster (kubectl get/describe/logs)
+2. Reads and edits repository manifests
+3. Commits and pushes fixes via `git_commit_push` (with fetch+rebase guard)
+4. Returns a `DiagnosticsDecision` with `action: retry | teardown | escalate`
+
+The agent receives the errors from `AssessPhaseHealth` plus initial context, then calls tools freely up to `max_iters=20`.
+
+### Python fast-paths (no LLM)
+
+Three known Catch-22 patterns are detected by regex on the error messages and handled directly in Python before `DiagnoseFailure` is ever called:
+
+| Pattern | Remedy |
+|---|---|
+| `provider:github` missing on GitRepository | `kubectl patch` live object |
+| Stale `resourceRefs` after Composition API group change | `kubectl patch spec.resourceRefs=null` |
+| Flux kustomization stuck on stale `dependency not ready` | `kubectl annotate` to force-reconcile |
 
 ---
 
-### crossplane-diagnostics — new specialist agent
+## Key files
 
-Deep expertise in Crossplane v2:
-- Provider installation and package resolution (upbound vs contrib family conflict)
-- CRD registration patterns per provider version
-- Composition rendering: why an XR does not produce managed resources
-- API group migrations (e.g. `container.gcp.upbound.io` → `gke.gcp.upbound.io`)
-- ProviderRevision dependency resolution failures
-- Common failure modes for provider-gcp-gke, provider-gcp-container, ProviderConfig
-
-Tools: read-only kubectl (get, describe, logs), file read/edit, git add/commit/push.
-
-Skill counterpart: `/crossplane-troubleshoot` — same knowledge, conversational framing for interactive debugging. Also the natural entry point for a kagent tool running inside the cluster.
-
----
-
-### flux-diagnostics — refocused specialist agent
-
-Replaces the current `diagnostics.md` for Flux-specific failures:
-- Kustomization dependency chains and why "dependency not ready" can be permanent
-- GitRepository auth: the `provider: github` recurring issue, secret structure
-- `kustomize build` failures: YAML errors in manifests
-- HelmRelease failures
-- Image automation and policy issues
-
-Tools: read-only kubectl, file read/edit, git add/commit/push.
-
-Skill counterpart: `/flux-troubleshoot`.
+| File | Role |
+|---|---|
+| `orchestrator/main.py` | Phase loop, fast-paths, DSPy module wiring |
+| `orchestrator/schemas.py` | Pydantic models: `PhaseHealthVerdict`, `DiagnosticsDecision` |
+| `orchestrator/signatures.py` | DSPy signatures: `AssessPhaseHealth`, `DiagnoseFailure` |
+| `orchestrator/llm_router.py` | LiteLLM factory, reads `ORCHESTRATOR_MODEL` env var |
+| `orchestrator/telemetry.py` | OTEL: spans + `record_llm()` + `record_shell()` |
+| `orchestrator/phases/*.md` | Phase health criteria (bootstrap, control, workload) |
+| `orchestrator/check_env.py` | LLM connectivity test (`task agentic:check-env`) |
+| `scripts/collect-cluster-state.sh` | Cluster state snapshot, callable by orchestrator and humans |
 
 ---
 
-### github-actions-flux-debugger — wire into the loop
+## The `.claude/agents/` layer
 
-This agent already exists and is well-written. It is not yet invoked by the orchestrator. When `problem_domain = github-actions` (e.g. a Flux bootstrap workflow failed, a GKE cluster was provisioned but Flux was never bootstrapped on it), the orchestrator should route here.
+The agent files in `.claude/agents/` (`phase-checker.md`, `crossplane-diagnostics.md`, etc.) are **not invoked by the orchestrator**. They remain available for:
+- Human interactive sessions via Claude Code (e.g. manually running `/crossplane-troubleshoot`)
+- Direct sub-agent invocation during human-driven debugging
 
-The agent has different tools from the diagnostics agents: it can inspect GitHub Actions workflow runs, check workflow status, and diagnose authentication issues between GKE and GitHub.
-
-Skill counterpart: `/flux-debug` (a lighter wrapper for human interactive use).
-
----
-
-### Routing in the orchestrator
-
-```python
-domain_to_agent = {
-    "crossplane":      "crossplane-diagnostics",
-    "flux":            "flux-diagnostics",
-    "github-actions":  "github-actions-flux-debugger",
-    "unknown":         "flux-diagnostics",   # safest fallback
-}
-agent_name = domain_to_agent[verdict["problem_domain"]]
-system     = read_agent_prompt(agent_name)
-raw        = call_claude(system, user_msg, agent_name=agent_name)
-```
-
-The orchestrator stays thin. All domain logic is in the agents.
+The orchestrator's `DiagnoseFailure` ReAct module carries equivalent domain knowledge through its system prompt context (DSPy signatures) and exercises it via direct tool calls rather than delegating to a separate CLI harness.
 
 ---
 
-### Cluster state collection — move to script
+## Cluster state collection
 
-Replace `collect_cluster_state()` in `main.py` with `scripts/collect-cluster-state.sh`.
+`scripts/collect-cluster-state.sh <phase>` is the single source of truth for pre-collected cluster state. It is:
+- Called by `run_phase()` before each `AssessPhaseHealth` call
+- Called by `handle_failure()` to save a reference snapshot before diagnosis
+- Callable manually by a human for interactive debugging
+- Writable to `orchestrator/runs/snapshot-<phase>-<ts>.txt` for session evidence
 
-```bash
-# Usage
-scripts/collect-cluster-state.sh bootstrap   # kind cluster state
-scripts/collect-cluster-state.sh control     # kind + control-plane
-scripts/collect-cluster-state.sh workload    # kind + control-plane + apps-dev
-```
-
-Outputs the same structured text as today, but is now:
-- Callable by the orchestrator: `subprocess.run(["scripts/collect-cluster-state.sh", phase])`
-- Callable by a human debugging manually
-- Callable by kagent from inside the cluster (adapted to its own context)
-- Versionable and testable independently of the Python orchestrator
-
-The phase-checker still receives this as pre-collected baseline context, but now also has tools to dig deeper when it needs to.
+The `DiagnoseFailure` ReAct agent does **not** receive this snapshot — it collects what it needs via kubectl tools directly.
 
 ---
 
-### kagent integration (future)
+## Environment variables
 
-A kagent tool definition wraps the skill content plus the kubectl invocations appropriate for in-cluster use (no `--context` flags needed, talks to the local API server). The shared knowledge layer in `.claude/skills/` is what gets reused. The operational wrapper differs: kagent uses its own tool calling interface rather than Claude Code's Bash tool.
-
-The Crossplane troubleshooting skill is the most natural first kagent tool: a cluster can run an agent that diagnoses its own Crossplane state without any external tooling.
+| Variable | Purpose |
+|---|---|
+| `ORCHESTRATOR_MODEL` | Primary model (`openai/spark`, `openrouter/...`, `vertex_ai/...`) |
+| `ORCHESTRATOR_FALLBACK_MODELS` | Comma-separated fallback chain |
+| `ORCHESTRATOR_API_BASE` | API base URL (for local vLLM/Spark) |
+| `ORCHESTRATOR_API_KEY` | API key (optional, provider-specific) |
+| `PROJECT_ID` | GCP project for OTEL export |
 
 ---
 
-## Implementation phases
+## Future work
 
-### Phase 1 — Structural (do first, low risk)
-- [x] Move `bootstrap/scripts/` → `scripts/` at repo root
-- [x] Extract `collect-cluster-state.sh` from Python logic
-- [x] Update orchestrator to call script for snapshots; agents use kubectl directly
+### Skills layer (human-facing)
 
-### Phase 2 — Phase-checker upgrade
-- [x] Add kubectl read-only tools to phase-checker (active investigator model)
-- [x] Add `problem_domain` field to its JSON output schema
-- [x] Update orchestrator to use `problem_domain` for routing
+The `.claude/skills/` directory currently only has `upgrade-versions/`. Planned skills that mirror the domain knowledge baked into `DiagnoseFailure`:
+- `/crossplane-troubleshoot` — interactive Crossplane debugging, also the natural kagent tool entry point
+- `/flux-troubleshoot` — deferred until after Flux operator migration (#71)
+- `/flux-debug` — deferred until after #71
 
-### Phase 3 — Agent specialisation
-- [x] Create `crossplane-diagnostics.md` agent with deep Crossplane expertise
-- [ ] Refocus `flux-diagnostics.md` (rename current `diagnostics.md`) — deferred until after Flux operator migration (#71)
-- [ ] Wire `github-actions-flux-debugger` into orchestrator routing — deferred
+### kagent integration
 
-### Phase 4 — Skills layer
-- [ ] Create `.claude/skills/crossplane-troubleshoot/` skill
-- [ ] Create `.claude/skills/flux-troubleshoot/` skill — deferred until after #71
-- [ ] Create `.claude/skills/flux-debug/` skill — deferred until after #71
-
-### Phase 5 — kagent
-- [ ] Design kagent tool interface for crossplane-troubleshoot skill
-- [ ] Adapt skill content for in-cluster context (no --context flags)
+A kagent tool definition would wrap crossplane/flux troubleshooting knowledge for in-cluster use. The shared knowledge layer is what gets reused; the operational wrapper differs (no `--context` flags, talks to the local API server). The `DiagnoseFailure` ReAct tools give a clear template for what a kagent tool needs to expose.

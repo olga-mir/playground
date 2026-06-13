@@ -18,4 +18,6 @@ includes:
     dir: .
   secrets:
     taskfile: ./tasks/secrets.yaml
+  agentic:
+    taskfile: ./tasks/agentic.yaml
     dir: .
