@@ -12,7 +12,7 @@ spec:
   chart:
     spec:
       chart: kagent
-      version: "0.9.2"
+      version: "v0.9.7"
       sourceRef:
         kind: HelmRepository
         name: kagent-helm-repo
