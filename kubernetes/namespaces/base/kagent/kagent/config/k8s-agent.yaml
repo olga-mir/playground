@@ -17,6 +17,3 @@ spec:
         tags:
           - kubernetes
           - cluster-management
-  allowedNamespaces:
-    - kagent-system
-    - team-charlie
