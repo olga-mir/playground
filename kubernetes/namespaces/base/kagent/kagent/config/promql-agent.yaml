@@ -12,6 +12,7 @@ spec:
   a2aConfig:
     skills:
       - id: promql-expertise
+        name: PromQL Expertise
         description: Write and execute PromQL queries for metric analysis
         tags:
           - prometheus

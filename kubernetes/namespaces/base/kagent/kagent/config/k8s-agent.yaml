@@ -12,6 +12,7 @@ spec:
   a2aConfig:
     skills:
       - id: kubernetes-management
+        name: Kubernetes Management
         description: Inspect and manage Kubernetes resources
         tags:
           - kubernetes

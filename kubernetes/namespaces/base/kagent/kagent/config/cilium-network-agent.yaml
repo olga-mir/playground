@@ -12,6 +12,7 @@ spec:
   a2aConfig:
     skills:
       - id: cilium-network-debug
+        name: Cilium Network Debug
         description: >
           Diagnose Cilium network issues and delegate metric analysis downstream.
         examples:

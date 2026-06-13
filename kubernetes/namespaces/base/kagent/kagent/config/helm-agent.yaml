@@ -12,6 +12,7 @@ spec:
   a2aConfig:
     skills:
       - id: helm-management
+        name: Helm Management
         description: Manage Helm charts and releases
         tags:
           - helm

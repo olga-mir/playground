@@ -12,6 +12,7 @@ spec:
   a2aConfig:
     skills:
       - id: observability-analysis
+        name: Observability Analysis
         description: Analyse logs, metrics and traces
         tags:
           - observability

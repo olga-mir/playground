@@ -50,6 +50,15 @@ spec:
 
     Always provide detailed error analysis and clear fix explanations.
   memory: ["crossplane-docs-memory"]
+  a2aConfig:
+    skills:
+      - id: crossplane-debugging
+        name: Crossplane Composition Debugging
+        description: Troubleshoot and fix Crossplane composition issues
+        tags:
+          - crossplane
+          - platform-engineering
+          - debugging
   tools:
     - type: Agent
       agent:
