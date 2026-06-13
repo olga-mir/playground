@@ -59,11 +59,6 @@ spec:
           - crossplane
           - platform-engineering
           - debugging
-  tools:
-    - type: Agent
-      agent:
-        name: k8s-agent
-        namespace: kagent-system
 ---
 # MCP Website Fetcher Tool Server
 apiVersion: kagent.dev/v1alpha1
