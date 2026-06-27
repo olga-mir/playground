@@ -24,6 +24,7 @@ metadata:
   annotations:
     kagent.dev/reconcile-at: "2026-06-27T06:00:00Z"
 spec:
+  description: "Troubleshoot and fix Crossplane compositions using k8s-agent for resource inspection"
   declarative:
     modelConfig: claude-model-config
     systemMessage: |
