@@ -30,7 +30,6 @@ while IFS= read -r item; do
   latest=$(echo "$item"    | jq -r '.latest_version')
 
   [[ "$latest" == "unknown" ]] && continue
-  [[ "$component" == "crossplane" ]] && continue
   [[ "$component" == "provider-gcp-gke" ]] && continue
 
   # Derive expected version: preserve v-prefix from the current version in the file.

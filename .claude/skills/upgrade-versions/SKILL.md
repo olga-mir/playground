@@ -27,7 +27,6 @@ The table has columns: `Component | Type | File | Current | Latest | Update?`
 ### 2. Apply updates for rows marked **YES**
 
 Skip these regardless:
-- `crossplane` component — requires special process, skip for now
 - `provider-gcp-gke` — track via `upbound/provider-gcp-gke` GitHub releases
 - Any row where `latest_version` is `unknown`
 

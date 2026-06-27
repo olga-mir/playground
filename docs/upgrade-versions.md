@@ -98,8 +98,8 @@ This auto-approves all Edit calls without interactive prompts, which is correct 
 an automated workflow. The deprecated `allowed_tools` parameter is not used; tools are
 configured via `claude_args: '--allowedTools ...'` per the current claude-code-action v1 API.
 
-### Crossplane chart version is an RC
+### Crossplane chart version format
 
-The crossplane Helm chart is currently `2.0.0-rc.1`. When a stable version is released,
-the Helm index will return it as the latest. The `sort -V` ordering treats `2.0.0-rc.1`
-as less than `2.0.0`, so the upgrade will be correctly detected.
+The crossplane Helm chart uses versions without a `v` prefix (e.g. `2.3.3`), while GitHub
+releases are tagged `v2.3.3`. The validator infers this from the existing format in the file
+and strips the prefix automatically — no special handling needed.
