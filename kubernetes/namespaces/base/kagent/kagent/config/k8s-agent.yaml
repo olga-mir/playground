@@ -4,10 +4,8 @@ metadata:
   name: k8s-agent
   namespace: kagent-system
 spec:
-  type: Declarative
   allowedNamespaces:
-    - kagent-system
-    - team-charlie
+    from: All
   declarative:
     modelConfig: claude-model-config
     systemMessage: |

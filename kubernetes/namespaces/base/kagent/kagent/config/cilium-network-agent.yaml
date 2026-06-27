@@ -4,7 +4,6 @@ metadata:
   name: cilium-network-agent
   namespace: kagent-system
 spec:
-  type: Declarative
   declarative:
     modelConfig: claude-model-config
     systemMessage: |

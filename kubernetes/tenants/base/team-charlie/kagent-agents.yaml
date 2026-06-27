@@ -22,7 +22,6 @@ metadata:
   name: crossplane-composition-fixer
   namespace: team-charlie
 spec:
-  type: Declarative
   declarative:
     modelConfig: claude-model-config
     systemMessage: |
