@@ -54,7 +54,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kagent-crossplane-github-access-binding
+  name: kagent-crossplane-github-access
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
