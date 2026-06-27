@@ -186,11 +186,16 @@ def test_k8s_agent_allowed_namespaces(ctx_apps_dev):
         "k8s-agent",
     )
 
-    allowed_ns = agent["spec"].get("allowedNamespaces", [])
-    assert "team-charlie" in allowed_ns, \
-        f"team-charlie not in k8s-agent allowedNamespaces: {allowed_ns}"
-    assert "kagent-system" in allowed_ns, \
-        f"kagent-system not in k8s-agent allowedNamespaces: {allowed_ns}"
+    allowed_ns = agent["spec"].get("allowedNamespaces", {})
+    # Gateway API pattern: {from: All} permits every namespace implicitly
+    if isinstance(allowed_ns, dict) and allowed_ns.get("from") == "All":
+        pass  # all namespaces allowed, including team-charlie and kagent-system
+    else:
+        ns_list = allowed_ns if isinstance(allowed_ns, list) else []
+        assert "team-charlie" in ns_list, \
+            f"team-charlie not in k8s-agent allowedNamespaces: {allowed_ns}"
+        assert "kagent-system" in ns_list, \
+            f"kagent-system not in k8s-agent allowedNamespaces: {allowed_ns}"
 
     logger.info("k8s-agent allowedNamespaces correctly configured")
 
