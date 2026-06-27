@@ -48,22 +48,33 @@ while IFS= read -r item; do
     continue
   fi
 
-  if grep -qF "$expected" "$abs_file"; then
-    continue
-  fi
-
-  # Expected version not found — determine what went wrong
-  wrong_with_v="v${latest#v}"
-  wrong_no_v="${latest#v}"
-
-  if [[ "$expected" != v* ]] && grep -qF "$wrong_with_v" "$abs_file"; then
-    errors+=("FORMAT_ERROR component=${component} file=${file} expected=${expected} found=${wrong_with_v} fix=remove_v_prefix")
-  elif [[ "$expected" == v* ]] && grep -qF "$wrong_no_v" "$abs_file"; then
-    errors+=("FORMAT_ERROR component=${component} file=${file} expected=${expected} found=${wrong_no_v} fix=add_v_prefix")
-  elif grep -qF "$current" "$abs_file"; then
-    errors+=("NOT_UPDATED component=${component} file=${file} expected=${expected} still_has=${current}")
+  # Check for wrong format first, using the longer (more specific) string.
+  # Critical: never check "does bare 'X' exist?" when "vX" might be present —
+  # grep -F "0.9.10" matches "v0.9.10" as a substring, causing false negatives.
+  # Instead: for the no-v case, confirm the wrong (with-v) form is absent.
+  if [[ "$expected" != v* ]]; then
+    wrong="v${expected}"
+    if grep -qF "$wrong" "$abs_file"; then
+      errors+=("FORMAT_ERROR component=${component} file=${file} expected=${expected} found=${wrong} fix=remove_v_prefix")
+    elif grep -qF "$current" "$abs_file"; then
+      errors+=("NOT_UPDATED component=${component} file=${file} expected=${expected} still_has=${current}")
+    fi
+    # else: wrong (with-v) absent and old version absent → OK
   else
-    errors+=("UNKNOWN_STATE component=${component} file=${file} expected=${expected} current=${current}")
+    # With-v case: grep for "vX" is safe — "vX" won't substring-match bare "X".
+    if grep -qF "$expected" "$abs_file"; then
+      : # OK
+    else
+      wrong="${expected#v}"
+      # Safe to check bare version here: we already know the v-version is absent.
+      if grep -qF "$wrong" "$abs_file"; then
+        errors+=("FORMAT_ERROR component=${component} file=${file} expected=${expected} found=${wrong} fix=add_v_prefix")
+      elif grep -qF "$current" "$abs_file"; then
+        errors+=("NOT_UPDATED component=${component} file=${file} expected=${expected} still_has=${current}")
+      else
+        errors+=("UNKNOWN_STATE component=${component} file=${file} expected=${expected} current=${current}")
+      fi
+    fi
   fi
 
 done < <(jq -c '.[] | select(.needs_update == true)' "$REPORT")
