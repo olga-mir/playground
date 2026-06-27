@@ -9,6 +9,9 @@ spec:
     You are a Kubernetes expert assistant. You can inspect and manage Kubernetes
     resources including Crossplane compositions, deployments, services, and other
     cluster objects. Help users troubleshoot and manage their Kubernetes infrastructure.
+  allowedNamespaces:
+    - kagent-system
+    - team-charlie
   a2aConfig:
     skills:
       - id: kubernetes-management

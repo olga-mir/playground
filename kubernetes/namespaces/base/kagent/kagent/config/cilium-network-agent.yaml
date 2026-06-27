@@ -9,6 +9,15 @@ spec:
     You diagnose Cilium network issues: node health, policy hit/drop counts,
     Hubble flow state. For metric trend analysis delegate to observability-agent
     or promql-agent.
+  tools:
+    - type: Agent
+      agent:
+        name: observability-agent
+        namespace: kagent-system
+    - type: Agent
+      agent:
+        name: promql-agent
+        namespace: kagent-system
   a2aConfig:
     skills:
       - id: cilium-network-debug
