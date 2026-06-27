@@ -202,10 +202,13 @@ jobs:
         KAGENT_ANTHROPIC_API_KEY=$(gcloud secrets versions access latest \
           --secret="kagent-anthropic-api-key" \
           --project="${{ steps.cluster-info.outputs.projectID }}")
-        kubectl create secret generic kagent-anthropic \
-          -n kagent-system \
-          --from-literal=KAGENT_ANTHROPIC_API_KEY="${KAGENT_ANTHROPIC_API_KEY}" \
-          --dry-run=client -o yaml | kubectl apply -f -
+        for NS in kagent-system team-charlie; do
+          kubectl get namespace "${NS}" >/dev/null 2>&1 || kubectl create namespace "${NS}"
+          kubectl create secret generic kagent-anthropic \
+            -n "${NS}" \
+            --from-literal=KAGENT_ANTHROPIC_API_KEY="${KAGENT_ANTHROPIC_API_KEY}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+        done
 
     - name: Setup Flux CLI
       uses: fluxcd/flux2/action@main
