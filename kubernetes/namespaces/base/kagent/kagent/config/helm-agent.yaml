@@ -1,19 +1,21 @@
-apiVersion: kagent.dev/v1alpha1
+apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
   name: helm-agent
   namespace: kagent-system
 spec:
-  modelConfig: claude-model-config
-  systemMessage: |
-    You are a Helm package management expert. You help users manage Helm charts,
-    releases, and repositories. You can assist with chart customization, upgrades,
-    and troubleshooting Helm deployments.
-  a2aConfig:
-    skills:
-      - id: helm-management
-        name: Helm Management
-        description: Manage Helm charts and releases
-        tags:
-          - helm
-          - package-management
+  type: Declarative
+  declarative:
+    modelConfig: claude-model-config
+    systemMessage: |
+      You are a Helm package management expert. You help users manage Helm charts,
+      releases, and repositories. You can assist with chart customization, upgrades,
+      and troubleshooting Helm deployments.
+    a2aConfig:
+      skills:
+        - id: helm-management
+          name: Helm Management
+          description: Manage Helm charts and releases
+          tags:
+            - helm
+            - package-management

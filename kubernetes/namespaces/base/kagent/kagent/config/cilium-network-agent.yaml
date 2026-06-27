@@ -1,33 +1,35 @@
-apiVersion: kagent.dev/v1alpha1
+apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
   name: cilium-network-agent
   namespace: kagent-system
 spec:
-  modelConfig: claude-model-config
-  systemMessage: |
-    You diagnose Cilium network issues: node health, policy hit/drop counts,
-    Hubble flow state. For metric trend analysis delegate to observability-agent
-    or promql-agent.
-  tools:
-    - type: Agent
-      agent:
-        name: observability-agent
-        namespace: kagent-system
-    - type: Agent
-      agent:
-        name: promql-agent
-        namespace: kagent-system
-  a2aConfig:
-    skills:
-      - id: cilium-network-debug
-        name: Cilium Network Debug
-        description: >
-          Diagnose Cilium network issues and delegate metric analysis downstream.
-        examples:
-          - "Check Cilium node health and report any policy drops in the last hour"
-          - "Analyse network latency trends for namespace team-alpha"
-        tags:
-          - cilium
-          - networking
-          - observability
+  type: Declarative
+  declarative:
+    modelConfig: claude-model-config
+    systemMessage: |
+      You diagnose Cilium network issues: node health, policy hit/drop counts,
+      Hubble flow state. For metric trend analysis delegate to observability-agent
+      or promql-agent.
+    tools:
+      - type: Agent
+        agent:
+          name: observability-agent
+          namespace: kagent-system
+      - type: Agent
+        agent:
+          name: promql-agent
+          namespace: kagent-system
+    a2aConfig:
+      skills:
+        - id: cilium-network-debug
+          name: Cilium Network Debug
+          description: >
+            Diagnose Cilium network issues and delegate metric analysis downstream.
+          examples:
+            - "Check Cilium node health and report any policy drops in the last hour"
+            - "Analyse network latency trends for namespace team-alpha"
+          tags:
+            - cilium
+            - networking
+            - observability
