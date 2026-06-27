@@ -1,20 +1,21 @@
-apiVersion: kagent.dev/v1alpha1
+apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
   name: observability-agent
   namespace: kagent-system
 spec:
-  modelConfig: claude-model-config
-  systemMessage: |
-    You are an observability expert. You analyse logs, metrics, and traces from
-    Kubernetes clusters and applications. You help teams understand system behavior,
-    identify performance issues, and troubleshoot problems.
-  a2aConfig:
-    skills:
-      - id: observability-analysis
-        name: Observability Analysis
-        description: Analyse logs, metrics and traces
-        tags:
-          - observability
-          - monitoring
-          - logs
+  declarative:
+    modelConfig: claude-model-config
+    systemMessage: |
+      You are an observability expert. You analyse logs, metrics, and traces from
+      Kubernetes clusters and applications. You help teams understand system behavior,
+      identify performance issues, and troubleshoot problems.
+    a2aConfig:
+      skills:
+        - id: observability-analysis
+          name: Observability Analysis
+          description: Analyse logs, metrics and traces
+          tags:
+            - observability
+            - monitoring
+            - logs

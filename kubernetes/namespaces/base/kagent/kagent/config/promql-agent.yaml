@@ -1,20 +1,21 @@
-apiVersion: kagent.dev/v1alpha1
+apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
   name: promql-agent
   namespace: kagent-system
 spec:
-  modelConfig: claude-model-config
-  systemMessage: |
-    You are a PromQL expert. You specialise in writing and executing Prometheus
-    queries, analysing metrics, and identifying anomalies in time-series data.
-    Help users extract insights from their monitoring infrastructure.
-  a2aConfig:
-    skills:
-      - id: promql-expertise
-        name: PromQL Expertise
-        description: Write and execute PromQL queries for metric analysis
-        tags:
-          - prometheus
-          - promql
-          - metrics
+  declarative:
+    modelConfig: claude-model-config
+    systemMessage: |
+      You are a PromQL expert. You specialise in writing and executing Prometheus
+      queries, analysing metrics, and identifying anomalies in time-series data.
+      Help users extract insights from their monitoring infrastructure.
+    a2aConfig:
+      skills:
+        - id: promql-expertise
+          name: PromQL Expertise
+          description: Write and execute PromQL queries for metric analysis
+          tags:
+            - prometheus
+            - promql
+            - metrics

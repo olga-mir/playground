@@ -259,6 +259,16 @@ def ctx_apps_dev() -> str:
     return ctx
 
 
+@pytest.fixture(scope="session", autouse=True)
+def ensure_all_clusters():
+    """Ensure kubeconfig contexts for both control-plane and apps-dev are present.
+    This runs once per test session and will attempt to fetch credentials if missing.
+    """
+    _ensure_context("control-plane")
+    _ensure_context("apps-dev")
+
+
+
 # ── k8s client helpers ────────────────────────────────────────────────────────
 
 def k8s_api(ctx: str) -> client.ApiClient:

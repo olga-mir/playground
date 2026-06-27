@@ -33,12 +33,12 @@ def test_cilium_network_agent_deployed(ctx_apps_dev):
     """cilium-network-agent must be deployed as a standalone Agent CR."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "cilium-network-agent",
     )
     assert agent["metadata"]["name"] == "cilium-network-agent"
-    assert agent["spec"]["modelConfig"] == "claude-model-config"
+    assert agent["spec"]["declarative"]["modelConfig"] == "claude-model-config"
     logger.info("cilium-network-agent Agent CR found")
 
 
@@ -48,12 +48,12 @@ def test_k8s_agent_deployed(ctx_apps_dev):
     """k8s-agent must be deployed as a standalone Agent CR."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "k8s-agent",
     )
     assert agent["metadata"]["name"] == "k8s-agent"
-    assert agent["spec"]["modelConfig"] == "claude-model-config"
+    assert agent["spec"]["declarative"]["modelConfig"] == "claude-model-config"
     logger.info("k8s-agent Agent CR found")
 
 
@@ -63,7 +63,7 @@ def test_observability_agent_deployed(ctx_apps_dev):
     """observability-agent must be deployed as a standalone Agent CR."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "observability-agent",
     )
@@ -77,7 +77,7 @@ def test_promql_agent_deployed(ctx_apps_dev):
     """promql-agent must be deployed as a standalone Agent CR."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "promql-agent",
     )
@@ -91,7 +91,7 @@ def test_helm_agent_deployed(ctx_apps_dev):
     """helm-agent must be deployed as a standalone Agent CR."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "helm-agent",
     )
@@ -132,12 +132,12 @@ def test_cilium_network_agent_tool_references(ctx_apps_dev):
     """cilium-network-agent must declare observability and promql agents as tools."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "cilium-network-agent",
     )
 
-    tools = agent["spec"].get("tools", [])
+    tools = agent["spec"]["declarative"].get("tools", [])
     agent_tools = [t for t in tools if t.get("type") == "Agent"]
     assert len(agent_tools) >= 2, \
         f"cilium-network-agent must have at least 2 Agent tools, found {len(agent_tools)}"
@@ -157,12 +157,12 @@ def test_cilium_network_agent_a2a_skills(ctx_apps_dev):
     """cilium-network-agent must declare a2aConfig.skills metadata."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "cilium-network-agent",
     )
 
-    a2a_config = agent["spec"].get("a2aConfig", {})
+    a2a_config = agent["spec"]["declarative"].get("a2aConfig", {})
     skills = a2a_config.get("skills", [])
     assert len(skills) > 0, "cilium-network-agent must declare at least one skill"
 
@@ -181,7 +181,7 @@ def test_k8s_agent_allowed_namespaces(ctx_apps_dev):
     """k8s-agent must have allowedNamespaces including team-charlie."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "k8s-agent",
     )
@@ -201,13 +201,13 @@ def test_crossplane_composition_fixer_deployed(ctx_apps_dev):
     """crossplane-composition-fixer must be deployed in team-charlie."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", TEAM_CHARLIE,
         "crossplane-composition-fixer",
     )
 
     assert agent["metadata"]["name"] == "crossplane-composition-fixer"
-    assert agent["spec"]["modelConfig"] == "claude-model-config"
+    assert agent["spec"]["declarative"]["modelConfig"] == "claude-model-config"
     logger.info("crossplane-composition-fixer Agent CR found in team-charlie")
 
 
@@ -217,12 +217,12 @@ def test_crossplane_composition_fixer_k8s_agent_tool(ctx_apps_dev):
     """crossplane-composition-fixer must declare k8s-agent as a tool."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", TEAM_CHARLIE,
         "crossplane-composition-fixer",
     )
 
-    tools = agent["spec"].get("tools", [])
+    tools = agent["spec"]["declarative"].get("tools", [])
     agent_tools = [t for t in tools if t.get("type") == "Agent"]
 
     k8s_tool = next(
@@ -281,7 +281,7 @@ def test_agents_ready_state(ctx_apps_dev):
     for agent_name in agents_to_check:
         wait_for_condition(
             ctx_apps_dev,
-            "kagent.dev", "v1alpha1",
+            "kagent.dev", "v1alpha2",
             "agents", KAGENT_SYSTEM,
             agent_name,
             timeout=180,
@@ -296,7 +296,7 @@ def test_crossplane_composition_fixer_ready_state(ctx_apps_dev):
     """crossplane-composition-fixer must be in Ready state."""
     wait_for_condition(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", TEAM_CHARLIE,
         "crossplane-composition-fixer",
         timeout=180,
@@ -313,12 +313,12 @@ def test_observability_agent_a2a_skills(ctx_apps_dev):
     """observability-agent must declare a2aConfig.skills metadata."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "observability-agent",
     )
 
-    a2a_config = agent["spec"].get("a2aConfig", {})
+    a2a_config = agent["spec"]["declarative"].get("a2aConfig", {})
     skills = a2a_config.get("skills", [])
     assert len(skills) > 0, "observability-agent must declare at least one skill"
 
@@ -331,12 +331,12 @@ def test_promql_agent_a2a_skills(ctx_apps_dev):
     """promql-agent must declare a2aConfig.skills metadata."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "promql-agent",
     )
 
-    a2a_config = agent["spec"].get("a2aConfig", {})
+    a2a_config = agent["spec"]["declarative"].get("a2aConfig", {})
     skills = a2a_config.get("skills", [])
     assert len(skills) > 0, "promql-agent must declare at least one skill"
 
@@ -349,12 +349,12 @@ def test_k8s_agent_a2a_skills(ctx_apps_dev):
     """k8s-agent must declare a2aConfig.skills metadata."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "k8s-agent",
     )
 
-    a2a_config = agent["spec"].get("a2aConfig", {})
+    a2a_config = agent["spec"]["declarative"].get("a2aConfig", {})
     skills = a2a_config.get("skills", [])
     assert len(skills) > 0, "k8s-agent must declare at least one skill"
 
@@ -369,12 +369,12 @@ def test_cilium_network_agent_system_message(ctx_apps_dev):
     """cilium-network-agent must have delegation instructions in systemMessage."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", KAGENT_SYSTEM,
         "cilium-network-agent",
     )
 
-    msg = agent["spec"].get("systemMessage", "")
+    msg = agent["spec"]["declarative"].get("systemMessage", "")
     assert "observability-agent" in msg or "delegate" in msg.lower(), \
         "systemMessage should mention delegation to observability/promql agents"
 
@@ -387,12 +387,12 @@ def test_crossplane_composition_fixer_system_message(ctx_apps_dev):
     """crossplane-composition-fixer must have proper systemMessage."""
     agent = get_resource(
         ctx_apps_dev,
-        "kagent.dev", "v1alpha1",
+        "kagent.dev", "v1alpha2",
         "agents", TEAM_CHARLIE,
         "crossplane-composition-fixer",
     )
 
-    msg = agent["spec"].get("systemMessage", "")
+    msg = agent["spec"]["declarative"].get("systemMessage", "")
     assert "Crossplane" in msg and len(msg) > 100, \
         "systemMessage should provide detailed Crossplane troubleshooting instructions"
 
@@ -418,7 +418,7 @@ def test_standalone_agents_not_bundled(ctx_apps_dev):
         # Should find as standalone CR
         agent = get_resource(
             ctx_apps_dev,
-            "kagent.dev", "v1alpha1",
+            "kagent.dev", "v1alpha2",
             "agents", KAGENT_SYSTEM,
             agent_name,
         )
