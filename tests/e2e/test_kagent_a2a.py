@@ -240,20 +240,18 @@ def test_crossplane_composition_fixer_k8s_agent_tool(ctx_apps_dev):
 @pytest.mark.kagent
 def test_team_charlie_kagent_rbac(ctx_apps_dev):
     """team-charlie/kagent ServiceAccount must be bound to cross-namespace role."""
-    rbac = get_resource(
-        ctx_apps_dev,
-        "rbac.authorization.k8s.io", "v1",
-        "clusterrolebindings", "",
-        "kagent-crossplane-github-access",
-    )
-
-    subjects = rbac["roleRef"]["name"] or rbac.get("subjects", [])
-    # Check for team-charlie/kagent in subjects (may be multiple bindings)
     co = custom_objects(ctx_apps_dev)
-    binding = co.get_cluster_custom_object("rbac.authorization.k8s.io", "v1", "clusterrolebindings",
-                                          "kagent-crossplane-github-access")
+    try:
+        binding = co.get_cluster_custom_object(
+            "rbac.authorization.k8s.io", "v1",
+            "clusterrolebindings",
+            "kagent-crossplane-github-access",
+        )
+    except client.exceptions.ApiException as exc:
+        if exc.status == 404:
+            pytest.fail("ClusterRoleBinding kagent-crossplane-github-access not found")
+        raise
 
-    # The binding should include team-charlie/kagent as a subject
     found = False
     for subject in binding.get("subjects", []):
         if subject.get("kind") == "ServiceAccount" and \
