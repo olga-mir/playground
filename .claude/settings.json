@@ -32,7 +32,14 @@
       "Bash(git rebase:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(kubectl get *)",
+      "Bash(kubectl describe *)",
+      "Bash(kubectl logs *)",
+      "Bash(kubectl config get-contexts *)",
+      "Bash(flux reconcile helmrelease *)",
+      "Bash(flux version *)",
+      "Bash(gcloud logging read *)"
     ],
     "deny": [
       "Bash(rm:*)",
