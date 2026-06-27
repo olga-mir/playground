@@ -48,8 +48,6 @@ spec:
       - tenants/ contains team workloads and applications
       - namespaces/ contains platform services and configurations
 
-      The project uses Crossplane v2. Use configured Memory to browse documentation for this version of Crossplane
-
       Always provide detailed error analysis and clear fix explanations.
     memory:
       modelConfig: claude-model-config
