@@ -50,52 +50,7 @@ def _find_context(suffix: str) -> str | None:
     return None
 
 
-def _fetch_credentials(cluster_name: str) -> bool:
-    """Try to fetch credentials for a GKE cluster using gcloud."""
-    if IS_GITHUB_ACTIONS:
-        logger.warning(f"Lazy-fetching credentials for {cluster_name} is disabled in CI. "
-                       f"The context must be provided by the GitHub Action workflow.")
-        return False
 
-    if subprocess.run(["which", "gcloud"], capture_output=True).returncode != 0:
-        return False
-
-    logger.info(f"Context for {cluster_name} not found. Attempting to fetch...")
-    try:
-        cmd = [
-            "gcloud", "container", "clusters", "list",
-            "--filter", f"name~{cluster_name}",
-            "--format", "value(name,zone,project)"
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode == 0 and result.stdout.strip():
-            for line in result.stdout.strip().splitlines():
-                parts = line.split()
-                if len(parts) >= 3:
-                    name, zone, project = parts[0], parts[1], parts[2]
-                    if name == cluster_name or name.endswith(f"-{cluster_name}"):
-                        logger.info(f"Found cluster {name} in {zone}. Fetching credentials...")
-                        subprocess.run([
-                            "gcloud", "container", "clusters", "get-credentials",
-                            name, "--zone", zone, "--project", project
-                        ], check=True)
-                        return True
-    except Exception as e:
-        logger.error(f"Failed to fetch credentials for {cluster_name}: {e}")
-    return False
-
-
-def _ensure_context(name: str) -> str | None:
-    ctx = _find_context(name)
-    if ctx and _context_reachable(ctx):
-        return ctx
-
-    if _fetch_credentials(name):
-        ctx = _find_context(name)
-        if ctx and _context_reachable(ctx):
-            return ctx
-
-    return None
 
 
 def _context_reachable(ctx: str) -> bool:
@@ -245,27 +200,18 @@ def ctx_kind() -> str:
 
 @pytest.fixture(scope="session")
 def ctx_control_plane() -> str:
-    ctx = _ensure_context("control-plane")
-    if not ctx:
+    ctx = _find_context("control-plane")
+    if not ctx or not _context_reachable(ctx):
         pytest.skip("control-plane cluster not available")
     return ctx
 
 
 @pytest.fixture(scope="session")
 def ctx_apps_dev() -> str:
-    ctx = _ensure_context("apps-dev")
-    if not ctx:
+    ctx = _find_context("apps-dev")
+    if not ctx or not _context_reachable(ctx):
         pytest.skip("apps-dev cluster not available")
     return ctx
-
-
-@pytest.fixture(scope="session", autouse=True)
-def ensure_all_clusters():
-    """Ensure kubeconfig contexts for both control-plane and apps-dev are present.
-    This runs once per test session and will attempt to fetch credentials if missing.
-    """
-    _ensure_context("control-plane")
-    _ensure_context("apps-dev")
 
 
 

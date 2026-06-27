@@ -63,6 +63,44 @@ tasks:
       - echo "🔑 Getting credentials for {{.CLUSTER}} cluster..."
       - gcloud container clusters get-credentials {{.CLUSTER}} --zone={{.ZONE}} --project={{.PROJECT_ID}}
 
+  ensure-contexts:
+    desc: "Ensure kubeconfig contexts for GKE clusters are configured and reachable"
+    vars:
+      ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+      PROJECT_ID: '{{.PROJECT_ID}}'
+      GKE_CONTROL_PLANE_CLUSTER: '{{.GKE_CONTROL_PLANE_CLUSTER | default "control-plane"}}'
+      GKE_APPS_DEV_CLUSTER: '{{.GKE_APPS_DEV_CLUSTER | default "apps-dev"}}'
+    cmds:
+      - |
+        PROJECT_ID="{{.PROJECT_ID}}"
+        ZONE="{{.ZONE}}"
+        GKE_CONTROL_PLANE_CLUSTER="{{.GKE_CONTROL_PLANE_CLUSTER}}"
+        GKE_APPS_DEV_CLUSTER="{{.GKE_APPS_DEV_CLUSTER}}"
+
+        if [ -z "$PROJECT_ID" ] || [ -z "$ZONE" ]; then
+          echo "⚠️ PROJECT_ID or ZONE not set. Skipping GKE context check."
+          exit 0
+        fi
+
+        CP_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_CONTROL_PLANE_CLUSTER}"
+        AD_CONTEXT="gke_${PROJECT_ID}_${ZONE}_${GKE_APPS_DEV_CLUSTER}"
+
+        ensure_gke_context() {
+          local cluster_name="$1"
+          local expected_context="$2"
+
+          echo "Checking context: $expected_context"
+          if ! kubectl config get-contexts "$expected_context" >/dev/null 2>&1 || ! kubectl --context="$expected_context" cluster-info --request-timeout=5s >/dev/null 2>&1; then
+            echo "🔑 Context '$expected_context' not found or unreachable. Fetching credentials via gcloud..."
+            gcloud container clusters get-credentials "$cluster_name" --zone="$ZONE" --project="$PROJECT_ID"
+          else
+            echo "✅ Context '$expected_context' is active and reachable."
+          fi
+        }
+
+        ensure_gke_context "$GKE_CONTROL_PLANE_CLUSTER" "$CP_CONTEXT"
+        ensure_gke_context "$GKE_APPS_DEV_CLUSTER" "$AD_CONTEXT"
+
   cleanup:
     desc: "Cleanup infrastructure (forcefull)"
     cmds:

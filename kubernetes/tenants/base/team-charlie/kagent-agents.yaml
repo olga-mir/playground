@@ -21,8 +21,6 @@ kind: Agent
 metadata:
   name: crossplane-composition-fixer
   namespace: team-charlie
-  annotations:
-    kagent.dev/reconcile-at: "2026-06-27T06:00:00Z"
 spec:
   description: "Troubleshoot and fix Crossplane compositions using k8s-agent for resource inspection"
   declarative:
@@ -49,8 +47,6 @@ spec:
       Repository structure knowledge:
       - tenants/ contains team workloads and applications
       - namespaces/ contains platform services and configurations
-
-      The project uses Crossplane v2. Use configured Memory to browse documentation for this version of Crossplane
 
       Always provide detailed error analysis and clear fix explanations.
     memory:
