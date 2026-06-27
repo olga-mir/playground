@@ -21,6 +21,8 @@ kind: Agent
 metadata:
   name: crossplane-composition-fixer
   namespace: team-charlie
+  annotations:
+    kagent.dev/reconcile-at: "2026-06-27T06:00:00Z"
 spec:
   declarative:
     modelConfig: claude-model-config
