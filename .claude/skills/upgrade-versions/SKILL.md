@@ -55,7 +55,25 @@ For each helm or crossplane update, update the matching version link in README.m
 component appears in the tech-stack table (both link text and URL contain the version string,
 so a single `sed -i 's|OLD|NEW|g' README.md` handles both).
 
-### 4. Create a PR if any files changed
+### 4. Validate version formats
+
+Run the validator before committing:
+
+```bash
+bash scripts/validate-version-formats.sh
+```
+
+If it exits non-zero, read each error line. `FORMAT_ERROR` lines tell you exactly which
+file, what version string was expected, and what was actually written. Fix with `sed`:
+
+```bash
+# Example: expected 0.9.7 but wrote v0.9.7 in a file
+sed -i 's|v0.9.7|0.9.7|g' path/to/file.yaml
+```
+
+Re-run the script after each fix to confirm it passes before proceeding.
+
+### 5. Create a PR if any files changed
 
 ```bash
 DATE=$(date -u +%Y-%m-%d)
