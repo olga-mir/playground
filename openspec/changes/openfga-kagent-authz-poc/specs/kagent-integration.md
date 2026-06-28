@@ -2,12 +2,12 @@
 
 ## Goal
 
-Wire `k8s-agent` to use the approval webhook for destructive tool calls by adding
-`requireApproval` to the agent manifest, and validate the end-to-end flow.
+Wire `k8s-agent` to route its Kubernetes tool calls through the MCP proxy (instead of
+directly to `kagent-tools`), then validate the end-to-end OpenFGA-gated flow.
 
 ## Manifest change: k8s-agent.yaml
 
-Add `requireApproval` to the `spec.declarative` block:
+Add an explicit `tools` entry referencing the gated ToolServer:
 
 ```yaml
 spec:
@@ -15,45 +15,73 @@ spec:
     modelConfig: claude-model-config
     systemMessage: |
       You are a Kubernetes expert assistant...
-    requireApproval:
-      tools:
-        - k8s_delete_resource
-        - k8s_apply_resource
-      approvalEndpoint: http://openfga-approval-webhook.kagent-system.svc.cluster.local:8080/approve
     tools:
-      - type: Agent
-        ...
+      - type: McpServer
+        mcpServer:
+          name: k8s-tools-gated
+          namespace: kagent-system
+          toolNames:
+            - k8s_get_resources
+            - k8s_list_resources
+            - k8s_delete_resource
+            - k8s_apply_manifest
+            # add others as confirmed from T1
 ```
 
-**Note:** The exact `requireApproval` field name and schema must be confirmed against the
-installed CRD version (v1alpha2). If the field name or nesting differs, adjust accordingly.
+**Note on duplicate tools:** The Helm chart auto-wires `kagent-tools` to all agents.
+k8s-agent will see both the direct tools (auto-wired) and the gated proxy tools
+(explicit). To make the demo unambiguous, attempt to disable the auto-wiring for
+k8s-agent via HelmRelease values:
+
+```yaml
+# In kagent-release.yaml values, if supported:
+agents:
+  k8s-agent:
+    toolServers: []   # disable auto-wiring for this agent
+```
+
+If HelmRelease values don't support per-agent tool server overrides, document the
+ambiguity and proceed — the LLM will likely prefer the explicitly declared tools,
+and the proxy will log all calls clearly.
 
 ## Validation scenario
 
-### Step 1 — Confirm deletion is blocked (no tuple)
+### Pre-condition
 
-Send a prompt to `k8s-agent` that triggers `k8s_delete_resource`:
+OpenFGA bootstrap Job has run. `openfga-store` ConfigMap has `store_id`. Proxy pod
+is Running. ToolServer `k8s-tools-gated` exists and points to proxy.
 
-```
-"Delete the ConfigMap named 'test-delete-me' in the default namespace."
-```
-
-Pre-create the ConfigMap:
-
+Pre-create a test ConfigMap:
 ```bash
 kubectl create configmap test-delete-me -n default \
   --context gke_${PROJECT_ID}_${REGION}-a_apps-dev
 ```
 
-Expected: kagent calls the webhook → webhook calls OpenFGA `check` for
-`tool:k8s_delete_resource` → `{"allowed": false}` → webhook returns reject → kagent
-reports the tool call was denied. ConfigMap still exists after the attempt.
+### Step 1 — Confirm read works (seeded tuple)
 
-### Step 2 — Write tuple at runtime
+Send a read-only prompt to `k8s-agent`:
+```
+"List all ConfigMaps in the default namespace."
+```
+Expected: proxy logs OpenFGA check for `k8s_list_resources` → `{"allowed": true}` →
+call forwarded → k8s-agent returns the list.
+
+### Step 2 — Confirm delete is blocked (no tuple)
+
+Send a destructive prompt:
+```
+"Delete the ConfigMap named 'test-delete-me' in the default namespace."
+```
+Expected: proxy logs OpenFGA check for `k8s_delete_resource` → `{"allowed": false}` →
+MCP error returned → k8s-agent reports the operation was denied. ConfigMap still exists.
+
+### Step 3 — Write tuple at runtime
 
 ```bash
-# Port-forward or exec into a pod with curl access to OpenFGA
-curl -X POST http://openfga.openfga.svc.cluster.local:8080/stores/${STORE_ID}/write \
+# exec into any pod that can reach openfga, or port-forward
+kubectl exec -n kagent-system deploy/openfga-mcp-proxy-k8s-agent \
+  --context gke_${PROJECT_ID}_${REGION}-a_apps-dev -- \
+  curl -s -X POST http://openfga.openfga.svc.cluster.local:8080/stores/${STORE_ID}/write \
   -H 'Content-Type: application/json' \
   -d '{
     "writes": {
@@ -68,13 +96,14 @@ curl -X POST http://openfga.openfga.svc.cluster.local:8080/stores/${STORE_ID}/wr
 
 No restart of any component.
 
-### Step 3 — Confirm deletion is now allowed (tuple exists)
+### Step 4 — Confirm delete is now allowed (tuple exists)
 
-Repeat the same prompt. Expected: webhook returns approve → kagent proceeds → ConfigMap
-is deleted.
+Repeat the same delete prompt. Expected: proxy logs `{"allowed": true}` → call
+forwarded → ConfigMap is deleted.
 
 ## Pass criteria
 
-- Tool call is blocked before tuple write, allowed after — no restart required.
-- The approval webhook log shows the OpenFGA `Check` call and its result for both cases.
-- kagent agent log shows "tool call denied" / "tool call approved" (or equivalent).
+- Read-only tools pass through without error (seeded tuples).
+- Delete is blocked before tuple write, allowed after — no restart required.
+- Proxy logs clearly show the OpenFGA check result for each tool call.
+- k8s-agent response reflects the policy decision (denied / succeeded).

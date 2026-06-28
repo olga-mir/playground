@@ -7,25 +7,24 @@ operator prompt
   │
   ▼
 k8s-agent (kagent-system)
-  │  tool call: k8s_delete_resource
-  │  requireApproval triggers
+  │  MCP tool call: k8s_delete_resource
+  │  (via ToolServer "k8s-tools-gated")
   │
   ▼
-openfga-approval-webhook (kagent-system, ClusterIP :8080)
-  │  POST /approve  {agent_name, tool_name}
+openfga-mcp-proxy-k8s-agent (kagent-system, ClusterIP :8080)
+  │  env: AGENT_ID=k8s-agent
+  │  env: UPSTREAM_MCP_URL=http://kagent-tools.kagent-system.svc.../sse
   │
-  ▼
-OpenFGA (openfga namespace, ClusterIP :8080)
-  │  POST /stores/{id}/check
-  │  tuple_key: {user: "agent:k8s-agent", relation: "can_be_invoked_by", object: "tool:k8s_delete_resource"}
+  ├─► OpenFGA (openfga namespace, ClusterIP :8080)
+  │     POST /stores/{id}/check
+  │     {"user": "agent:k8s-agent", "relation": "can_be_invoked_by", "object": "tool:k8s_delete_resource"}
+  │     ← {"allowed": false}   →  return MCP error to k8s-agent
+  │     ← {"allowed": true}    →  forward to upstream
   │
-  ▼  {"allowed": true/false}
-  │
-openfga-approval-webhook
-  │  {"approved": true/false}
-  │
-k8s-agent
-  │  proceed / block
+  ▼  (when allowed)
+kagent-tools MCP server (kagent-system)
+  │  executes k8s_delete_resource
+  └─► Kubernetes API
 ```
 
 ## Component responsibilities
@@ -33,58 +32,80 @@ k8s-agent
 | Component | Responsibility |
 |-----------|---------------|
 | **OpenFGA** | Stores type model and tuples; answers `check` queries |
-| **Bootstrap Job** | Creates store, writes model, seeds initial read-only tuples (runs once) |
-| **openfga-approval-webhook** | Translates kagent callback → OpenFGA check → approve/reject |
-| **k8s-agent manifest** | Lists destructive tools in `requireApproval`; points to webhook URL |
-| **openfga-store ConfigMap** | Passes store ID from bootstrap Job to webhook at runtime |
+| **Bootstrap Job** | Creates store, writes model, seeds initial read-only tuples; writes store_id to ConfigMap |
+| **openfga-mcp-proxy-k8s-agent** | Intercepts MCP tool calls from k8s-agent; calls OpenFGA; forwards or rejects |
+| **ToolServer `k8s-tools-gated`** | Kubernetes CR pointing k8s-agent at the proxy instead of kagent-tools directly |
+| **k8s-agent manifest** | References `k8s-tools-gated` ToolServer in its tools list |
+| **openfga-store ConfigMap** | Passes store ID from bootstrap Job to proxy at runtime |
 
 ## Sequence: bootstrap
 
 ```
-HelmRelease openfga Ready
+HelmRelease openfga → Ready
   └─ Job: openfga-bootstrap
-       ├─ POST /stores                        → store_id
-       ├─ POST /stores/{id}/authorization-models  → model_id
-       ├─ POST /stores/{id}/write  (read-only tuples)
-       └─ kubectl create configmap openfga-store --from-literal=store_id=...
+       ├─ POST /stores                             → store_id
+       ├─ POST /stores/{id}/authorization-models   → model_id
+       ├─ POST /stores/{id}/write  (read-only tuples: k8s_get_resources, k8s_list_resources)
+       └─ kubectl patch configmap openfga-store --from-literal=store_id=...
+              (ConfigMap pre-created by the Flux Kustomization; Job populates it)
 ```
 
-## Sequence: tool call (blocked)
+## Sequence: tool call blocked (no tuple)
 
 ```
-kagent receives prompt → LLM decides to call k8s_delete_resource
-  → requireApproval: POST webhook /approve {agent_name: "k8s-agent", tool_name: "k8s_delete_resource"}
-    → webhook: POST openfga /check {user: "agent:k8s-agent", relation: "can_be_invoked_by", object: "tool:k8s_delete_resource"}
+k8s-agent: LLM decides to call k8s_delete_resource
+  → MCP tool call → openfga-mcp-proxy-k8s-agent
+    → POST openfga /check
+      tuple: {user: "agent:k8s-agent", relation: "can_be_invoked_by", object: "tool:k8s_delete_resource"}
       ← {"allowed": false}
-    ← {"approved": false}
-  → kagent: tool call denied, reports to operator
+    ← MCP error: {"error": {"code": -32603, "message": "tool invocation denied by policy"}}
+  ← k8s-agent reports to operator: tool call was denied
 ```
 
-## Sequence: runtime tuple write + retry
+## Sequence: runtime tuple write + retry (no restart)
 
 ```
-operator: curl POST /stores/{id}/write  (grant delete tuple)
-  → {"writes": {"tuple_keys": [...]}}   ← {"code": "no error"}
+operator: kubectl exec ... -- curl POST /stores/{id}/write
+  → {"writes": {"tuple_keys": [{"user":"agent:k8s-agent","relation":"can_be_invoked_by","object":"tool:k8s_delete_resource"}]}}
+  ← {"code": "no_error"}
 
-operator re-sends prompt
-  → requireApproval: POST webhook /approve
-    → openfga /check  ← {"allowed": true}
-    ← {"approved": true}
-  → kagent proceeds with k8s_delete_resource
+operator re-sends same prompt to k8s-agent
+  → MCP tool call → proxy
+    → POST openfga /check  ← {"allowed": true}
+    → forward to kagent-tools upstream
+    ← tool result: resource deleted
+  ← k8s-agent reports success
 ```
 
-## Key unknowns (resolved during implementation)
+## MCP transport
 
-1. `requireApproval` field schema in kagent v1alpha2 CRD — field name, nesting, endpoint config.
-2. kagent approval callback payload — exact JSON fields for agent and tool identity.
-3. kagent approval response schema — what it expects back.
-4. MCP tool names — exact strings as registered (e.g. `k8s_delete_resource` vs `DeleteResource`).
+The proxy must speak the same MCP transport as kagent-tools. Confirm from live cluster:
 
-All four are discoverable from the live cluster before writing the webhook.
+```bash
+kubectl get svc -n kagent-system --show-labels | grep -i kagent-tools
+kubectl get toolserver -n kagent-system -o yaml | grep -i url
+```
+
+Likely SSE (`GET /sse` + `POST /messages?sessionId=...`) or StreamableHttp (single
+`POST /mcp` per call). StreamableHttp is simpler to proxy; SSE requires maintaining a
+bidirectional stream.
+
+If StreamableHttp: proxy is a simple `POST /mcp` handler — check OpenFGA, forward request
+body to upstream, return upstream response or error.
+
+If SSE: proxy maintains per-session upstream SSE connections; forwards messages after the
+OpenFGA check on each tool call message.
+
+## Key unknowns (resolved during T1 on live cluster)
+
+1. MCP transport protocol used by `kagent-tools` (SSE vs StreamableHttp).
+2. Exact MCP tool names as registered (e.g. `k8s_delete_resource` vs `DeleteResource`).
+3. Whether HelmRelease values can disable the direct kagent-tools wiring for k8s-agent
+   specifically (to avoid duplicate tool entries).
+4. The service name and port for `kagent-tools` in `kagent-system`.
 
 ## Image registry
 
-Use the existing Artifact Registry in the project:
-`${REGION}-docker.pkg.dev/${PROJECT_ID}/platform/openfga-approval-webhook:poc`
+`${REGION}-docker.pkg.dev/${PROJECT_ID}/platform/openfga-mcp-proxy:poc`
 
 No new registry provisioning needed.
