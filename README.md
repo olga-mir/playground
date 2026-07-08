@@ -37,7 +37,7 @@ kind (local bootstrap)
 
 # AI Orchestrator
 
-The provisioning pipeline is driven by a **Claude-powered agentic loop** that monitors, diagnoses, and fixes the cluster fleet without human intervention:
+The provisioning pipeline is driven by an **agentic loop** — a pure Python orchestrator (`orchestrator/main.py`, DSPy + LiteLLM, no subprocess CLI harness) that monitors, diagnoses, and fixes the cluster fleet without human intervention:
 
 ```
 task agentic:deploy
@@ -45,20 +45,21 @@ task agentic:deploy
         ├─ bootstrap-control-plane-cluster.sh  (background)
         │
         └─ phase loop  [bootstrap → control-plane → apps-dev]
-             ├─ collect kubectl state
-             ├─ phase-checker agent  →  healthy | wait | diagnose | teardown
-             └─ diagnostics agent   →  fix_forward | teardown | escalate
-                  fix_forward: edits manifests, commits to develop, waits for Flux to reconcile
+             ├─ collect cluster state  (scripts/collect-cluster-state.sh)
+             ├─ AssessPhaseHealth (ChainOfThought)  →  healthy | wait | diagnose | teardown
+             └─ handle_failure
+                  ├─ Python fast-paths  (known Catch-22 patterns, no LLM)
+                  └─ DiagnoseFailure (ReAct + kubectl/file/git tools)  →  retry | teardown | escalate
 ```
 
-Two Claude sub-agents drive the loop:
+Two DSPy modules drive the loop:
 
-- **phase-checker** — evaluates cluster state against healthy criteria for the current phase; returns a structured JSON verdict
-- **diagnostics** — investigates failures, reads the mission context, makes targeted manifest edits, and returns a commit-ready fix
+- **AssessPhaseHealth** — a stateless `ChainOfThought` that evaluates pre-collected cluster state against the phase criteria in `orchestrator/phases/*.md`; returns a structured `PhaseHealthVerdict`
+- **DiagnoseFailure** — a `ReAct` agent with live kubectl/file/git tools that investigates novel failures, edits manifests, and commits fixes to `develop` for Flux to reconcile (`git_commit_push` with a fetch+rebase guard)
 
-All cluster changes go through git → Flux. Direct `kubectl` writes are blocked by a `PreToolUse` hook. The orchestrator tracks error signatures and escalates after 3 identical failures or 2 full teardown cycles.
+The model chain is local-first with transparent LiteLLM fallback — local vLLM → OpenRouter → Vertex AI — configured via `ORCHESTRATOR_MODEL` / `ORCHESTRATOR_FALLBACK_MODELS`. The orchestrator tracks error signatures and escalates after 3 identical failures.
 
-→ Full reference: [docs/orchestrator.md](./docs/orchestrator.md)
+→ Full reference: [docs/agentic-architecture.md](./docs/agentic-architecture.md)
 
 # Deployment
 
@@ -92,7 +93,7 @@ task setup:cleanup
 
 | Doc | Covers |
 |-----|--------|
-| [docs/orchestrator.md](./docs/orchestrator.md) | AI orchestrator loop, phases, agent prompts, escalation logic |
+| [docs/agentic-architecture.md](./docs/agentic-architecture.md) | Agentic loop: DSPy modules, model chain, fast-paths, escalation logic |
 | [docs/infrastructure.md](./docs/infrastructure.md) | Crossplane, GKE, kind setup, provisioning flow |
 | [docs/flux-gitops.md](./docs/flux-gitops.md) | Kustomize structure, Flux quirks, image automation |
 | [docs/github-integration.md](./docs/github-integration.md) | GitHub App auth, Actions workflows, notifications |

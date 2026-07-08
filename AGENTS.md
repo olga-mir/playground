@@ -54,7 +54,7 @@ Deep-dive context for specific areas — read the relevant doc when working in t
 - **[GitHub Integration](docs/github-integration.md)** — GitHub App auth, Actions workflows, notifications
 - **[Tenants](docs/tenants.md)** — Tenant onboarding, multi-repo GitOps, image promotion
 - **[Version Upgrades](docs/upgrade-versions.md)** — Weekly automated upgrades: how the scan works, adding new components, known quirks
-- **[Orchestrator](docs/orchestrator.md)** — Automated provisioning pipeline: phases, agent prompts, escalation logic, guardrails, snapshot artifacts
+- **[Agentic Loop](docs/agentic-architecture.md)** — Automated provisioning pipeline: DSPy modules, phases, fast-paths, escalation logic, snapshot artifacts
 - **[Operations](docs/operations.md)** — Fleet health check, key task commands, load testing and performance experiments
 
 # Variables
