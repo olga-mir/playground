@@ -4,7 +4,7 @@ kind: Provider
 metadata:
   name: provider-helm
 spec:
-  package: xpkg.crossplane.io/crossplane-contrib/provider-helm:v1.2.0
+  package: xpkg.crossplane.io/crossplane-contrib/provider-helm:v1.3.0
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
