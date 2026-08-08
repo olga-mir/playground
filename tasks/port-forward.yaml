@@ -6,6 +6,11 @@ tasks:
     cmds:
       - kubectl port-forward -n kagent-system svc/kagent 8082:80
 
+  openfga-proxy:
+    desc: "Port forward openfga-mcp-proxy (apps-dev) to localhost:8090"
+    cmds:
+      - kubectl port-forward -n kagent-system svc/openfga-mcp-proxy 8090:8080 --context gke_${PROJECT_ID}_${ZONE}_apps-dev
+
   # https://github.com/christian-posta/scripted-solo-demos/tree/master/agentgateway/kubernetes
   agw:
     desc: "Port forward agent gateway"

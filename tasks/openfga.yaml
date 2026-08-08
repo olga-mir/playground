@@ -1,0 +1,30 @@
+version: "3"
+
+tasks:
+  build-push-proxy:
+    desc: "Build and push openfga-mcp-proxy image for linux/amd64 (GKE-compatible)"
+    preconditions:
+      - sh: test -n "$PROJECT_ID"
+        msg: "PROJECT_ID is not set"
+      - sh: test -n "$REGION"
+        msg: "REGION is not set"
+    vars:
+      REGISTRY: '{{default (printf "%s-docker.pkg.dev/%s/experiments" .REGION .PROJECT_ID) .REGISTRY}}'
+      IMAGE: '{{.REGISTRY}}/openfga-mcp-proxy:poc'
+    cmds:
+      - docker buildx build --platform linux/amd64 -t {{.IMAGE}} --push apps/openfga-mcp-proxy/
+      - echo "Pushed {{.IMAGE}}"
+
+  test-proxy:
+    desc: "Smoke-test openfga-mcp-proxy via port-forward (run 'task port-forward:openfga-proxy' first)"
+    cmds:
+      - |
+        HOST=${HOST:-localhost:8090}
+        echo "=== ALLOWED (seeded tuple: k8s_get_resources) ==="
+        curl -s -X POST http://$HOST/mcp \
+          -H 'Content-Type: application/json' \
+          -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"k8s_get_resources","arguments":{}}}' | jq .
+        echo "=== BLOCKED (no tuple: k8s_delete_resource) ==="
+        curl -s -X POST http://$HOST/mcp \
+          -H 'Content-Type: application/json' \
+          -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"k8s_delete_resource","arguments":{}}}' | jq .
