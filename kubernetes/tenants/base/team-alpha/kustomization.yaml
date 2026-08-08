@@ -6,4 +6,3 @@ kind: Kustomization
 
 resources:
   - whereami-deployment.yaml
-  - stub-agent.yaml

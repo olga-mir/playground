@@ -7,4 +7,3 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - kagent-agents.yaml
-  - boundary-test-agent.yaml
