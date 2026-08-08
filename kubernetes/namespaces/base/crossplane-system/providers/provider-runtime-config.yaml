@@ -5,6 +5,9 @@ metadata:
 spec:
   deploymentTemplate:
     spec:
+      selector: {}
       template:
         spec:
           serviceAccountName: crossplane-provider-gcp
+          containers:
+            - name: package-runtime
