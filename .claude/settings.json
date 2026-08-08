@@ -39,7 +39,12 @@
       "Bash(kubectl config get-contexts *)",
       "Bash(flux reconcile helmrelease *)",
       "Bash(flux version *)",
-      "Bash(gcloud logging read *)"
+      "Bash(gcloud logging read *)",
+      "Bash(kubectl wait *)",
+      "Bash(kubectl port-forward *)",
+      "Bash(kubectl rollout status *)",
+      "Bash(kubectl rollout history *)",
+      "Bash(helm show *)"
     ],
     "deny": [
       "Bash(rm:*)",
