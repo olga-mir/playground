@@ -8,3 +8,4 @@ resources:
   - observability-agent.yaml
   - promql-agent.yaml
   - helm-agent.yaml
+  - mcp-proxy-deployment.yaml

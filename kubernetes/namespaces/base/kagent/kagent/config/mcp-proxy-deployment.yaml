@@ -1,0 +1,70 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openfga-mcp-proxy
+  namespace: kagent-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openfga-mcp-proxy
+  template:
+    metadata:
+      labels:
+        app: openfga-mcp-proxy
+    spec:
+      containers:
+        - name: proxy
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/experiments/openfga-mcp-proxy:poc
+          env:
+            - name: AGENT_ID
+              value: k8s-agent
+            - name: UPSTREAM_MCP_URL
+              value: http://kagent-tools.kagent-system:8084/mcp
+            - name: OPENFGA_URL
+              value: http://openfga.openfga.svc.cluster.local:8080
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openfga-mcp-proxy
+  namespace: kagent-system
+spec:
+  selector:
+    app: openfga-mcp-proxy
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: kagent.dev/v1alpha1
+kind: ToolServer
+metadata:
+  name: k8s-tools-gated
+  namespace: kagent-system
+spec:
+  description: "k8s tools gated by OpenFGA — checks authorization before forwarding to kagent-tools"
+  config:
+    streamableHttp:
+      url: http://openfga-mcp-proxy.kagent-system.svc.cluster.local:8080/mcp

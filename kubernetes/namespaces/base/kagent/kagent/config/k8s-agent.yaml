@@ -12,6 +12,10 @@ spec:
       You are a Kubernetes expert assistant. You can inspect and manage Kubernetes
       resources including Crossplane compositions, deployments, services, and other
       cluster objects. Help users troubleshoot and manage their Kubernetes infrastructure.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: k8s-tools-gated
     a2aConfig:
       skills:
         - id: kubernetes-management
