@@ -101,6 +101,13 @@ These are deployed as standalone Agent CRs and available to all tenants (via all
 | Agent | Purpose | Delegates To |
 |-------|---------|--------------|
 | `crossplane-composition-fixer` | Troubleshoot Crossplane composition errors | k8s-agent (kagent-system) |
+| `boundary-test-agent` | Validates cross-team boundary enforcement (T4 baseline) | stub-agent (team-alpha) — blocked by kagent controller |
+
+### team-alpha (Boundary Test Agents)
+
+| Agent | Purpose | Notes |
+|-------|---------|-------|
+| `stub-agent` | Target for cross-team boundary test | Intentionally minimal; no ModelConfig in team-alpha (ACCEPTED=False is expected) |
 
 ---
 
@@ -583,6 +590,84 @@ Once OpenFGA is deployed, team-level access policies can be defined as tuples:
 - etc.
 
 See issue #103 for the OpenFGA implementation plan.
+
+---
+
+## Live Validation Results (2026-08-08)
+
+Captured from apps-dev cluster (gke_<project-id>_australia-southeast1-a_apps-dev).
+
+### T1 — Cluster & Agent Health ✅
+
+```
+$ kubectl get agents -n kagent-system --context <apps-dev> -o wide
+NAME                   TYPE          RUNTIME   READY   ACCEPTED
+cilium-network-agent   Declarative   go        True    True
+helm-agent             Declarative   go        True    True
+k8s-agent              Declarative   go        True    False     # MCPServer k8s-tools-gated not found (openfga-poc, not a blocker)
+observability-agent    Declarative   go        True    True
+promql-agent           Declarative   go        True    True
+
+$ kubectl get agents -n team-charlie --context <apps-dev> -o wide
+NAME                           TYPE          RUNTIME   READY   ACCEPTED
+boundary-test-agent            Declarative   go                False     # T4 boundary enforcement — expected
+crossplane-composition-fixer   Declarative   go        True    True
+```
+
+### T2 — A2A Chain 1: cilium-network-agent → observability-agent + promql-agent ✅
+
+Startup log (tool wiring):
+```json
+{"msg":"Wired remote A2A agent tool","name":"kagent_system__NS__observability_agent","url":"http://observability-agent.kagent-system:8080"}
+{"msg":"Wired remote A2A agent tool","name":"kagent_system__NS__promql_agent","url":"http://promql-agent.kagent-system:8080"}
+```
+
+Parallel delegation (same invocationID, same timestamp):
+```json
+{"msg":"Tool execution started","tool":"kagent_system__NS__promql_agent","functionCallID":"toolu_016DKsEpD3UKvJjxiEC78oFD","sessionID":"019fdf88-b471-7dee-a6a9-6d2aa7c169ef","invocationID":"e-292bb336-df7e-4ac8-a5e9-e2ad4c5b17fb"}
+{"msg":"Tool execution started","tool":"kagent_system__NS__observability_agent","functionCallID":"toolu_01583ggHSLzk9bg3ZWJLFBge","sessionID":"019fdf88-b471-7dee-a6a9-6d2aa7c169ef","invocationID":"e-292bb336-df7e-4ac8-a5e9-e2ad4c5b17fb"}
+```
+
+Both sub-agents returned `input-required` (no Prometheus/kubectl tools configured on those agents):
+```
+INFO Subagent returned input_required, requesting confirmation from parent tool=kagent_system__NS__observability_agent
+INFO Subagent returned input_required, requesting confirmation from parent tool=kagent_system__NS__promql_agent
+```
+
+### T3 — A2A Chain 2: crossplane-composition-fixer → k8s-agent ✅
+
+Startup log (tool wiring):
+```json
+{"msg":"Wired remote A2A agent tool","name":"kagent_system__NS__k8s_agent","url":"http://k8s-agent.kagent-system:8080"}
+```
+
+Delegation:
+```json
+{"msg":"Tool execution started","tool":"kagent_system__NS__k8s_agent","functionCallID":"toolu_019nx6vDDMNgsEwVRBmCFFGX","sessionID":"019fdf8b-8812-7a36-8081-1b87d26a8c04","invocationID":"e-cce48c03-80ff-4520-9af0-594ef5e47ee3","args":"{\"request\":\"List all Crossplane Composite Resources (XRs) in the cluster...\"}"}
+```
+
+k8s-agent returned `input-required` (ACCEPTED=False — MCPServer k8s-tools-gated missing):
+```
+INFO Subagent returned input_required, requesting confirmation from parent tool=kagent_system__NS__k8s_agent
+```
+
+### T4 — Cross-team boundary enforcement ✅
+
+`boundary-test-agent` (team-charlie) references `stub-agent` (team-alpha). kagent controller rejected it at reconcile time:
+
+```yaml
+# kubectl get agent boundary-test-agent -n team-charlie -o yaml
+status:
+  conditions:
+  - lastTransitionTime: "2026-08-08T04:14:38Z"
+    message: cross-namespace reference to agent team-alpha/stub-agent is not allowed
+      from namespace team-charlie
+    reason: ReconcileFailed
+    status: "False"
+    type: Accepted
+```
+
+The rejection fires in `reconciler.go:846` (`validateAgentToolReference`). The agent never reaches Running state — enforcement is at admission/reconcile time, not at runtime call time. Only agents with `allowedNamespaces: from=All` (or explicit namespace list) can accept cross-namespace references.
 
 ---
 
