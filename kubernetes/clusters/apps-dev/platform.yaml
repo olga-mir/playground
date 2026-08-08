@@ -8,7 +8,7 @@ spec:
   timeout: 30m
   path: ./kubernetes/namespaces/overlays/apps-dev
   prune: true
-  wait: false
+  wait: true
   sourceRef:
     kind: GitRepository
     name: flux-system

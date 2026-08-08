@@ -22,7 +22,7 @@ metadata:
   name: crossplane-composition-fixer
   namespace: team-charlie
 spec:
-  description: "Troubleshoot and fix Crossplane compositions using k8s-agent for resource inspection"
+  description: "Troubleshoot and fix Crossplane compositions using k8s-agent for resource inspection and remediation"
   declarative:
     modelConfig: claude-model-config
     systemMessage: |
