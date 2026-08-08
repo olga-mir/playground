@@ -1,0 +1,19 @@
+---
+# Stub Agent for namespace isolation baseline testing (openfga-kagent-authz-poc prerequisite)
+# allowedNamespaces defaults to Same — blocks cross-namespace references from team-charlie.
+# Remove after openfga-kagent-authz-poc validation is complete.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: stub-agent
+  namespace: team-alpha
+  labels:
+    openfga-baseline-test: "true"
+spec:
+  declarative:
+    systemMessage: "Stub agent for namespace isolation testing."
+    a2aConfig:
+      skills:
+        - id: stub
+          name: Stub
+          description: Stub skill for isolation test

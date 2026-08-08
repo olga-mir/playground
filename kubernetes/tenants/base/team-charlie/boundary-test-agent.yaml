@@ -1,0 +1,22 @@
+---
+# Temporary test agent for T4 cross-team boundary baseline validation.
+# This agent references stub-agent in team-alpha, which defaults to allowedNamespaces=Same.
+# The kagent-controller should set ACCEPTED=False with:
+#   "cross-namespace reference to agent team-alpha/stub-agent is not allowed from namespace team-charlie"
+# Remove after openfga-kagent-authz-poc validation is complete.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: boundary-test-agent
+  namespace: team-charlie
+  labels:
+    openfga-baseline-test: "true"
+spec:
+  declarative:
+    modelConfig: claude-model-config
+    systemMessage: "Boundary test agent."
+    tools:
+      - type: Agent
+        agent:
+          name: stub-agent
+          namespace: team-alpha
