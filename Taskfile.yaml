@@ -21,3 +21,6 @@ includes:
   agentic:
     taskfile: ./tasks/agentic.yaml
     dir: .
+  openfga:
+    taskfile: ./tasks/openfga.yaml
+    dir: .
