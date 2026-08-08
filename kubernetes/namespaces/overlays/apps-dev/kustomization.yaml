@@ -8,3 +8,4 @@ resources:
   - ../../base/kagent-system
   - ../../base/kgateway-system
   - ../../base/litmus
+  - ../../base/openfga

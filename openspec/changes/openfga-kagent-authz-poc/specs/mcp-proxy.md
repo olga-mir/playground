@@ -7,25 +7,47 @@ A minimal MCP-protocol-aware proxy that sits between a kagent agent and the real
 and either forwards the call upstream or returns an MCP error. Agent identity is
 provided at deploy time via env var — one proxy instance per agent.
 
-## Transport discovery (T1 prerequisite)
+## Transport discovery (T1 — COMPLETED)
 
-Before implementing, confirm the transport protocol from the live cluster:
+Confirmed from live cluster (apps-dev, 2026-08-08):
 
-```bash
-# Find kagent-tools service
-kubectl get svc -n kagent-system --context gke_${PROJECT_ID}_${REGION}-a_apps-dev \
-  | grep -i tool
+| Item | Confirmed value |
+|------|----------------|
+| Transport | **StreamableHttp** (NOT SSE) |
+| Upstream endpoint | `http://kagent-tools.kagent-system:8084/mcp` |
+| Session header | `Mcp-Session-Id` (returned by server on initialize, required on subsequent requests) |
+| Total tools | 124 |
+| HelmRelease subchart agents | All disabled (`enabled: false`) — no auto-wired duplicates from Helm |
 
-# Inspect the auto-created ToolServer to find URL and transport
-kubectl get toolservers -n kagent-system -o yaml \
-  --context gke_${PROJECT_ID}_${REGION}-a_apps-dev
+**How tools reach agents:** The kagent controller maintains an internal `kagent-tool-server`
+RemoteMCPServer that points at `kagent-tools.kagent-system:8084/mcp`. This is auto-wired
+to all agents at runtime by the controller — it is NOT a user-managed ToolServer CR.
 
-# Confirm exact registered tool names from kagent-tools pod logs
-TOOLS_POD=$(kubectl get pod -n kagent-system -l app=kagent-tools \
-  -o jsonpath='{.items[0].metadata.name}' \
-  --context gke_${PROJECT_ID}_${REGION}-a_apps-dev)
-kubectl logs "$TOOLS_POD" -n kagent-system \
-  --context gke_${PROJECT_ID}_${REGION}-a_apps-dev | grep -i "register\|tool\|k8s_"
+**k8s read-only tools (seeded as allowed in OpenFGA):**
+`k8s_get_resources`, `k8s_describe_resource`, `k8s_get_events`, `k8s_get_pod_logs`,
+`k8s_get_resource_yaml`, `k8s_get_available_api_resources`, `k8s_get_cluster_configuration`,
+`k8s_check_service_connectivity`
+
+**k8s destructive tools (blocked by default — no tuple seeded):**
+`k8s_delete_resource`, `k8s_apply_manifest`, `k8s_create_resource`, `k8s_patch_resource`,
+`k8s_execute_command`, `k8s_scale`, `k8s_rollout`, `shell`
+
+**ToolServer config for StreamableHttp:**
+```yaml
+spec:
+  config:
+    streamableHttp:
+      url: http://openfga-mcp-proxy.kagent-system.svc.cluster.local:8080/mcp
+```
+
+**Agent tool reference format (v1alpha2):**
+```yaml
+spec:
+  declarative:
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: k8s-tools-gated
 ```
 
 ## Service design
