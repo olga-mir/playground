@@ -15,6 +15,40 @@ tasks:
       - docker buildx build --platform linux/amd64 -t {{.IMAGE}} --push apps/openfga-mcp-proxy/
       - echo "Pushed {{.IMAGE}}"
 
+  build-push-troubleshooter:
+    desc: "Build and push k8s-troubleshooter-mcp image for linux/amd64 (GKE-compatible)"
+    preconditions:
+      - sh: test -n "$PROJECT_ID"
+        msg: "PROJECT_ID is not set"
+      - sh: test -n "$REGION"
+        msg: "REGION is not set"
+    vars:
+      REGISTRY: '{{default (printf "%s-docker.pkg.dev/%s/platform" .REGION .PROJECT_ID) .REGISTRY}}'
+      IMAGE: '{{.REGISTRY}}/k8s-troubleshooter-mcp:latest'
+    cmds:
+      - docker buildx build --platform linux/amd64 -t {{.IMAGE}} --push apps/k8s-troubleshooter-mcp/
+      - echo "Pushed {{.IMAGE}}"
+
+  seed-troubleshooter:
+    desc: "Run the OpenFGA model+tuple seeding job for k8s-troubleshooter in team-alpha"
+    preconditions:
+      - sh: test -n "$CONTROL_PLANE_CONTEXT"
+        msg: "CONTROL_PLANE_CONTEXT is not set (e.g. gke_PROJECT_ID_REGION-a_control-plane)"
+    vars:
+      JOB_NAME: openfga-seed-troubleshooter
+      NAMESPACE: team-alpha
+      CONTEXT: "{{.CONTROL_PLANE_CONTEXT}}"
+    cmds:
+      - |
+        existing=$(kubectl get job {{.JOB_NAME}} -n {{.NAMESPACE}} --context {{.CONTEXT}} -o name 2>/dev/null || true)
+        if [ -n "$existing" ]; then
+          echo "Deleting previous job..."
+          kubectl delete job {{.JOB_NAME}} -n {{.NAMESPACE}} --context {{.CONTEXT}}
+        fi
+      - kubectl apply -f kubernetes/namespaces/base/team-alpha/troubleshooter/openfga-model-job.yaml --context {{.CONTEXT}}
+      - kubectl wait job/{{.JOB_NAME}} -n {{.NAMESPACE}} --context {{.CONTEXT}} --for=condition=complete --timeout=60s
+      - kubectl logs job/{{.JOB_NAME}} -n {{.NAMESPACE}} --context {{.CONTEXT}}
+
   test-proxy:
     desc: "Smoke-test openfga-mcp-proxy via port-forward (run 'task port-forward:openfga-proxy' first)"
     cmds:
