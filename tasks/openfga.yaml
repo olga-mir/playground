@@ -39,7 +39,7 @@ tasks:
     vars:
       JOB_NAME: openfga-seed-troubleshooter
       NAMESPACE: team-alpha
-      CONTEXT: '{{default (printf "gke_%s_%s-a_control-plane" .PROJECT_ID .REGION) .CONTROL_PLANE_CONTEXT}}'
+      CONTEXT: '{{default (printf "gke_%s_%s-a_apps-dev" .PROJECT_ID .REGION) .APPS_DEV_CONTEXT}}'
     cmds:
       - |
         existing=$(kubectl get job {{.JOB_NAME}} -n {{.NAMESPACE}} --context {{.CONTEXT}} -o name 2>/dev/null || true)
