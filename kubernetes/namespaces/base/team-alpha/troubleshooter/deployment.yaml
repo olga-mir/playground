@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-troubleshooter-mcp
+  namespace: team-alpha
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-troubleshooter-mcp
+  template:
+    metadata:
+      labels:
+        app: k8s-troubleshooter-mcp
+    spec:
+      serviceAccountName: troubleshooter-mcp
+      containers:
+        - name: mcp-server
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/platform/k8s-troubleshooter-mcp:latest # {"$imagepolicy": "flux-system:k8s-troubleshooter-mcp"}
+          env:
+            - name: AGENT_ID
+              value: k8s-troubleshooter-agent
+            - name: OPENFGA_URL
+              value: http://openfga.openfga.svc.cluster.local:8080
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /mcp
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /mcp
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-troubleshooter-mcp
+  namespace: team-alpha
+spec:
+  selector:
+    app: k8s-troubleshooter-mcp
+  ports:
+    - port: 8080
+      targetPort: 8080

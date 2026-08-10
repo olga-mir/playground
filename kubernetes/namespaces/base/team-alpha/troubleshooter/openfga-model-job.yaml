@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openfga-seed-script
+  namespace: team-alpha
+data:
+  seed.py: |
+    """
+    Extends the kagent-authz OpenFGA store model with the namespace type and
+    can_diagnose relation, then seeds the can_diagnose tuple for team-alpha.
+
+    POC limitation: the openfga-mcp-proxy rewrites the model on every restart
+    (it uses the OpenFGA memory datastore). Re-run this job after proxy restarts
+    to restore the namespace type and tuple.
+    """
+    import json
+    import os
+    import sys
+    import urllib.request
+
+    OPENFGA_URL = os.environ["OPENFGA_URL"].rstrip("/")
+    STORE_NAME = "kagent-authz"
+    AGENT_ID = "k8s-troubleshooter-agent"
+    NAMESPACE = "team-alpha"
+
+    EXTENDED_MODEL = {
+        "schema_version": "1.1",
+        "type_definitions": [
+            {"type": "agent", "relations": {}},
+            {
+                "type": "tool",
+                "relations": {"can_be_invoked_by": {"this": {}}},
+                "metadata": {
+                    "relations": {
+                        "can_be_invoked_by": {
+                            "directly_related_user_types": [{"type": "agent"}]
+                        }
+                    }
+                },
+            },
+            {
+                "type": "namespace",
+                "relations": {"can_diagnose": {"this": {}}},
+                "metadata": {
+                    "relations": {
+                        "can_diagnose": {
+                            "directly_related_user_types": [{"type": "agent"}]
+                        }
+                    }
+                },
+            },
+        ],
+    }
+
+
+    def request(method, path, body=None):
+        url = f"{OPENFGA_URL}{path}"
+        data = json.dumps(body).encode() if body else None
+        req = urllib.request.Request(url, data=data, method=method,
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req) as resp:
+            return json.loads(resp.read())
+
+
+    def find_store():
+        resp = request("GET", "/stores")
+        for store in resp.get("stores", []):
+            if store["name"] == STORE_NAME:
+                return store["id"]
+        raise RuntimeError(f"Store '{STORE_NAME}' not found — is openfga-mcp-proxy running?")
+
+
+    store_id = find_store()
+    print(f"Found store: {store_id}")
+
+    resp = request("POST", f"/stores/{store_id}/authorization-models",
+                   {"type_definitions": EXTENDED_MODEL["type_definitions"],
+                    "schema_version": EXTENDED_MODEL["schema_version"]})
+    print(f"Model written: {resp.get('authorization_model_id')}")
+
+    tuple_key = {"user": f"agent:{AGENT_ID}", "relation": "can_diagnose", "object": f"namespace:{NAMESPACE}"}
+    try:
+        request("POST", f"/stores/{store_id}/write", {"writes": {"tuple_keys": [tuple_key]}})
+        print(f"Tuple written: {tuple_key}")
+    except Exception as exc:
+        if "already exists" in str(exc).lower() or "cannot write" in str(exc).lower():
+            print(f"Tuple already exists (idempotent): {tuple_key}")
+        else:
+            print(f"ERROR writing tuple: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+    print("Done.")
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: openfga-seed-troubleshooter
+  namespace: team-alpha
+  annotations:
+    # Re-run this job after openfga-mcp-proxy restarts to restore the model and tuple.
+    # The proxy uses the OpenFGA memory datastore and rewrites the model on startup.
+    note: "POC — model and tuple are lost on proxy restart; re-run job to restore"
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: seed
+          image: mirror.gcr.io/library/python:3.12-slim
+          command: ["python", "/scripts/seed.py"]
+          env:
+            - name: OPENFGA_URL
+              value: http://openfga.openfga.svc.cluster.local:8080
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+      volumes:
+        - name: script
+          configMap:
+            name: openfga-seed-script
