@@ -4,7 +4,7 @@ metadata:
   name: k8s-troubleshooter-mcp
   namespace: flux-system
 spec:
-  image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/platform/k8s-troubleshooter-mcp
+  image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/experiments/k8s-troubleshooter-mcp
   interval: 1m
 ---
 apiVersion: image.toolkit.fluxcd.io/v1beta2

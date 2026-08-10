@@ -16,7 +16,7 @@ spec:
       serviceAccountName: troubleshooter-mcp
       containers:
         - name: mcp-server
-          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/platform/k8s-troubleshooter-mcp:latest # {"$imagepolicy": "flux-system:k8s-troubleshooter-mcp"}
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/experiments/k8s-troubleshooter-mcp:latest # {"$imagepolicy": "flux-system:k8s-troubleshooter-mcp"}
           env:
             - name: AGENT_ID
               value: k8s-troubleshooter-agent
