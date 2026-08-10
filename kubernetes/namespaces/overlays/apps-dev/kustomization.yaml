@@ -9,3 +9,4 @@ resources:
   - ../../base/kgateway-system
   - ../../base/litmus
   - ../../base/openfga
+  - ../../base/team-alpha

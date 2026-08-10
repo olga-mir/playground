@@ -1,0 +1,23 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: k8s-troubleshooter-mcp
+  namespace: flux-system
+spec:
+  image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/platform/k8s-troubleshooter-mcp
+  interval: 1m
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: k8s-troubleshooter-mcp
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: k8s-troubleshooter-mcp
+  filterTags:
+    pattern: '^main-(?P<ts>[0-9]+)-[a-f0-9]+$'
+    extract: '$ts'
+  policy:
+    numerical:
+      order: asc

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.1",
+  "type_definitions": [
+    {"type": "agent", "relations": {}},
+    {
+      "type": "tool",
+      "relations": {"can_be_invoked_by": {"this": {}}},
+      "metadata": {
+        "relations": {
+          "can_be_invoked_by": {
+            "directly_related_user_types": [{"type": "agent"}]
+          }
+        }
+      }
+    },
+    {
+      "type": "namespace",
+      "relations": {"can_diagnose": {"this": {}}},
+      "metadata": {
+        "relations": {
+          "can_diagnose": {
+            "directly_related_user_types": [{"type": "agent"}]
+          }
+        }
+      }
+    }
+  ]
+}

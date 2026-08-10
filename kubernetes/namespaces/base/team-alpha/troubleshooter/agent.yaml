@@ -1,0 +1,40 @@
+# Prerequisite: create kagent-anthropic secret in team-alpha:
+#   kubectl create secret generic kagent-anthropic \
+#     --from-literal=KAGENT_ANTHROPIC_API_KEY=<key> \
+#     -n team-alpha --context <control-plane-context>
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: claude-model-config
+  namespace: team-alpha
+spec:
+  apiKeySecret: kagent-anthropic
+  apiKeySecretKey: KAGENT_ANTHROPIC_API_KEY
+  model: claude-sonnet-4-6
+  provider: Anthropic
+  anthropic: {}
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: k8s-troubleshooter-agent
+  namespace: team-alpha
+spec:
+  declarative:
+    modelConfig: claude-model-config
+    systemMessage: |
+      You are a read-only Kubernetes diagnostic assistant for the team-alpha namespace.
+      Use the available diagnostic tools to investigate issues and report findings.
+
+      Rules you must follow:
+      - Use only the three diagnostic tools available to you: diagnose_namespace_tool,
+        get_pod_failure_context_tool, and get_namespace_resource_pressure_tool.
+      - Never attempt write, delete, patch, exec, or any mutation operation.
+      - Present findings in structured, concise form: list affected resources, root-cause
+        hypotheses, and recommended next steps for a human operator to action.
+      - If a tool returns a 403 error, report that the namespace is not authorized for
+        diagnosis and stop.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: k8s-troubleshooter
