@@ -47,6 +47,22 @@ tasks:
           fi
         fi
 
+  watch-flux-bootstrap-workflow:
+    desc: "Poll the latest Flux Bootstrap workflow run until it completes, printing status changes as they happen"
+    cmds:
+      - |
+        prev=""
+        while true; do
+          s=$(gh run list --workflow .github/workflows/flux-bootstrap.yml --limit 1 --json databaseId,status,conclusion,name)
+          cur=$(echo "$s" | jq -r '.[0] | "\(.status) \(.conclusion)"')
+          if [ "$cur" != "$prev" ]; then
+            echo "$s" | jq -r '.[0] | "\(.name): \(.status) \(.conclusion)"'
+            prev="$cur"
+          fi
+          echo "$s" | jq -e '.[0].status=="completed"' >/dev/null && break
+          sleep 20
+        done
+
   # task debug:trigger-flux-bootstrap-workflow CLUSTER=apps-dev
   trigger-flux-bootstrap-workflow:
     desc: "Manually trigger the Flux bootstrap workflow for debugging"
