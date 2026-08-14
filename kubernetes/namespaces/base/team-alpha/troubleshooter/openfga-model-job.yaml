@@ -58,8 +58,11 @@ data:
         data = json.dumps(body).encode() if body else None
         req = urllib.request.Request(url, data=data, method=method,
                                      headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read())
+        try:
+            with urllib.request.urlopen(req) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            raise RuntimeError(f"{exc}: {exc.read().decode()}") from None
 
 
     def find_store():

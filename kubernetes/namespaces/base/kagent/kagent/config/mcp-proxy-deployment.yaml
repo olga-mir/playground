@@ -58,13 +58,12 @@ spec:
     - port: 8080
       targetPort: 8080
 ---
-apiVersion: kagent.dev/v1alpha1
-kind: ToolServer
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
 metadata:
   name: k8s-tools-gated
   namespace: kagent-system
 spec:
   description: "k8s tools gated by OpenFGA — checks authorization before forwarding to kagent-tools"
-  config:
-    streamableHttp:
-      url: http://openfga-mcp-proxy.kagent-system.svc.cluster.local:8080/mcp
+  protocol: STREAMABLE_HTTP
+  url: http://openfga-mcp-proxy.kagent-system.svc.cluster.local:8080/mcp
