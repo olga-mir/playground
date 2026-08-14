@@ -16,7 +16,7 @@ from src.tools import diagnose_namespace, get_pod_failure_context, get_namespace
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-mcp = FastMCP("k8s-troubleshooter")
+mcp = FastMCP("k8s-troubleshooter", host="0.0.0.0", port=8080)
 
 
 @mcp.tool()
@@ -38,4 +38,4 @@ async def get_namespace_resource_pressure_tool(namespace: str) -> dict:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)
+    mcp.run(transport="streamable-http")
