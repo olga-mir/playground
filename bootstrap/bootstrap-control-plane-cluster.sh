@@ -195,6 +195,22 @@ echo "Monitor detailed progress with: kubectl --context ${KIND_CLUSTER_CONTEXT} 
 echo "🔑 Setting up local cluster credentials..."
 gcloud container clusters get-credentials "${GKE_CONTROL_PLANE_CLUSTER}" --zone "${REGION}-a" --project "${PROJECT_ID}"
 
+# Newly-provisioned GKE control planes are sometimes resized/upgraded by
+# Google immediately after creation, making the API server briefly
+# unreachable even though get-credentials succeeded. Retry before moving on.
+control_plane_ctx="gke_${PROJECT_ID}_${REGION}-a_${GKE_CONTROL_PLANE_CLUSTER}"
+cp_retry=0
+cp_max_retries=6
+until kubectl --context "${control_plane_ctx}" cluster-info --request-timeout=10s >/dev/null 2>&1; do
+    cp_retry=$((cp_retry+1))
+    if [ "${cp_retry}" -ge "${cp_max_retries}" ]; then
+        echo "❌ control-plane API server still unreachable after ${cp_max_retries} attempts"
+        break
+    fi
+    echo "⏳ control-plane API server not reachable yet, retrying... (${cp_retry}/${cp_max_retries})"
+    sleep 20
+done
+
 set +x
 echo ""
 echo "🎉 Cluster provisioning complete!"
