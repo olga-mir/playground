@@ -15,6 +15,7 @@ spec:
     tools:
       - type: McpServer
         mcpServer:
+          kind: ToolServer
           name: k8s-tools-gated
     a2aConfig:
       skills:
