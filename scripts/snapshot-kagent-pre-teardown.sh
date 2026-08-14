@@ -29,7 +29,9 @@ OUT_DIR="${REPO_ROOT}/release-artifacts/kagent-snapshot-${TS}"
 mkdir -p "${OUT_DIR}"
 
 # Resolve apps-dev context
-APPS_CTX="$(kubectl config get-contexts -o name 2>/dev/null | grep "_apps-dev$" | head -1 || true)"
+# shellcheck source=lib/gke-context.sh
+source "${REPO_ROOT}/scripts/lib/gke-context.sh"
+APPS_CTX="$(gke_ctx apps-dev)"
 if [[ -z "${APPS_CTX}" ]]; then
   echo "ERROR: apps-dev kubeconfig context not found — is the cluster up?" >&2
   exit 1

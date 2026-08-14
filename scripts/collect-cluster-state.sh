@@ -23,9 +23,10 @@ RUNS_DIR="${REPO_ROOT}/orchestrator/runs"
 mkdir -p "${RUNS_DIR}"
 
 KIND_CTX="kind-kind-test-cluster"
-_gke_ctx() { kubectl config get-contexts -o name 2>/dev/null | grep "_${1}$" | head -1 || true; }
-CONTROL_CTX="$(_gke_ctx control-plane)"
-APPS_CTX="$(_gke_ctx apps-dev)"
+# shellcheck source=lib/gke-context.sh
+source "${REPO_ROOT}/scripts/lib/gke-context.sh"
+CONTROL_CTX="$(gke_ctx control-plane)"
+APPS_CTX="$(gke_ctx apps-dev)"
 
 run_cmd() {
   echo "$ $*"
