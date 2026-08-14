@@ -37,4 +37,5 @@ spec:
     tools:
       - type: McpServer
         mcpServer:
+          kind: ToolServer
           name: k8s-troubleshooter
