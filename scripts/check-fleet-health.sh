@@ -24,14 +24,14 @@ header() { echo -e "\n${BOLD}${CYAN}━━━ $* ${NC}"; }
 sub()    { echo -e "  ${BOLD}$*${NC}"; }
 
 # ── known clusters: "short-name:kubeconfig-context" ──────────────────────────
-# GKE context names embed the project ID — discover them from kubeconfig by
-# suffix pattern so this script stays project-ID-agnostic.
-_gke_ctx() { kubectl config get-contexts -o name 2>/dev/null | grep "_${1}$" | head -1 || true; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/gke-context.sh
+source "${SCRIPT_DIR}/lib/gke-context.sh"
 
 CLUSTERS=(
   "kind:kind-kind-test-cluster"
-  "control-plane:$(_gke_ctx control-plane)"
-  "apps-dev:$(_gke_ctx apps-dev)"
+  "control-plane:$(gke_ctx control-plane)"
+  "apps-dev:$(gke_ctx apps-dev)"
 )
 
 # ── temp file tracks failures across subshells ────────────────────────────────
