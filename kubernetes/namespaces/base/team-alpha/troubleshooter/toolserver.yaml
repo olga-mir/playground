@@ -1,10 +1,9 @@
-apiVersion: kagent.dev/v1alpha1
-kind: ToolServer
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
 metadata:
   name: k8s-troubleshooter
   namespace: team-alpha
 spec:
   description: "Semantic k8s diagnostic tools with per-call OpenFGA namespace authorization"
-  config:
-    streamableHttp:
-      url: http://k8s-troubleshooter-mcp.team-alpha.svc.cluster.local:8080/mcp
+  protocol: STREAMABLE_HTTP
+  url: http://k8s-troubleshooter-mcp.team-alpha.svc.cluster.local:8080/mcp
