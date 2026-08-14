@@ -12,6 +12,8 @@ spec:
     metadata:
       labels:
         app: k8s-troubleshooter-mcp
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-08-15T00:00:00Z"
     spec:
       serviceAccountName: troubleshooter-mcp
       containers:
