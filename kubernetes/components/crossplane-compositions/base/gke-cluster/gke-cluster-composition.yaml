@@ -86,6 +86,53 @@ spec:
             providerConfigRef:
               name: crossplane-provider-gcp
               kind: ProviderConfig
+          {{- range .observed.composite.resource.spec.parameters.nodePools }}
+          ---
+          # Additional GKE Node Pool: {{ .name }}
+          apiVersion: container.gcp.m.upbound.io/v1beta1
+          kind: NodePool
+          metadata:
+            name: {{ $.observed.composite.resource.spec.parameters.clusterName }}-{{ .name }}
+            namespace: {{ $.observed.composite.resource.spec.parameters.clusterName }}
+            annotations:
+              crossplane.io/external-name: {{ $.observed.composite.resource.spec.parameters.clusterName }}-{{ .name }}
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $.observed.composite.resource.spec.parameters.clusterName }}-{{ .name }}
+              crossplane.io/composition-resource-name: {{ $.observed.composite.resource.spec.parameters.clusterName }}-{{ .name }}
+          spec:
+            forProvider:
+              clusterRef:
+                name: {{ $.observed.composite.resource.spec.parameters.clusterName }}
+              maxPodsPerNode: 32
+              nodeConfig:
+                spot: true
+                machineType: {{ .machineType }}
+                diskSizeGb: 50
+                workloadMetadataConfig:
+                  mode: GKE_METADATA
+                {{- if .labels }}
+                labels:
+                  {{- range $k, $v := .labels }}
+                  {{ $k }}: {{ $v }}
+                  {{- end }}
+                {{- end }}
+                {{- if .taints }}
+                taint:
+                  {{- range .taints }}
+                  - key: {{ .key }}
+                    value: {{ .value }}
+                    effect: {{ .effect }}
+                  {{- end }}
+                {{- end }}
+              autoscaling:
+                minNodeCount: {{ default 1 .minNodes }}
+                maxNodeCount: {{ default 1 .maxNodes }}
+              management:
+                autoRepair: true
+                autoUpgrade: true
+            providerConfigRef:
+              name: crossplane-provider-gcp
+              kind: ProviderConfig
+          {{- end }}
 
   - step: ready
     functionRef:
