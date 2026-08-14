@@ -42,6 +42,28 @@ spec:
                     properties:
                       enabled: { type: boolean, default: false }
                       version: { type: string, default: "v2.5.0" }
+                  nodePools:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, machineType]
+                      properties:
+                        name: { type: string }
+                        machineType: { type: string }
+                        minNodes: { type: integer }
+                        maxNodes: { type: integer }
+                        labels:
+                          type: object
+                          additionalProperties: { type: string }
+                        taints:
+                          type: array
+                          items:
+                            type: object
+                            required: [key, value, effect]
+                            properties:
+                              key: { type: string }
+                              value: { type: string }
+                              effect: { type: string }
           status:
             type: object
             properties:

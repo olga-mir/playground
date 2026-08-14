@@ -15,3 +15,15 @@ spec:
     machineType: "e2-standard-2"
     minNodes: 2
     maxNodes: 5
+    nodePools:
+      - name: noisy-node
+        machineType: "e2-standard-2"
+        minNodes: 1
+        maxNodes: 1
+        labels:
+          workload: noisy-node
+        taints:
+          - key: dedicated
+            value: noisy-node
+            effect: NO_SCHEDULE
+
