@@ -51,6 +51,8 @@ spec:
               releaseChannel:
                 channel: RAPID
               enableAutopilot: false
+              networkConfig:
+                datapathProvider: ADVANCED_DATAPATH
               securityPostureConfig:
                 mode: DISABLED
             writeConnectionSecretToRef:
