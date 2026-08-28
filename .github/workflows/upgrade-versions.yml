@@ -6,7 +6,9 @@ name: Upgrade Component Versions
 # Bash scripts handle version discovery and GitHub API calls (cheap, no LLM tokens).
 # Claude reads the pre-computed report and applies targeted edits (fast, low token cost).
 #
-# Required secrets: ANTHROPIC_API_KEY, GCS_LOG_BUCKET, WIF_PROVIDER, WIF_SERVICE_ACCOUNT
+# Required secrets: GCS_LOG_BUCKET, WIF_PROVIDER, WIF_SERVICE_ACCOUNT,
+#   ANTHROPIC_FEDERATION_RULE_ID, ANTHROPIC_ORGANIZATION_ID, ANTHROPIC_SERVICE_ACCOUNT_ID, ANTHROPIC_WORKSPACE_ID
+# Claude auth uses Anthropic Workload Identity Federation (GitHub OIDC token exchange), not ANTHROPIC_API_KEY.
 # See docs/upgrade-versions.md for full process documentation.
 
 on:
@@ -42,11 +44,12 @@ jobs:
           cat .version-report.md
 
       - name: Apply version updates
-        uses: anthropics/claude-code-action@034cbdb008291e7eeeac420d315fc3b45fca3781 # v1.0.117
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1.0.210
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_federation_rule_id: ${{ secrets.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ secrets.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ secrets.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
           github_token: ${{ github.token }}
 
           # there's an open issue (#860) that track_progress: true merges in 18 additional write tools (Edit, MultiEdit, git commands) that override `--allowedTools` because the merge is additive, not restrictive
