@@ -58,7 +58,7 @@ jobs:
 
           # https://platform.claude.com/docs/en/about-claude/models/overview
           claude_args: >-
-            --allowedTools "Bash,Read,Glob,Grep,Skill"
+            --allowedTools "Bash,Read,Glob,Grep,Skill,Edit"
             --max-turns 30
             --model claude-haiku-4-5-20251001
           settings: |
@@ -74,6 +74,15 @@ jobs:
                       {
                         "type": "command",
                         "command": "skill=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.skill // empty'); if [ \"$skill\" != \"upgrade-versions\" ]; then echo \"Blocked: only upgrade-versions skill is permitted in this workflow\"; exit 2; fi"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": "Edit",
+                    "hooks": [
+                      {
+                        "type": "command",
+                        "command": "file_path=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.file_path // empty'); if ! echo \"$file_path\" | grep -qE '^(/home/runner/work/[^/]+/[^/]+/)?(README\\.md|kubernetes/.*)$'; then echo \"Blocked: Edit only permitted on README.md and kubernetes/ manifests, got: $file_path\"; exit 2; fi"
                       }
                     ]
                   }
