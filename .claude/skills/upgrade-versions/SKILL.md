@@ -74,6 +74,24 @@ Re-run the script after each fix to confirm it passes before proceeding.
 
 ### 5. Create a PR if any files changed
 
+Write the PR body to a temp file first, then pass it via `--body-file` (avoids shell-quoting
+issues with a large multi-line body). The body MUST include, in this order:
+
+1. A one-line summary: `**N components upgraded** across Kubernetes manifests and README tech stack.`
+2. A breakdown grouped by category (use whichever of these apply — skip empty ones):
+   `### Helm Releases`, `### Crossplane Functions & Providers`, `### README Tech Stack`.
+   Under each, one bullet per component: `- **name**: OLD → NEW` (add `(N files)` if it touched
+   more than one file).
+3. A `## Validation` section: state that `scripts/validate-version-formats.sh` passed, or list
+   any component where a validator quirk required manual judgment (e.g. a source repo's tag
+   format not being a plain semver).
+4. A `## Test Plan` section with unchecked checkboxes for what should be manually verified
+   (e.g. Helm releases sync in-cluster, Crossplane providers/functions initialize, README links
+   resolve).
+
+Do this even when the change is small — a one-line PR body is not acceptable regardless of
+how many turns were used to get here.
+
 ```bash
 DATE=$(date -u +%Y-%m-%d)
 BRANCH="chore/upgrade-versions-${DATE}"
@@ -93,7 +111,7 @@ if [ -n "${EXISTING_PR}" ]; then
 else
   gh pr create \
     --title "chore: upgrade component versions ${DATE}" \
-    --body "$(printf '## Summary\n\n| Component | Old | New | Files |\n|---|---|---|---|\n...')" \
+    --body-file /tmp/pr-body.md \
     --base main
 fi
 ```
