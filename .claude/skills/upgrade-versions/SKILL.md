@@ -121,7 +121,15 @@ If nothing needed updating, just report that everything is up to date.
 ## Notes
 
 - **LitmusChaos**: version from Helm index has no `v` prefix (`3.26.0` not `v3.26.0`); match the format in the file.
-  HelmRelease is at `kubernetes/namespaces/base/litmus/helm/litmus-release.yaml` — update the `version:` field there AND README.md
+  HelmRelease is at `kubernetes/namespaces/base/litmus/helm/litmus-release.yaml` — update the `version:` field there AND README.md.
+  The README link's URL has its own `litmus-` prefix baked into the release tag
+  (`.../releases/tag/litmus-3.31.0`) that is independent of the display text and of the
+  `litmuschaos/litmus-helm` GitHub tag (which may itself be prefixed, e.g. `litmus-core-3.31.0`).
+  A bare `sed -i 's|OLD_VERSION|NEW_VERSION|g' README.md` will match the version substring
+  inside that URL too and produce a doubled prefix (`litmus-litmus-core-3.31.0`). Instead,
+  replace the entire markdown link `[OLD_TEXT](OLD_URL)` with the exact new
+  `[NEW_TEXT](https://github.com/litmuschaos/litmus-helm/releases/tag/NEW_TAG)` in one sed pass,
+  where `NEW_TAG` is the raw GitHub tag (not derived by prefixing the bare version yourself).
 - **kagent / kgateway**: version from GitHub has `v` prefix; match the format already in the file
 - **FluxCD**: update `spec.distribution.version` in all three `flux-instance.yaml` files (kind, control-plane, apps-dev) AND README.md.
   Version is a minor-pinned semver range (e.g. `"2.8.x"`). Use `find kubernetes/ -name flux-instance.yaml | xargs sed -i`.
