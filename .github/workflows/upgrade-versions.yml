@@ -59,7 +59,7 @@ jobs:
           # https://platform.claude.com/docs/en/about-claude/models/overview
           claude_args: >-
             --allowedTools "Bash,Read,Glob,Grep,Skill,Edit"
-            --max-turns 30
+            --max-turns 40
             --model claude-haiku-4-5-20251001
           settings: |
             {

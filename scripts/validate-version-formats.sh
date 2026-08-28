@@ -47,18 +47,23 @@ while IFS= read -r item; do
     continue
   fi
 
-  # Check for wrong format first, using the longer (more specific) string.
-  # Critical: never check "does bare 'X' exist?" when "vX" might be present —
-  # grep -F "0.9.10" matches "v0.9.10" as a substring, causing false negatives.
-  # Instead: for the no-v case, confirm the wrong (with-v) form is absent.
+  # Check expected-present first (fast path for already-correct files). This must
+  # come before the NOT_UPDATED substring check below: when expected is e.g.
+  # "litmus-core-3.31.0" and current is "3.31.0", current is a substring of an
+  # already-correct expected value, so checking NOT_UPDATED first would false-positive.
   if [[ "$expected" != v* ]]; then
-    wrong="v${expected}"
-    if grep -qF "$wrong" "$abs_file"; then
-      errors+=("FORMAT_ERROR component=${component} file=${file} expected=${expected} found=${wrong} fix=remove_v_prefix")
-    elif grep -qF "$current" "$abs_file"; then
-      errors+=("NOT_UPDATED component=${component} file=${file} expected=${expected} still_has=${current}")
+    if grep -qF "$expected" "$abs_file"; then
+      : # OK
+    else
+      wrong="v${expected}"
+      # Critical: never check "does bare 'X' exist?" when "vX" might be present —
+      # grep -F "0.9.10" matches "v0.9.10" as a substring, causing false negatives.
+      if grep -qF "$wrong" "$abs_file"; then
+        errors+=("FORMAT_ERROR component=${component} file=${file} expected=${expected} found=${wrong} fix=remove_v_prefix")
+      elif grep -qF "$current" "$abs_file"; then
+        errors+=("NOT_UPDATED component=${component} file=${file} expected=${expected} still_has=${current}")
+      fi
     fi
-    # else: wrong (with-v) absent and old version absent → OK
   else
     # With-v case: grep for "vX" is safe — "vX" won't substring-match bare "X".
     if grep -qF "$expected" "$abs_file"; then
