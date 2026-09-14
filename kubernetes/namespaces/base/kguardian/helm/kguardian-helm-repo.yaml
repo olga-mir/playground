@@ -1,0 +1,10 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: kguardian-helm-repo
+  namespace: kguardian
+spec:
+  interval: 10m
+  type: oci
+  url: oci://ghcr.io/kguardian-dev/charts/kguardian
