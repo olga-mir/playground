@@ -80,20 +80,22 @@ jobs:
         elapsed=0
 
         while [ $elapsed -lt $timeout_seconds ]; do
-          if gcloud container clusters describe "${{ steps.cluster-info.outputs.cluster }}" \
+          read -r STATUS ENDPOINT <<< "$(gcloud container clusters describe "${{ steps.cluster-info.outputs.cluster }}" \
               --location="${{ steps.cluster-info.outputs.location }}" \
-              --project="${{ steps.cluster-info.outputs.projectID }}" >/dev/null 2>&1; then
-            echo "✅ Cluster exists and is accessible"
+              --project="${{ steps.cluster-info.outputs.projectID }}" \
+              --format='value(status,endpoint)' 2>/dev/null)"
+          if [ "$STATUS" = "RUNNING" ] && [ -n "$ENDPOINT" ]; then
+            echo "✅ Cluster is RUNNING with an endpoint assigned"
             break
           else
-            echo "⏸️  Cluster not yet available, waiting 30 seconds... (elapsed: ${elapsed}s)"
+            echo "⏸️  Cluster not ready yet (status: ${STATUS:-none}, endpoint: ${ENDPOINT:-none}), waiting 30 seconds... (elapsed: ${elapsed}s)"
             sleep 30
             elapsed=$((elapsed + 30))
           fi
         done
 
         if [ $elapsed -ge $timeout_seconds ]; then
-          echo "Timeout waiting for cluster to exist"
+          echo "Timeout waiting for cluster to become RUNNING with an endpoint assigned"
           echo "Listing all clusters in project and location for debugging:"
           gcloud container clusters list --project="${{ steps.cluster-info.outputs.projectID }}" || true
           exit 1

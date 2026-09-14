@@ -94,7 +94,10 @@ check_git_freshness() {
     .items[] | [
       .metadata.name,
       .spec.url,
-      (.spec.ref.branch // .spec.ref.tag // "main"),
+      (if (.spec.ref.name // "" | startswith("refs/heads/"))
+       then (.spec.ref.name | ltrimstr("refs/heads/"))
+       else (.spec.ref.branch // .spec.ref.tag // .spec.ref.name // "main")
+       end),
       (.status.artifact.revision // "")
     ] | @tsv
   ' | while IFS=$'\t' read -r name url branch rev; do
