@@ -1,5 +1,5 @@
 #!/bin/bash
-# PreToolUse hook — enforces GitOps rules for the orchestrator's diagnostics agent.
+# PreToolUse hook — enforces GitOps rules for Claude Code sessions in this repo.
 # Receives tool input JSON on stdin. Exit 0 = allow, exit 2 = block (message shown to user).
 
 set -euo pipefail

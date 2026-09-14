@@ -138,8 +138,8 @@ Key manifests: `kubernetes/namespaces/base/team-alpha/troubleshooter/` (`agent.y
 | Arm 1 — MCP proxy gating `k8s-agent` | ✅ | ✅ (2026-08-15, see [issue #103](../../issues/103) comment) |
 | Arm 2 — `k8s-troubleshooter-mcp` semantic authz | ✅ (agent Ready, tools registered) | ❌ — read/deny/fail-closed/RBAC scenarios not yet run (`openspec/changes/k8s-troubleshooter/tasks.md`, Testing phase) |
 
-`openspec/changes/openfga-kagent-authz-poc/` is fully complete and ready to archive
-(`openspec archive openfga-kagent-authz-poc` or the `opsx-archive` skill).
+`openspec/changes/openfga-kagent-authz-poc/` is complete and archived at
+`openspec/changes/archive/2026-08-15-openfga-kagent-authz-poc/`.
 `openspec/changes/k8s-troubleshooter/` should stay active until its Testing phase tasks are run.
 
 ---
@@ -261,7 +261,7 @@ kubectl exec -it deploy/k8s-troubleshooter-mcp -n team-alpha --context $CTX -- \
 
 ## Further detail
 
-- `openspec/changes/openfga-kagent-authz-poc/` — proposal, design, specs for arm 1
+- `openspec/changes/archive/2026-08-15-openfga-kagent-authz-poc/` — proposal, design, specs for arm 1
 - `openspec/changes/k8s-troubleshooter/` — proposal, design, specs for arm 2
 - `openspec/changes/archive/2026-08-08-kagent-runtime-validation/` — A2A + namespace isolation baseline
 - Issue [#103](../../issues/103) — OpenFGA POC tracking issue, has the arm-1 validation log comment

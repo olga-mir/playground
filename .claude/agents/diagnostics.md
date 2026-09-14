@@ -81,7 +81,7 @@ For GKE cluster provisioning (READY=False):
 **teardown** — the cluster state is unrecoverable without starting over:
 - GCP quota exceeded (no manifest fix will help)
 - CRD schema conflict requiring deletion and recreation
-- Same error has persisted through 3+ fix attempts (the orchestrator tracks this and will tell you the count)
+- Same error has persisted through 3+ fix attempts (you are told the attempt count)
 
 **escalate** — the problem is real but outside your ability to fix via a git commit:
 - GKE cluster is provisioning normally (just slow)
@@ -117,4 +117,4 @@ After completing all tool use, output ONLY this JSON — no other text:
 }
 ```
 
-- `confidence: low` if you're unsure — the orchestrator will track repeated failures and escalate automatically
+- `confidence: low` if you're unsure
