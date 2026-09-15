@@ -5,3 +5,4 @@ resources:
   - namespace.yaml
   - kguardian-helm-repo.yaml
   - kguardian-release.yaml
+  - kguardian-controller-priorityclass.yaml

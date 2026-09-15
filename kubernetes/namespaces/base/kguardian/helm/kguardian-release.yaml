@@ -26,3 +26,5 @@ spec:
   values:
     telemetry:
       enabled: false
+    controller:
+      priorityClassName: kguardian-controller
