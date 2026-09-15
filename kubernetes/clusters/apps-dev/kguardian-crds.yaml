@@ -8,7 +8,10 @@ spec:
   timeout: 30m
   path: ./kubernetes/namespaces/base/kguardian/helm
   prune: true
-  wait: true
+  # wait: false — the kguardian HelmRelease chart pull is currently denied (403)
+  # by ghcr.io upstream; waiting here would block platform/tenants indefinitely.
+  # kguardian's own HelmRelease keeps retrying independently and can self-heal.
+  wait: false
   sourceRef:
     kind: GitRepository
     name: flux-system
