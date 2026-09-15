@@ -15,17 +15,15 @@ scripts/check-fleet-health.sh apps-dev
 ## Key task commands
 
 ```bash
-# Full deploy: install + all phases
-task agentic:deploy
-
-# Check current state without install
-task agentic:check
-
-# Resume from a specific phase
-task agentic:resume PHASE=control
+# Full deploy (idempotent — re-run to resume after a partial failure)
+task setup:deploy
 
 # Validate all
 task validate:all
+
+# Watch/trigger the Flux bootstrap workflow for a cluster
+task debug:watch-flux-bootstrap-workflow
+task debug:trigger-flux-bootstrap-workflow CLUSTER=apps-dev
 
 # Tear everything down (clusters only — not project, WIF, IAM)
 task setup:cleanup

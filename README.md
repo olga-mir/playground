@@ -35,38 +35,12 @@ kind (local bootstrap)
 - **Flux GitOps** manages everything on each cluster once bootstrapped
 - **GitHub Actions** bootstraps Flux on new GKE clusters, triggered by Flux notifications
 
-# AI Orchestrator
-
-The provisioning pipeline is driven by an **agentic loop** — a pure Python orchestrator (`orchestrator/main.py`, DSPy + LiteLLM, no subprocess CLI harness) that monitors, diagnoses, and fixes the cluster fleet without human intervention:
-
-```
-task agentic:deploy
-        │
-        ├─ bootstrap-control-plane-cluster.sh  (background)
-        │
-        └─ phase loop  [bootstrap → control-plane → apps-dev]
-             ├─ collect cluster state  (scripts/collect-cluster-state.sh)
-             ├─ AssessPhaseHealth (ChainOfThought)  →  healthy | wait | diagnose | teardown
-             └─ handle_failure
-                  ├─ Python fast-paths  (known Catch-22 patterns, no LLM)
-                  └─ DiagnoseFailure (ReAct + kubectl/file/git tools)  →  retry | teardown | escalate
-```
-
-Two DSPy modules drive the loop:
-
-- **AssessPhaseHealth** — a stateless `ChainOfThought` that evaluates pre-collected cluster state against the phase criteria in `orchestrator/phases/*.md`; returns a structured `PhaseHealthVerdict`
-- **DiagnoseFailure** — a `ReAct` agent with live kubectl/file/git tools that investigates novel failures, edits manifests, and commits fixes to `develop` for Flux to reconcile (`git_commit_push` with a fetch+rebase guard)
-
-The model chain is local-first with transparent LiteLLM fallback — local vLLM → OpenRouter → Vertex AI — configured via `ORCHESTRATOR_MODEL` / `ORCHESTRATOR_FALLBACK_MODELS`. The orchestrator tracks error signatures and escalates after 3 identical failures.
-
-→ Full reference: [docs/agentic-architecture.md](./docs/agentic-architecture.md)
-
 # Deployment
 
 ## Prerequisites
 
 - Access to a GCP account with sufficient permissions
-- Tools: `gcloud`, `flux`, `kubectl`, `task`, `uv`, Claude Code (`claude` CLI)
+- Tools: `gcloud`, `flux`, `kubectl`, `task`, Claude Code (`claude` CLI)
 - GitHub organisation or personal account
 
 See [docs/github-integration.md](./docs/github-integration.md) for GCP OIDC / GitHub Actions setup.
@@ -74,14 +48,8 @@ See [docs/github-integration.md](./docs/github-integration.md) for GCP OIDC / Gi
 ## Running
 
 ```bash
-# Scripted deploy (no AI)
+# Deploy (idempotent — re-run to resume after a partial failure)
 task setup:deploy
-
-# Agentic deploy — same goal, AI-monitored and self-fixing
-task agentic:deploy
-
-# Resume agentic deploy from a specific phase (cluster already exists)
-task agentic:resume PHASE=control
 
 # Tear everything down
 task setup:cleanup
@@ -93,7 +61,6 @@ task setup:cleanup
 
 | Doc | Covers |
 |-----|--------|
-| [docs/agentic-architecture.md](./docs/agentic-architecture.md) | Agentic loop: DSPy modules, model chain, fast-paths, escalation logic |
 | [docs/infrastructure.md](./docs/infrastructure.md) | Crossplane, GKE, kind setup, provisioning flow |
 | [docs/flux-gitops.md](./docs/flux-gitops.md) | Kustomize structure, Flux quirks, image automation |
 | [docs/github-integration.md](./docs/github-integration.md) | GitHub App auth, Actions workflows, notifications |

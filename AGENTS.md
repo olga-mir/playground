@@ -10,7 +10,7 @@ A learning and exploration platform for experienced Kubernetes and Platform Engi
 - Always place a newline at the end of files
 - Validate Taskfile changes with `yq` before saving
 - Pass `--context` inline on every `kubectl` command — never as a separate step; combine related operations into one command to minimise approval prompts
-- **Use Taskfile tasks** for common operations like triggering workflows (`task debug:trigger-flux-bootstrap-workflow`) or resuming the orchestrator (`task agentic:resume PHASE=...`) to ensure consistent behavior and use established "recipes".
+- **Use Taskfile tasks** for common operations like triggering workflows (`task debug:trigger-flux-bootstrap-workflow`) to ensure consistent behavior and use established "recipes".
 
 # Architecture overview
 
@@ -38,10 +38,9 @@ kind (local bootstrap)
 
 | Task | Command |
 |---|---|
-| Full deploy (orchestrated) | `task agentic:deploy` |
-| Quick state check | `task agentic:check` |
-| Full deploy (raw script) | `bootstrap/bootstrap-control-plane-cluster.sh` |
-| Resume from phase | `task agentic:resume PHASE=control` |
+| Full deploy | `task setup:deploy` |
+| Full deploy (raw script; idempotent, re-run to resume after a partial failure) | `bootstrap/bootstrap-control-plane-cluster.sh` |
+| Tear down | `task setup:cleanup` |
 | Validate kustomize | `task validate:kustomize-build` |
 | Fleet health check | `scripts/check-fleet-health.sh` |
 
@@ -54,7 +53,6 @@ Deep-dive context for specific areas — read the relevant doc when working in t
 - **[GitHub Integration](docs/github-integration.md)** — GitHub App auth, Actions workflows, notifications
 - **[Tenants](docs/tenants.md)** — Tenant onboarding, multi-repo GitOps, image promotion
 - **[Version Upgrades](docs/upgrade-versions.md)** — Weekly automated upgrades: how the scan works, adding new components, known quirks
-- **[Agentic Loop](docs/agentic-architecture.md)** — Automated provisioning pipeline: DSPy modules, phases, fast-paths, escalation logic, snapshot artifacts
 - **[Operations](docs/operations.md)** — Fleet health check, key task commands, load testing and performance experiments
 
 # Variables

@@ -81,7 +81,7 @@ The most common mistake is inferring an API group from the provider package name
 
 **Stale resourceRefs after Composition changes:**
 - When a Composition changes namespace or API group, the XR retains refs to old composed objects
-- `SYNCED=False` with "an empty namespace may not be set" or "cannot get composed resource" → the orchestrator handles this directly (no fix needed from you, escalate)
+- `SYNCED=False` with "an empty namespace may not be set" or "cannot get composed resource" → escalate; the fix is a live `kubectl patch spec.resourceRefs=null`, which is outside what a read-only, git-commit-only diagnostics agent can do
 
 **GKE cluster provisioning (READY=False):**
 - No error condition + SYNCED=True → GKE is provisioning normally (10–20 min) → `escalate`
@@ -122,12 +122,12 @@ kubernetes/
 **teardown** — the cluster state is unrecoverable without starting over:
 - GCP quota exceeded
 - CRD schema conflict requiring deletion and recreation
-- Same error has persisted through 3+ fix attempts (the orchestrator tracks this and will tell you the count)
+- Same error has persisted through 3+ fix attempts (you are told the attempt count)
 
 **escalate** — the problem is real but outside your ability to fix via a git commit:
 - GKE cluster is provisioning normally (just slow)
 - Error requires GCP-side action (IAM, billing, quota)
-- Stale resourceRefs (orchestrator handles this directly)
+- Stale resourceRefs after a Composition API-group change (needs a live `kubectl patch`, outside what a read-only diagnostics agent can do)
 
 ## Output format
 
@@ -141,4 +141,4 @@ After completing all tool use, output ONLY this JSON — no other text:
 }
 ```
 
-- `confidence: low` if you're unsure — the orchestrator will track repeated failures and escalate automatically
+- `confidence: low` if you're unsure
