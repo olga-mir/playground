@@ -1,0 +1,13 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: kguardian-helm-repo
+  namespace: kguardian
+spec:
+  interval: 10m
+  type: oci
+  # url is the OCI *parent* path — Flux appends HelmRelease.spec.chart.spec.chart
+  # ("kguardian") to this to resolve the final chart ref. Do not add /kguardian
+  # here too, or it resolves to charts/kguardian/kguardian, which doesn't exist.
+  url: oci://ghcr.io/kguardian-dev/charts

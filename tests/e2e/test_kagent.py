@@ -44,6 +44,8 @@ def test_kagent_crds_helmrelease_ready(ctx_apps_dev):
 
 @pytest.mark.apps_dev
 @pytest.mark.kagent
+@pytest.mark.timeout(950)  # must exceed the 900s wait_for_condition timeout below,
+# which itself must exceed the global pytest.ini timeout (600s)
 def test_kagent_helmrelease_ready(ctx_apps_dev):
     wait_for_condition(
         ctx_apps_dev,
