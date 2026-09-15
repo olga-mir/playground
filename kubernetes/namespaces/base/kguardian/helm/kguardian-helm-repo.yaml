@@ -7,4 +7,7 @@ metadata:
 spec:
   interval: 10m
   type: oci
-  url: oci://ghcr.io/kguardian-dev/charts/kguardian
+  # url is the OCI *parent* path — Flux appends HelmRelease.spec.chart.spec.chart
+  # ("kguardian") to this to resolve the final chart ref. Do not add /kguardian
+  # here too, or it resolves to charts/kguardian/kguardian, which doesn't exist.
+  url: oci://ghcr.io/kguardian-dev/charts
