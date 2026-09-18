@@ -6,13 +6,18 @@ Tenants use a **multi-repo** GitOps model: application manifests live in the app
 
 ```
 playground (this repo)               playground-sre (app repo)
-└── kubernetes/tenants/base/sre/      └── k8s/
-    ├── namespace.yaml                    ├── kustomization.yaml
-    ├── gitrepository.yaml                └── deployment.yaml  ← image marker here
-    ├── flux-kustomization.yaml
-    ├── image-repository.yaml
-    ├── image-policy.yaml
-    └── image-update-automation.yaml
+└── kubernetes/tenants/base/         └── workloads/
+    ├── sre/                              ├── perf-lab/k8s/
+    │   ├── namespace.yaml                │   ├── kustomization.yaml
+    │   ├── gitrepository.yaml            │   └── deployment.yaml  ← image marker here
+    │   ├── flux-kustomization.yaml
+    │   ├── image-{repository,policy,update-automation}.yaml
+    │   └── kustomization.yaml
+    └── sre-ebpf/                         └── ebpf-noisy-neighbour/k8s/
+        ├── namespace.yaml                    ├── kustomization.yaml
+        ├── flux-kustomization.yaml           └── daemonset.yaml  ← image marker here
+        ├── image-{repository,policy,update-automation}.yaml
+        └── kustomization.yaml
 ```
 
 Flux on the apps-dev cluster watches the app repo directly. When a new image is pushed, the ImageUpdateAutomation commits the updated tag back to the app repo, and the Kustomization rolls it out.
@@ -60,6 +65,7 @@ The placeholder tag `main-19700101000000-0000000` (Unix epoch) appears when the 
 | Tenant | Namespace | App repo | Registry |
 |---|---|---|---|
 | sre | `sre` | `github.com/olga-mir/playground-sre` | `index.docker.io/olmigar/perf-lab` |
+| sre-ebpf | `ebpf-noisy-neighbour` | `github.com/olga-mir/playground-sre` | `index.docker.io/olmigar/experiment-ebpf` |
 
 Synthetic team tenants (`team-alpha`, `team-bravo`, `team-charlie`, `team-platform`) exist for testing the tenants kustomization structure but have no real workloads.
 
