@@ -131,15 +131,13 @@ echo "Waiting for Crossplane kustomizations to be applied by Flux..."
 kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-install -n flux-system --timeout=5m
 kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-providers -n flux-system --timeout=5m
 
-# Seems to be timing issue with this kustomization and it waits for next cycle after hitting
-# "dependency not ready" on the first attempt. Not sure what is going on here, but this kustomization needs a kick in a right time. (TODO)
-sleep 5
-set +e
-flux reconcile ks crossplane-configs -n flux-system --timeout=2m
-flux reconcile ks crossplane-configs -n flux-system --timeout=2m
+# crossplane-providers reporting Ready only means the Provider packages are healthy, not that
+# their CRDs (e.g. ProviderConfig) are registered with the API server yet. Reconciling
+# crossplane-configs too early fails dry-run with "no matches for kind ProviderConfig" and has
+# to wait for Flux's next cycle. Wait for the CRD itself to be established first.
+kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=established crd/providerconfigs.gcp.m.upbound.io --timeout=2m
 flux reconcile ks crossplane-configs -n flux-system --timeout=2m
 kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=Ready kustomization/crossplane-configs -n flux-system --timeout=5m
-set -e
 
 echo "Waiting for Crossplane to be ready..."
 kubectl --context "${KIND_CLUSTER_CONTEXT}" wait --for=condition=healthy providers.pkg.crossplane.io --all --timeout=600s
