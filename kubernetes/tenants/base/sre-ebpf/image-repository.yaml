@@ -4,6 +4,5 @@ metadata:
   name: experiment-ebpf
   namespace: flux-system
 spec:
-  image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/experiment-ebpf/experiment-ebpf
-  provider: gcp
+  image: index.docker.io/olmigar/experiment-ebpf
   interval: 1m
