@@ -4,5 +4,6 @@ metadata:
   name: perf-lab
   namespace: flux-system
 spec:
-  image: index.docker.io/olmigar/perf-lab
+  image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/perf-lab/perf-lab
+  provider: gcp
   interval: 1m
