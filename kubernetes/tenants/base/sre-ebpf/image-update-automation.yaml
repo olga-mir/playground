@@ -1,7 +1,7 @@
 apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageUpdateAutomation
 metadata:
-  name: perf-lab
+  name: experiment-ebpf
   namespace: flux-system
 spec:
   interval: 5m
@@ -17,9 +17,9 @@ spec:
       author:
         email: fluxcdbot@users.noreply.github.com
         name: fluxcdbot
-      messageTemplate: 'chore: update perf-lab image to {{range .Changed.Changes}}{{.OldValue}} -> {{.NewValue}}{{end}}'
+      messageTemplate: 'chore: update experiment-ebpf image to {{range .Changed.Changes}}{{.OldValue}} -> {{.NewValue}}{{end}}'
     push:
       branch: main
   update:
-    path: ./workloads/perf-lab/k8s
+    path: ./workloads/ebpf-noisy-neighbour/k8s
     strategy: Setters
