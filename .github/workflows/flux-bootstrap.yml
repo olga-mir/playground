@@ -236,6 +236,15 @@ jobs:
 
         echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster }}"
 
+    - name: Annotate image-reflector-controller for Workload Identity (apps-dev only)
+      if: steps.cluster-info.outputs.cluster == 'apps-dev'
+      env:
+        PROJECT_ID: ${{ steps.cluster-info.outputs.projectID }}
+      run: |
+        kubectl annotate serviceaccount image-reflector-controller -n flux-system \
+          iam.gke.io/gcp-service-account="flux-image-reader-sa@${PROJECT_ID}.iam.gserviceaccount.com" \
+          --overwrite
+
     - name: Wait for Flux reconciliation and trigger stalled kustomizations
       run: |
         echo "🕒 Waiting 2 minutes for initial Flux reconciliation..."
