@@ -14,7 +14,7 @@ spec:
     subnetName: "${APPS_DEV_SUBNET_NAME}"
     machineType: "e2-highcpu-4"
     minNodes: 2
-    maxNodes: 5
+    maxNodes: 6
     nodePools:
       - name: noisy-node
         machineType: "e2-standard-2"
