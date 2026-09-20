@@ -223,9 +223,11 @@ jobs:
           --timeout=5m
 
     - name: Apply FluxInstance manifest
+      env:
+        PROJECT_ID: ${{ steps.cluster-info.outputs.projectID }}
       run: |
         CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
-        kubectl apply -f "./kubernetes/clusters/${CLUSTER_NAME}/flux-system/flux-instance.yaml"
+        envsubst '$PROJECT_ID' < "./kubernetes/clusters/${CLUSTER_NAME}/flux-system/flux-instance.yaml" | kubectl apply -f -
 
     - name: Wait for Flux components to be ready
       run: |
