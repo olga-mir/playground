@@ -223,11 +223,9 @@ jobs:
           --timeout=5m
 
     - name: Apply FluxInstance manifest
-      env:
-        PROJECT_ID: ${{ steps.cluster-info.outputs.projectID }}
       run: |
         CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
-        envsubst '$PROJECT_ID' < "./kubernetes/clusters/${CLUSTER_NAME}/flux-system/flux-instance.yaml" | kubectl apply -f -
+        kubectl apply -f "./kubernetes/clusters/${CLUSTER_NAME}/flux-system/flux-instance.yaml"
 
     - name: Wait for Flux components to be ready
       run: |
@@ -235,6 +233,15 @@ jobs:
         kubectl wait --for=condition=Ready fluxinstance/flux -n flux-system --timeout=600s
 
         echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster }}"
+
+    - name: Annotate image-reflector-controller for Workload Identity (apps-dev only)
+      if: steps.cluster-info.outputs.cluster == 'apps-dev'
+      env:
+        PROJECT_ID: ${{ steps.cluster-info.outputs.projectID }}
+      run: |
+        kubectl annotate serviceaccount image-reflector-controller -n flux-system \
+          iam.gke.io/gcp-service-account="flux-image-reader-sa@${PROJECT_ID}.iam.gserviceaccount.com" \
+          --overwrite
 
     - name: Wait for Flux reconciliation and trigger stalled kustomizations
       run: |
