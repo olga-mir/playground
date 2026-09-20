@@ -7,4 +7,3 @@ resources:
   - toolserver.yaml
   - agent.yaml
   - openfga-model-job.yaml
-  - imageautomation.yaml
