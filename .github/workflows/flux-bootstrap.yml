@@ -223,21 +223,9 @@ jobs:
           --timeout=5m
 
     - name: Apply FluxInstance manifest
-      env:
-        PROJECT_ID: ${{ steps.cluster-info.outputs.projectID }}
       run: |
         CLUSTER_NAME="${{ steps.cluster-info.outputs.cluster }}"
-        # envsubst was unreliable in this runner environment (substitution silently
-        # no-op'd, leaving the literal ${PROJECT_ID} placeholder applied to the
-        # cluster). Plain bash/sed expansion is the same pattern already used
-        # reliably elsewhere in this workflow. Fail loudly instead of silently
-        # applying a broken manifest if substitution ever doesn't happen.
-        RENDERED=$(sed "s/\${PROJECT_ID}/${PROJECT_ID}/g" "./kubernetes/clusters/${CLUSTER_NAME}/flux-system/flux-instance.yaml")
-        if echo "$RENDERED" | grep -q '\${PROJECT_ID}'; then
-          echo "::error::PROJECT_ID substitution failed — literal placeholder still present in rendered FluxInstance manifest"
-          exit 1
-        fi
-        echo "$RENDERED" | kubectl apply -f -
+        kubectl apply -f "./kubernetes/clusters/${CLUSTER_NAME}/flux-system/flux-instance.yaml"
 
     - name: Wait for Flux components to be ready
       run: |
@@ -245,23 +233,6 @@ jobs:
         kubectl wait --for=condition=Ready fluxinstance/flux -n flux-system --timeout=600s
 
         echo "Flux bootstrap completed for cluster: ${{ steps.cluster-info.outputs.cluster }}"
-
-    - name: Verify Workload Identity annotation on image-reflector-controller (apps-dev only)
-      if: steps.cluster-info.outputs.cluster == 'apps-dev'
-      env:
-        PROJECT_ID: ${{ steps.cluster-info.outputs.projectID }}
-      run: |
-        # The FluxInstance kustomize.patches block (see kubernetes/clusters/apps-dev/flux-system/flux-instance.yaml)
-        # is the only mechanism that reliably sets this annotation: flux-operator continuously
-        # reconciles its own bundled ServiceAccount manifest and strips any annotation added
-        # out-of-band (e.g. a plain `kubectl annotate` step was tried and silently got wiped).
-        EXPECTED="flux-image-reader-sa@${PROJECT_ID}.iam.gserviceaccount.com"
-        ACTUAL=$(kubectl get serviceaccount image-reflector-controller -n flux-system -o jsonpath='{.metadata.annotations.iam\.gke\.io/gcp-service-account}' || true)
-        if [ "$ACTUAL" != "$EXPECTED" ]; then
-          echo "::error::image-reflector-controller ServiceAccount is missing the expected Workload Identity annotation (got: '${ACTUAL:-<none>}', want: '${EXPECTED}')"
-          exit 1
-        fi
-        echo "✅ image-reflector-controller has the correct Workload Identity annotation"
 
     - name: Wait for Flux reconciliation and trigger stalled kustomizations
       run: |

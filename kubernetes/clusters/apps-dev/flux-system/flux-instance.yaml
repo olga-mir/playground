@@ -20,16 +20,6 @@ spec:
   cluster:
     networkPolicy: true
     type: gcp
-  kustomize:
-    patches:
-      - target:
-          kind: ServiceAccount
-          name: image-reflector-controller
-          namespace: flux-system
-        patch: |
-          - op: add
-            path: /metadata/annotations/iam.gke.io~1gcp-service-account
-            value: flux-image-reader-sa@${PROJECT_ID}.iam.gserviceaccount.com
   sync:
     kind: GitRepository
     url: "https://github.com/olga-mir/playground.git"
