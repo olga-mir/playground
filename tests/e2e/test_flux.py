@@ -23,10 +23,5 @@ def test_flux_healthy_control_plane(ctx_control_plane):
 
 @pytest.mark.apps_dev
 @pytest.mark.flux
-@pytest.mark.xfail(
-    reason="experiment-ebpf/perf-lab ImageUpdateAutomation can't push signed commits to "
-    "playground-sre main (required_signatures ruleset) — see #128, re-enable via #129",
-    strict=False,
-)
 def test_flux_healthy_apps_dev(ctx_apps_dev):
     wait_for_flux_ready(ctx_apps_dev, "apps-dev")
