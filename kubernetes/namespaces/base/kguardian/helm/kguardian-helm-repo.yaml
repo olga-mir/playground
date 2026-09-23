@@ -4,6 +4,8 @@ kind: HelmRepository
 metadata:
   name: kguardian-helm-repo
   namespace: kguardian
+  annotations:
+    upgrade.playground/github-repo: kguardian-dev/kguardian
 spec:
   interval: 10m
   type: oci

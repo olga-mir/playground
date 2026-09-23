@@ -72,8 +72,15 @@ while IFS= read -r file; do
 
   case "$repo_url" in
     oci://ghcr.io/*)
-      # Derive GitHub repo from: oci://ghcr.io/ORG/REPO/... → ORG/REPO
-      github_repo=$(echo "$repo_url" | sed 's|oci://ghcr.io/\([^/]*/[^/]*\).*|\1|')
+      # Derive GitHub repo from: oci://ghcr.io/ORG/REPO/... → ORG/REPO.
+      # Prefer the annotation when set — needed when the OCI path's second segment
+      # isn't the repo name (e.g. kguardian publishes under oci://ghcr.io/kguardian-dev/charts,
+      # a shared "charts" package path, not oci://ghcr.io/kguardian-dev/kguardian/...).
+      if [[ -n "$annotation" ]]; then
+        github_repo="$annotation"
+      else
+        github_repo=$(echo "$repo_url" | sed 's|oci://ghcr.io/\([^/]*/[^/]*\).*|\1|')
+      fi
       items+=("$(make_gh "$rel" "$chart" "$ver" "$github_repo" "helm")")
       seen_github_repos+=("$github_repo")
       ;;
