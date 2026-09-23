@@ -104,6 +104,11 @@ spec:
               clusterRef:
                 name: {{ $.observed.composite.resource.spec.parameters.clusterName }}
               maxPodsPerNode: 32
+              # Extra node pools have no workload that isn't itself node-selector-gated
+              # (DaemonSets), so a 0-node pool never produces a pending pod to make the
+              # cluster autoscaler scale it up to minNodeCount. Force nodes to exist at
+              # creation time instead of relying on that scale-up trigger.
+              initialNodeCount: {{ default 1 .minNodes }}
               nodeConfig:
                 spot: true
                 machineType: {{ .machineType }}
