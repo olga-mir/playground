@@ -5,6 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 5m
+  suspend: true # loop with playground-sre's build-push-ebpf.yml (paths include workloads/ebpf-noisy-neighbour/k8s) — see fix in that repo
   sourceRef:
     kind: GitRepository
     name: playground-sre
