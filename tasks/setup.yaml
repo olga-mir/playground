@@ -108,5 +108,6 @@ tasks:
 
   delete-kind:
     desc: "Delete kind cluster"
+    internal: true
     cmds:
       - kind delete cluster --name kind-test-cluster

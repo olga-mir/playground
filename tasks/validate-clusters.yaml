@@ -21,6 +21,7 @@ tasks:
 
   kustomize-build-overlays:
     desc: "Validate namespace overlays"
+    internal: true
     cmds:
       - echo "📁 Validating namespace overlays..."
       - |
@@ -38,6 +39,7 @@ tasks:
 
   kustomize-build-base:
     desc: "Validate base namespace components"
+    internal: true
     cmds:
       - echo "📁 Validating base namespace components..."
       - |
@@ -61,6 +63,7 @@ tasks:
     desc: "Validate bootstrap cluster (kind)"
     vars:
       CONTEXT: kind-kind-test-cluster
+    internal: true
     silent: true
     cmds:
       - echo "🔍 Validating bootstrap cluster ({{.CONTEXT}})..."
@@ -84,6 +87,7 @@ tasks:
     vars:
       CONTEXT: gke_{{.PROJECT_ID}}_{{.ZONE}}_control-plane
       ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    internal: true
     silent: true
     cmds:
       - task: :setup:ensure-contexts
@@ -113,6 +117,7 @@ tasks:
     vars:
       CONTEXT: gke_{{.PROJECT_ID}}_{{.ZONE}}_apps-dev
       ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    internal: true
     silent: true
     cmds:
       - task: :setup:ensure-contexts
@@ -156,6 +161,7 @@ tasks:
     desc: "Validate architectural constraints"
     vars:
       ZONE: '{{default "australia-southeast1-a" .ZONE}}'
+    internal: true
     cmds:
       - task: :setup:ensure-contexts
       - echo "🏛️  Validating architectural constraints..."
@@ -192,6 +198,7 @@ tasks:
 
   pr-acceptance-criteria:
     desc: "Display PR acceptance criteria"
+    internal: true
     cmds:
       - |
         cat << 'EOF'

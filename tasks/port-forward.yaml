@@ -11,6 +11,20 @@ tasks:
     cmds:
       - kubectl port-forward -n kagent-system svc/openfga-mcp-proxy 8090:8080 --context gke_${PROJECT_ID}_${ZONE}_apps-dev
 
+  kguardian:
+    desc: "Port forward kguardian UI to localhost:5173 (usage: task port-forward:kguardian CLUSTER=control-plane|apps-dev)"
+    vars:
+      CLUSTER: '{{.CLUSTER | default "apps-dev"}}'
+    cmds:
+      - kubectl port-forward -n kguardian svc/kguardian-frontend 5173:5173 --context gke_${PROJECT_ID}_${ZONE}_{{.CLUSTER}}
+
+  kguardian-broker:
+    desc: "Port forward kguardian broker (for the kubectl kguardian CLI plugin) to localhost:9090 (usage: task port-forward:kguardian-broker CLUSTER=control-plane|apps-dev)"
+    vars:
+      CLUSTER: '{{.CLUSTER | default "apps-dev"}}'
+    cmds:
+      - kubectl port-forward -n kguardian svc/kguardian-broker 9090:9090 --context gke_${PROJECT_ID}_${ZONE}_{{.CLUSTER}}
+
   # https://github.com/christian-posta/scripted-solo-demos/tree/master/agentgateway/kubernetes
   agw:
     desc: "Port forward agent gateway"
