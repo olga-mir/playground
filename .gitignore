@@ -1,5 +1,6 @@
 .DS_Store
 .setup-env
+__pycache__
 
 .env.*
 .vscode
