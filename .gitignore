@@ -15,13 +15,7 @@ local-stash/**
 .version-report.md
 .version-report.json
 
-# Orchestrator run state and summaries
-orchestrator/runs/
-
 # kagent pre-teardown snapshots (bulky, stay on disk only)
 release-artifacts/kagent-snapshot-*/
 
-# uv managed virtualenv
-orchestrator/.venv/
-__pycache__
-orchestrator.egg-info
+release-artifacts/
