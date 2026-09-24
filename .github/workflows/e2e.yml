@@ -30,7 +30,7 @@ permissions:
 jobs:
   e2e:
     name: E2E Tests (GKE only)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -99,15 +99,15 @@ jobs:
         run: |
           echo "Checking connectivity to control-plane..."
           if [ "${{ steps.discover.outputs.control_plane_location }}" != "" ]; then
-            kubectl --context="gke_${{ secrets.PROJECT_ID }}_${{ steps.discover.outputs.control_plane_location }}_control-plane" cluster-info || echo "::warning::Failed to connect to control-plane"
+            kubectl --context="gke_${{ secrets.PROJECT_ID }}_${{ steps.discover.outputs.control_plane_location }}_control-plane" cluster-info || exit 1
           fi
           echo "Checking connectivity to apps-dev..."
           if [ "${{ steps.discover.outputs.apps_dev_location }}" != "" ]; then
-            kubectl --context="gke_${{ secrets.PROJECT_ID }}_${{ steps.discover.outputs.apps_dev_location }}_apps-dev" cluster-info || echo "::warning::Failed to connect to apps-dev"
+            kubectl --context="gke_${{ secrets.PROJECT_ID }}_${{ steps.discover.outputs.apps_dev_location }}_apps-dev" cluster-info || exit 1
           fi
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -130,7 +130,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results-${{ inputs.version || github.run_id }}
           path: release-artifacts/

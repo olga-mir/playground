@@ -14,6 +14,10 @@ on:
         description: 'Release version (e.g. v1.2.3)'
         required: true
         type: string
+      description:
+        description: 'Custom description to prepend to the release notes'
+        type: string
+        required: false
       prerelease:
         description: 'Mark as pre-release'
         type: boolean
@@ -44,7 +48,7 @@ jobs:
   release:
     name: Create Release
     needs: e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -53,7 +57,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download test results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: e2e-results-${{ inputs.version }}
           path: release-artifacts/
@@ -62,7 +66,7 @@ jobs:
       # Verify post-release with:
       #   gh attestation verify release-artifacts/junit.xml --repo <owner>/<repo>
       - name: Attest test results (SLSA L2)
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: release-artifacts/junit.xml
 
@@ -76,13 +80,20 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_DESC: ${{ inputs.description }}
         run: |
-          PRERELEASE_FLAG=""
+          ARGS=("${{ inputs.version }}")
+          ARGS+=(--title "Release ${{ inputs.version }}")
+          ARGS+=(--generate-notes)
+          
           if [ "${{ inputs.prerelease }}" = "true" ]; then
-            PRERELEASE_FLAG="--prerelease"
+            ARGS+=(--prerelease)
           fi
-          gh release create "${{ inputs.version }}" \
-            --title "Release ${{ inputs.version }}" \
-            --generate-notes \
-            $PRERELEASE_FLAG \
-            "release-artifacts/junit.xml#E2E test results (JUnit XML)"
+          
+          if [ -n "$RELEASE_DESC" ]; then
+            ARGS+=(--notes "$RELEASE_DESC")
+          fi
+          
+          ARGS+=("release-artifacts/junit.xml#E2E test results (JUnit XML)")
+          
+          gh release create "${ARGS[@]}"
