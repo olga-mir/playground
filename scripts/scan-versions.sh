@@ -116,6 +116,9 @@ while IFS= read -r file; do
     # Strip registry host, keep ORG/PKGNAME (before the colon)
     org_path=$(echo "$package" | sed 's|[^/]*/\(.*\):.*|\1|')
     github_repo="$org_path"
+    if [[ "$github_repo" == upbound/provider-family-gcp ]] || [[ "$github_repo" == upbound/provider-gcp-* ]]; then
+      github_repo="upbound/provider-gcp"
+    fi
     pkg_basename="${org_path##*/}"
 
     items+=("$(make_gh "${file#"$REPO_ROOT"/}" "$pkg_basename" "$version" "$github_repo" "crossplane")")
