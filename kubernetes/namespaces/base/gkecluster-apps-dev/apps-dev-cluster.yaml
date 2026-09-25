@@ -30,8 +30,10 @@ spec:
         machineType: "e2-standard-2"
         minNodes: 1
         maxNodes: 2
-        # gVisor requires COS_CONTAINERD image type
-        imageType: "COS_CONTAINERD"
+        # gVisor requires cos_containerd image type
+        imageType: "cos_containerd"
+        sandboxConfig:
+          type: gvisor
         labels:
           sandbox: gvisor
         taints:
