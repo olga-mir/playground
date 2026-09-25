@@ -30,12 +30,8 @@ spec:
         machineType: "e2-standard-2"
         minNodes: 1
         maxNodes: 2
-        # gVisor requires cos_containerd image type
-        imageType: "cos_containerd"
-        labels:
-          sandbox: gvisor
-        taints:
-          - key: sandbox
-            value: gvisor
-            effect: NO_SCHEDULE
+        # Debug: bare nodeConfig (no imageType/labels/taints) to isolate #126's
+        # "value is null" create panic in provider-gcp-container v3.0.0 —
+        # matches the shape of apps-dev-pool/noisy-node, which were only ever
+        # created under v2.5.0 and never exercised the v3.0.0 create path.
 
