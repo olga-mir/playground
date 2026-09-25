@@ -86,10 +86,7 @@ This avoids confusion with GitHub tags like `litmus-agent-3.26.0` (a different c
 
 ### `provider-gcp-gke` — upbound package
 
-This package (`xpkg.upbound.io/upbound/provider-gcp-gke`) is tracked as
-`upbound/provider-gcp-gke` on GitHub. If the GitHub releases API returns 404
-(repo not found or no releases), the fetch script marks it as `unknown` and skips it.
-Check the workflow run log for a WARN message; update the package manually if needed.
+This package (`xpkg.upbound.io/upbound/provider-gcp-gke`), along with other GCP provider packages (`provider-family-gcp`, `provider-gcp-container`), comes from the `upbound/provider-gcp` monorepo. The `scan-versions.sh` script automatically detects these and maps them to `upbound/provider-gcp` on GitHub to fetch the correct releases.
 
 ### Edit tool in GitHub Actions
 
