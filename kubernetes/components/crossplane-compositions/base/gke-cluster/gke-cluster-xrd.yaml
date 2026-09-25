@@ -41,7 +41,7 @@ spec:
                     type: object
                     properties:
                       enabled: { type: boolean, default: false }
-                      version: { type: string, default: "v3.0.0" }
+                      version: { type: string, default: "v2.5.0" }
                   nodePools:
                     type: array
                     items:
