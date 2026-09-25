@@ -35,7 +35,7 @@ spec:
         labels:
           sandbox: gvisor
         taints:
-          - key: sandbox.gke.io/runtime
+          - key: sandbox
             value: gvisor
             effect: NO_SCHEDULE
 
