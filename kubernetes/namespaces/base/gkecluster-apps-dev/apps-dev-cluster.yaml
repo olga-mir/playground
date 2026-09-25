@@ -26,4 +26,18 @@ spec:
           - key: dedicated
             value: noisy-node
             effect: NO_SCHEDULE
+      - name: gvisor-sandbox
+        machineType: "e2-standard-2"
+        minNodes: 1
+        maxNodes: 2
+        # gVisor requires cos_containerd image type
+        imageType: "cos_containerd"
+        sandboxConfig:
+          type: gvisor
+        labels:
+          sandbox: gvisor
+        taints:
+          - key: sandbox.gke.io/runtime
+            value: gvisor
+            effect: NO_SCHEDULE
 

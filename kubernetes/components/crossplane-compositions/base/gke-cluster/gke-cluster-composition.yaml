@@ -119,6 +119,13 @@ spec:
                   - "https://www.googleapis.com/auth/cloud-platform"
                 workloadMetadataConfig:
                   mode: GKE_METADATA
+                {{- if .imageType }}
+                imageType: {{ .imageType }}
+                {{- end }}
+                {{- if .sandboxConfig }}
+                sandboxConfig:
+                  type: {{ .sandboxConfig.type }}
+                {{- end }}
                 {{- if .labels }}
                 labels:
                   {{- range $k, $v := .labels }}

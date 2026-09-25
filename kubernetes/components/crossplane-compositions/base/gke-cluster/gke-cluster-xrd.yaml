@@ -64,6 +64,14 @@ spec:
                               key: { type: string }
                               value: { type: string }
                               effect: { type: string }
+                        # imageType must be cos_containerd when sandboxConfig.type is gvisor
+                        imageType: { type: string }
+                        sandboxConfig:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                              enum: ["gvisor"]
           status:
             type: object
             properties:
