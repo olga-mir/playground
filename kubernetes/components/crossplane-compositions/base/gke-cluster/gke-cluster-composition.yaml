@@ -105,6 +105,8 @@ spec:
             forProvider:
               clusterRef:
                 name: {{ $.observed.composite.resource.spec.parameters.clusterName }}
+              location: {{ $.observed.composite.resource.spec.parameters.zone }}
+              project: {{ $.observed.composite.resource.spec.parameters.projectId }}
               maxPodsPerNode: 32
               # Extra node pools have no workload that isn't itself node-selector-gated
               # (DaemonSets), so a 0-node pool never produces a pending pod to make the
@@ -119,6 +121,13 @@ spec:
                   - "https://www.googleapis.com/auth/cloud-platform"
                 workloadMetadataConfig:
                   mode: GKE_METADATA
+                {{- if .imageType }}
+                imageType: {{ .imageType }}
+                {{- end }}
+                {{- if .sandboxConfig }}
+                sandboxConfig:
+                  type: {{ .sandboxConfig.type }}
+                {{- end }}
                 {{- if .labels }}
                 labels:
                   {{- range $k, $v := .labels }}

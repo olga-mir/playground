@@ -26,4 +26,12 @@ spec:
           - key: dedicated
             value: noisy-node
             effect: NO_SCHEDULE
+      - name: gvisor-sandbox
+        machineType: "e2-standard-2"
+        minNodes: 1
+        maxNodes: 2
+        # Debug: bare nodeConfig (no imageType/labels/taints) to isolate #126's
+        # "value is null" create panic in provider-gcp-container v3.0.0 —
+        # matches the shape of apps-dev-pool/noisy-node, which were only ever
+        # created under v2.5.0 and never exercised the v3.0.0 create path.
 

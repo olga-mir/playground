@@ -1,0 +1,55 @@
+# Smoke-test for gVisor Agent Sandbox node pool (issue #126).
+# Apply manually after apps-dev cluster is ready:
+#   kubectl apply -f this-file --context <apps-dev-context>
+# Verify sandboxing:
+#   kubectl logs gvisor-smoke-test --context <apps-dev-context>
+# Expected output contains "Linux" with a gVisor-specific kernel string (not the host kernel).
+# Cleanup:
+#   kubectl delete pod gvisor-smoke-test --context <apps-dev-context>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gvisor-smoke-test
+  namespace: default
+  labels:
+    app: gvisor-smoke-test
+spec:
+  # Target the gVisor-sandboxed node pool
+  runtimeClassName: gvisor
+  nodeSelector:
+    sandbox: gvisor
+  tolerations:
+    - key: sandbox.gke.io/runtime
+      value: gvisor
+      effect: NoSchedule
+  # GKE Agent Sandbox pod security requirements
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534  # nobody
+    seccompProfile:
+      type: RuntimeDefault
+  restartPolicy: Never
+  containers:
+    - name: verify
+      image: busybox:1.36
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          echo "=== Kernel version (should be gVisor, not host kernel) ==="
+          uname -r
+          echo "=== /proc/version ==="
+          cat /proc/version
+          echo "=== Done ==="
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "64Mi"
+        limits:
+          cpu: "200m"
+          memory: "128Mi"
