@@ -76,6 +76,8 @@ spec:
                 spot: true
                 machineType: {{ .observed.composite.resource.spec.parameters.machineType }}
                 diskSizeGb: 50
+                oauthScopes:
+                  - "https://www.googleapis.com/auth/cloud-platform"
                 workloadMetadataConfig:
                   mode: GKE_METADATA
               autoscaling:
@@ -113,6 +115,8 @@ spec:
                 spot: true
                 machineType: {{ .machineType }}
                 diskSizeGb: 50
+                oauthScopes:
+                  - "https://www.googleapis.com/auth/cloud-platform"
                 workloadMetadataConfig:
                   mode: GKE_METADATA
                 {{- if .labels }}
