@@ -30,10 +30,6 @@ spec:
         machineType: "e2-standard-2"
         minNodes: 1
         maxNodes: 2
-        # gVisor requires cos_containerd image type
-        imageType: "cos_containerd"
-        # Note: sandboxConfig.type is omitted here because Upbound provider-gcp v3.0.0
-        # contains an upstream panic bug in terraform-provider-google's expandNodeConfig.
         labels:
           sandbox: gvisor
         taints:
